@@ -1,2 +1,2 @@
-# ype
-yet indeed (another) physics engine
+# yipe
+yet (indeed, another) physics engine
