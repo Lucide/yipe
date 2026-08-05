@@ -1,30 +1,87 @@
+#include "common.h"
+#include <cuda_runtime.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "kernel.h"
-#include <cuda_runtime.h>
+
+#define ARR_SIZE 200000 // 2^31 / sizeof(Point) = 2^31 / 12 = 178956970
+#define ROOM_WIDTH 600.
+#define ROOM_DEPTH 400.
+#define ROOM_HEIGHT 300.
+
+int get_cores_per_SM(int major, int minor) {
+  switch (major) {
+  case 2: // Fermi
+    return (minor == 1) ? 48 : 32;
+  case 3: // Kepler
+    return 192;
+  case 5: // Maxwell
+    return 128;
+  case 6: // Pascal
+    if (minor == 0)
+      return 64;
+    if (minor == 1 || minor == 2)
+      return 128;
+    break;
+  case 7: // Volta & Turing
+    if (minor == 0 || minor == 5)
+      return 64;
+    break;
+  case 8: // Ampere & Hopper
+    if (minor == 0)
+      return 64; // GA100 / H100
+    if (minor == 6 || minor == 9)
+      return 128; // GA10x / Ada Lovelace
+    break;
+  case 9: // Blackwell
+    if (minor == 0)
+      return 128;
+    break;
+  default:
+    break;
+  }
+  return 128; // Default fallback for newer unknown architectures
+}
+
+GPUInfo fetch_gpu_info() {
+  int deviceID;
+  cudaGetDevice(&deviceID);
+  struct cudaDeviceProp props;
+  cudaGetDeviceProperties(&props, deviceID);
+
+  int const multiprocessors = props.multiProcessorCount;
+  int const cores_per_multiprocessor = get_cores_per_SM(props.major, props.minor);
+
+  return (GPUInfo){multiprocessors, cores_per_multiprocessor};
+}
+
+// Function to fill an array with random numbers within a specific range
+void generate_random_points(Point *const points, uint seed) {
+  // 1. Initialize the random number generator with the provided seed
+  srand(seed);
+
+  // 2. Loop through the array and assign a random number to each element
+  for (int i = 0; i < ARR_SIZE; ++i) {
+    points[i] = (Point){.x = (float)((double)rand() / RAND_MAX * ROOM_WIDTH),
+                        .y = (float)((double)rand() / RAND_MAX * ROOM_DEPTH),
+                        .z = (float)((double)rand() / RAND_MAX * ROOM_HEIGHT)};
+  }
+}
 
 int main(int const argc, char const *const *const argv) {
-  int const size = 5;
-  float data[5] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f};
+  GPUInfo const info = fetch_gpu_info();
 
-  float *d_data;
+  struct Point *const cpu_points = malloc(sizeof(Point[ARR_SIZE]));
+  generate_random_points(cpu_points, 0);
 
-  // Allocate and copy data to GPU
-  cudaMalloc((void**)&d_data, size * sizeof(float));
-  cudaMemcpy(d_data, data, size * sizeof(float), cudaMemcpyHostToDevice);
+  struct Point *gpu_points;
+  cudaMalloc((void **)&gpu_points, sizeof(Point[ARR_SIZE]));
+  cudaMemcpy(gpu_points, cpu_points, sizeof(Point[ARR_SIZE]), cudaMemcpyHostToDevice);
 
-  // Launch the kernel (unsupported by standard C compilers)
-  int threadsPerBlock = 256;
-  int blocksPerGrid = (size + threadsPerBlock - 1) / threadsPerBlock;
-
-  launch_kernel1(blocksPerGrid, threadsPerBlock, d_data, size);
+  printf("Launch\n");
+  launch_sort_points(&info, gpu_points, ARR_SIZE);
 
   // Copy result back and clean up
-  cudaMemcpy(data, d_data, size * sizeof(float), cudaMemcpyDeviceToHost);
-  cudaFree(d_data);
+  cudaFree(gpu_points);
 
-  for(int i = 0; i < size; i++) {
-    printf("%f ", data[i]); // Outputs: 2.0 4.0 6.0 8.0 10.0
-  }
   return 0;
 }

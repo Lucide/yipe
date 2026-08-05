@@ -1,0 +1,35 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "cmake",
+			"label": "CMake: build",
+			"command": "build",
+			"targets": [
+				"yipe"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": [
+				"$msCompile",
+				"$nvcc",
+				{
+					"owner": "cuda-nvcc",
+					"fileLocation": [
+						"absolute"
+					],
+					"pattern": {
+						"regexp": "(warning|error):\\s*(.+)\\((\\d+)\\):.*:\\s+(.*)$",
+						"file": 2,
+						"line": 3,
+						"severity": 1,
+						"message": 4
+					}
+				}
+			],
+			"detail": "CMake template build task"
+		}
+	]
+}

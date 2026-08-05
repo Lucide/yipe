@@ -1,0 +1,60 @@
+CompileFlags:
+  Remove:
+    # Strip NVCC flags that cause clangd parsing errors
+    - -forward-unknown-to-host-compiler
+    - -Xcompiler=*
+    - -Xcudafe
+    - -Xfatbin*
+    - -Xclang*
+    - --generate-code=*
+    - -gencode*
+    - -ccbin*
+    - -rdc=*
+    - --options-file*
+    - --extended-lambda
+    - --display_error_number
+    # Strip MSVC-style flags that clang doesn't understand
+    # (these bleed in when clangd uses main.c as the context for header files)
+    # - -FS
+    # - -FS
+    # - -nologo
+    # - -EHsc
+    # - -Ob*
+    # - -Od
+    # - -MDd
+    # - -MD
+    # - -RTC*
+    # - -Zi
+    # - -Fo*
+    # - -Fd*
+    # - -std:*
+    # - -showIncludes
+    # - -external:*
+    # - -D_MBCS
+    # - -DWIN32
+    # - -D_WINDOWS
+  Add:
+    - -Wno-c++98-compat
+    - -Wno-c++98-compat-pedantic
+    - -Wno-missing-prototypes
+    # Set the path to your NVIDIA CUDA installation
+    - --cuda-path=@CMAKE_CUDA_COMPILER_TOOLKIT_ROOT@
+    # Ensure C++20 is always set — nvcc's -std=c++20 is stripped along with other
+    # nvcc-specific flags, so we must re-add it unconditionally here.
+    # - -std=c++20
+    # Windows MSVC support
+    - --driver-mode=cl
+
+---
+# For all CUDA source and header files:
+# - Force clang++ as the compiler so cl.exe is never used (important for
+#   headers that clangd may "inherit" a context from main.c).
+# - Mark as CUDA so clangd activates its CUDA language mode.
+If:
+  PathMatch: .*\.(cu|cuh)
+CompileFlags:
+  Compiler: clang++
+  Add:
+    - -x
+    - cuda
+    - -std:c++20

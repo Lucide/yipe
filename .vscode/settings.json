@@ -1,0 +1,5 @@
+{
+    "cmake.copyCompileCommands": "${workspaceRoot}/compile_commands.json",
+    "cmake.generator": "Ninja",
+    "cmake.buildDirectory": "${workspaceFolder}/cmake-build-debug-vs",
+}
