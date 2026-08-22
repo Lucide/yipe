@@ -1,5 +1,4 @@
-#ifndef YIPE_COMMON_H
-#define YIPE_COMMON_H
+#pragma once
 
 #ifdef _MSC_VER
 #pragma warning(disable : 5039)
@@ -10,6 +9,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define ARRAY_LENGTH(arr) (sizeof(arr) / sizeof(*(arr)))
+#define ARRAY_LENGTH_2D(arr) (sizeof(arr) / sizeof(**(arr)))
 
 typedef unsigned int uint;
 typedef uint32_t u32;
@@ -26,10 +28,8 @@ typedef struct Point {
   float x, y, z;
 } Point;
 
-void launch_sort_points(GPUInfo const *info, Point *points, u32 size);
+void launch_sort_points(GPUInfo const *info, Point *points, u32 length);
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

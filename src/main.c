@@ -61,9 +61,9 @@ void generate_random_points(Point *const points, uint seed) {
 
   // 2. Loop through the array and assign a random number to each element
   for (int i = 0; i < ARR_SIZE; ++i) {
-    points[i] = (Point){.x = (float)((double)rand() / RAND_MAX * ROOM_WIDTH),
-                        .y = (float)((double)rand() / RAND_MAX * ROOM_DEPTH),
-                        .z = (float)((double)rand() / RAND_MAX * ROOM_HEIGHT)};
+    points[i] = (Point){.x = (float)((double)rand() / RAND_MAX * ROOM_WIDTH),   // NOLINT(cert-msc50-cpp)
+                        .y = (float)((double)rand() / RAND_MAX * ROOM_DEPTH),   // NOLINT(cert-msc50-cpp)
+                        .z = (float)((double)rand() / RAND_MAX * ROOM_HEIGHT)}; // NOLINT(cert-msc50-cpp)
   }
 }
 

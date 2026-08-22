@@ -1,0 +1,1256 @@
+I[19:42:55.225] clangd version 22.1.6 (https://github.com/llvm/llvm-project fc4aad7b5db3fff421df9a9637605b9ca5667881)
+I[19:42:55.234] Features: windows+grpc
+I[19:42:55.251] PID: 9676
+I[19:42:55.268] Working directory: D:\Users\Nemo\OneDrive-shared\cuda\yipe
+I[19:42:55.284] argv[0]: C:\Users\Nemo\AppData\Roaming\Code\User\globalStorage\llvm-vs-code-extensions.vscode-clangd\install\22.1.6\clangd_22.1.6\bin\clangd.exe
+I[19:42:55.301] argv[1]: --check=src/spatial-hash.cu
+I[19:42:55.318] argv[2]: --compile-commands-dir=.
+I[19:42:55.335] argv[3]: --log=verbose
+V[19:42:55.356] User config file is C:\Users\Nemo\AppData\Local\clangd\config.yaml
+I[19:42:55.368] Entering check mode (no LSP server)
+I[19:42:55.369] Testing on source file D:\Users\Nemo\OneDrive - Università degli Studi di Udine\Shared\cuda\yipe\src\spatial-hash.cu
+I[19:42:55.372] Loading config file at D:\Users\Nemo\OneDrive - Università degli Studi di Udine\Shared\cuda\yipe\.clangd
+V[19:42:55.373] config note at D:\Users\Nemo\OneDrive - Università degli Studi di Udine\Shared\cuda\yipe\.clangd:1:0: Parsing config fragment
+V[19:42:55.373] config note at D:\Users\Nemo\OneDrive - Università degli Studi di Udine\Shared\cuda\yipe\.clangd:56:0: Parsing config fragment
+V[19:42:55.374] config note at D:\Users\Nemo\OneDrive - Università degli Studi di Udine\Shared\cuda\yipe\.clangd:1:0: Parsed 2 fragments from file
+V[19:42:55.374] Config fragment: compiling D:\Users\Nemo\OneDrive - Università degli Studi di Udine\Shared\cuda\yipe\.clangd:1 -> 0x000001CDDBCDAF40 (trusted=false)
+V[19:42:55.376] Config fragment: compiling D:\Users\Nemo\OneDrive - Università degli Studi di Udine\Shared\cuda\yipe\.clangd:56 -> 0x000001CDDBCDB1C0 (trusted=false)
+V[19:42:55.377] Config fragment: compiling <unknown>:0 -> 0x000001CDDBCDB170 (trusted=false)
+I[19:42:55.378] Loading compilation database...
+I[19:42:55.467] Loaded compilation database from D:\Users\Nemo\OneDrive-shared\cuda\yipe\.\compile_commands.json
+V[19:42:55.467] Broadcasting compilation database from D:\Users\Nemo\OneDrive-shared\cuda\yipe\.
+I[19:42:55.468] Compile command from CDB is: [D:/Users/Nemo/OneDrive-shared/cuda/yipe/cmake-build-debug-vs] "C:\\Users\\Nemo\\AppData\\Roaming\\Code\\User\\globalStorage\\llvm-vs-code-extensions.vscode-clangd\\install\\22.1.6\\clangd_22.1.6\\bin\\clang++" -D_MBCS "-ID:\\Users\\Nemo\\OneDrive-shared\\cuda\\yipe\\src" -isystem "C:\\Program Files\\NVIDIA Corporation\\CUDA\\v13.3\\include" -isystem "C:\\Program Files\\NVIDIA Corporation\\CUDA\\v13.3\\include\\cccl" -D_WINDOWS -std=c++20 -Wall -x cu -c -o "CMakeFiles\\yipe.dir\\src\\spatial-hash.cu.obj" -Wno-c++98-compat -Wno-c++98-compat-pedantic -Wno-missing-prototypes "--cuda-path=C:/Program Files/NVIDIA Corporation/CUDA/v13.3" --driver-mode=cl --cuda-gpu-arch=sm_70 -x cuda -std:c++20 "-resource-dir=C:\\Users\\Nemo\\AppData\\Roaming\\Code\\User\\globalStorage\\llvm-vs-code-extensions.vscode-clangd\\install\\22.1.6\\clangd_22.1.6\\lib\\clang\\22" -- "D:\\Users\\Nemo\\OneDrive - Universit\xC3\xA0 degli Studi di Udine\\Shared\\cuda\\yipe\\src\\spatial-hash.cu"
+I[19:42:55.469] Parsing command...
+V[19:42:55.471] Ignored diagnostic. unknown argument ignored in clang-cl: '-isystem'
+V[19:42:55.471] Ignored diagnostic. unknown argument ignored in clang-cl: '-isystem'
+V[19:42:55.472] Ignored diagnostic. unknown argument ignored in clang-cl: '-std=c++20'
+V[19:42:55.481] Ignored diagnostic. CUDA version is newer than the latest partially supported version 12.9
+V[19:42:55.482] Ignored diagnostic. C:\Program Files\NVIDIA Corporation\CUDA\v13.3\include: 'linker' input unused
+V[19:42:55.484] Ignored diagnostic. C:\Program Files\NVIDIA Corporation\CUDA\v13.3\include\cccl: 'linker' input unused
+V[19:42:55.489] Ignored diagnostic. argument unused during compilation: '-c'
+I[19:42:55.489] internal (cc1) args are: -cc1 -triple nvptx64-nvidia-cuda -aux-triple x86_64-pc-windows-msvc -fsyntax-only -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name spatial-hash.cu -mrelocation-model static -mframe-pointer=all -relaxed-aliasing -fno-rounding-math -no-integrated-as -aux-target-cpu x86-64 -fcuda-is-device -mllvm -enable-memcpyopt-without-libcalls -fno-threadsafe-statics -fcuda-allow-variadic-functions -mlink-builtin-bitcode "C:/Program Files/NVIDIA Corporation/CUDA/v13.3/nvvm/libdevice/libdevice.10.bc" -target-sdk-version=12.9 -target-cpu sm_70 -target-feature +ptx88 -D_MT -flto-visibility-public-std --dependent-lib=libcmt --dependent-lib=oldnames -fdiagnostics-format msvc -debugger-tuning=gdb -fno-dwarf-directory-asm -fdebug-compilation-dir=D:/Users/Nemo/OneDrive-shared/cuda/yipe/cmake-build-debug-vs -resource-dir "C:\\Users\\Nemo\\AppData\\Roaming\\Code\\User\\globalStorage\\llvm-vs-code-extensions.vscode-clangd\\install\\22.1.6\\clangd_22.1.6\\lib\\clang\\22" -internal-isystem "C:\\Users\\Nemo\\AppData\\Roaming\\Code\\User\\globalStorage\\llvm-vs-code-extensions.vscode-clangd\\install\\22.1.6\\clangd_22.1.6\\lib\\clang\\22\\include\\cuda_wrappers" -include __clang_cuda_runtime_wrapper.h -D__CUDA_ARCH_LIST__=700 -D _MBCS -I "D:\\Users\\Nemo\\OneDrive-shared\\cuda\\yipe\\src" -D _WINDOWS -internal-isystem "C:\\Users\\Nemo\\AppData\\Roaming\\Code\\User\\globalStorage\\llvm-vs-code-extensions.vscode-clangd\\install\\22.1.6\\clangd_22.1.6\\lib\\clang\\22\\include" -internal-isystem "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Tools\\MSVC\\14.44.35207\\include" -internal-isystem "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Tools\\MSVC\\14.44.35207\\atlmfc\\include" -internal-isystem "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\ucrt" -internal-isystem "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\shared" -internal-isystem "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\um" -internal-isystem "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\winrt" -internal-isystem "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\cppwinrt" -internal-isystem "C:/Program Files/NVIDIA Corporation/CUDA/v13.3/include" -internal-isystem "C:\\Users\\Nemo\\AppData\\Roaming\\Code\\User\\globalStorage\\llvm-vs-code-extensions.vscode-clangd\\install\\22.1.6\\clangd_22.1.6\\lib\\clang\\22\\include" -internal-isystem "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Tools\\MSVC\\14.44.35207\\include" -internal-isystem "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Tools\\MSVC\\14.44.35207\\atlmfc\\include" -internal-isystem "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\ucrt" -internal-isystem "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\shared" -internal-isystem "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\um" -internal-isystem "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\winrt" -internal-isystem "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\cppwinrt" -Weverything -Wno-c++98-compat -Wno-c++98-compat-pedantic -Wno-missing-prototypes -fdeprecated-macro -fno-autolink -ferror-limit 19 --offload-new-driver -fms-extensions -fms-compatibility -fms-compatibility-version=19.44.35228 -std=c++20 -fno-implicit-modules -fskip-odr-check-in-gmf -no-round-trip-args -cuid=268c08e4aedce50b -x cuda "D:\\Users\\Nemo\\OneDrive - Universit\xC3\xA0 degli Studi di Udine\\Shared\\cuda\\yipe\\src\\spatial-hash.cu"
+I[19:42:55.494] Building preamble...
+V[19:42:56.414] Dropped diagnostic: : call to 'fma' is ambiguous
+I[19:42:56.610] Built preamble of size 13742656 for file D:\Users\Nemo\OneDrive - Università degli Studi di Udine\Shared\cuda\yipe\src\spatial-hash.cu version null in 1.11 seconds
+I[19:42:56.610] Indexing headers...
+V[19:42:56.931] indexed preamble AST for D:\Users\Nemo\OneDrive - Università degli Studi di Udine\Shared\cuda\yipe\src\spatial-hash.cu version null:
+  symbol slab: 20809 symbols, 8049943 bytes
+  ref slab: 0 symbols, 0 refs, 136 bytes
+  relations slab: 117 relations, 2421 bytes
+V[19:42:57.027] Build dynamic index for header symbols with estimated memory usage of 15530680 bytes
+E[19:42:57.039] [pp_file_not_found] Line 1: 'cuda/std/bit' file not found
+I[19:42:57.039] Building AST...
+V[19:42:57.131] Ignored diagnostic. D:\Users\Nemo\OneDrive-shared\cuda\yipe\src\common.h:31:6:differing parameters are named here: ('size'), in definition: ('length') [readability-inconsistent-declaration-parameter-name]
+E[19:42:57.133] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+I[19:42:57.136] Indexing AST...
+V[19:42:57.136] indexed file AST for D:\Users\Nemo\OneDrive - Università degli Studi di Udine\Shared\cuda\yipe\src\spatial-hash.cu version null:
+  symbol slab: 3 symbols, 4920 bytes
+  ref slab: 16 symbols, 33 refs, 4688 bytes
+  relations slab: 0 relations, 24 bytes
+V[19:42:57.137] Build dynamic index for main-file symbols with estimated memory usage of 13920 bytes
+I[19:42:57.137] Building inlay hints
+V[19:42:57.137]   designator 4:10 [{.x=}]
+V[19:42:57.137]   designator 4:57 [{.y=}]
+V[19:42:57.138]   designator 5:10 [{.z=}]
+V[19:42:57.138]   designator 9:32 [{[0]=}]
+V[19:42:57.138]   designator 9:42 [{[1]=}]
+V[19:42:57.139]   designator 9:52 [{[2]=}]
+V[19:42:57.139]   type 18:13 [{: (lambda)}]
+V[19:42:57.140]   parameter 18:67 [{point:}]
+V[19:42:57.140]   parameter 18:70 [{particle_count:}]
+V[19:42:57.140]   parameter 20:13 [{data:}]
+I[19:42:57.140] Building semantic highlighting
+V[19:42:57.141]  3:0-3:3 Macro 131072
+V[19:42:57.141]  3:4-3:8 Class 66048
+V[19:42:57.141]  3:9-3:25 Function 131075
+V[19:42:57.141]  3:26-3:31 Class 65536
+V[19:42:57.142]  3:39-3:44 Parameter 16403
+V[19:42:57.142]  4:21-4:22 Bracket 0
+V[19:42:57.142]  4:25-4:26 Bracket 0
+V[19:42:57.143]  4:27-4:32 Parameter 16400
+V[19:42:57.143]  4:33-4:34 Field 32768
+V[19:42:57.143]  4:35-4:36 Operator 0
+V[19:42:57.143]  4:37-4:54 Macro 131072
+V[19:42:57.144]  4:68-4:69 Bracket 0
+V[19:42:57.144]  4:72-4:73 Bracket 0
+V[19:42:57.144]  4:74-4:79 Parameter 16400
+V[19:42:57.144]  4:80-4:81 Field 32768
+V[19:42:57.145]  4:82-4:83 Operator 0
+V[19:42:57.145]  4:84-4:101 Macro 131072
+V[19:42:57.145]  5:21-5:22 Bracket 0
+V[19:42:57.145]  5:25-5:26 Bracket 0
+V[19:42:57.146]  5:27-5:32 Parameter 16400
+V[19:42:57.146]  5:33-5:34 Field 32768
+V[19:42:57.146]  5:35-5:36 Operator 0
+V[19:42:57.146]  5:37-5:54 Macro 131072
+V[19:42:57.147]  8:0-8:3 Macro 131072
+V[19:42:57.147]  8:4-8:7 Primitive 65536
+V[19:42:57.147]  8:8-8:18 Function 131075
+V[19:42:57.147]  8:19-8:24 Class 65536
+V[19:42:57.148]  8:32-8:37 Parameter 16403
+V[19:42:57.148]  8:39-8:42 Primitive 65536
+V[19:42:57.148]  8:49-8:63 Parameter 16403
+V[19:42:57.148]  9:9-9:12 Primitive 65536
+V[19:42:57.148]  9:19-9:25 LocalVariable 16435
+V[19:42:57.149]  10:2-10:6 Class 66048
+V[19:42:57.149]  10:7-10:15 LocalVariable 16387
+V[19:42:57.149]  10:18-10:34 Function 131072
+V[19:42:57.149]  10:35-10:40 Parameter 16400
+V[19:42:57.150]  11:22-11:23 Bracket 0
+V[19:42:57.150]  11:23-11:26 Primitive 65536
+V[19:42:57.150]  11:26-11:27 Bracket 0
+V[19:42:57.150]  11:28-11:36 LocalVariable 16384
+V[19:42:57.151]  11:37-11:38 Field 33280
+V[19:42:57.151]  11:40-11:41 Operator 0
+V[19:42:57.151]  11:42-11:48 LocalVariable 16432
+V[19:42:57.151]  11:53-11:54 Operator 0
+V[19:42:57.152]  11:67-11:68 Bracket 0
+V[19:42:57.152]  11:68-11:71 Primitive 65536
+V[19:42:57.152]  11:71-11:72 Bracket 0
+V[19:42:57.152]  11:73-11:81 LocalVariable 16384
+V[19:42:57.153]  11:82-11:83 Field 33280
+V[19:42:57.153]  11:85-11:86 Operator 0
+V[19:42:57.153]  11:87-11:93 LocalVariable 16432
+V[19:42:57.153]  11:98-11:99 Operator 0
+V[19:42:57.153]  12:22-12:23 Bracket 0
+V[19:42:57.154]  12:23-12:26 Primitive 65536
+V[19:42:57.154]  12:26-12:27 Bracket 0
+V[19:42:57.154]  12:28-12:36 LocalVariable 16384
+V[19:42:57.154]  12:37-12:38 Field 33280
+V[19:42:57.154]  12:40-12:41 Operator 0
+V[19:42:57.155]  12:42-12:48 LocalVariable 16432
+V[19:42:57.155]  12:54-12:55 Operator 0
+V[19:42:57.155]  13:9-13:23 Parameter 16400
+V[19:42:57.155]  16:16-16:34 Function 131075
+V[19:42:57.156]  16:35-16:42 Class 131072
+V[19:42:57.156]  16:56-16:60 Parameter 16403
+V[19:42:57.156]  16:62-16:67 Class 65536
+V[19:42:57.156]  16:75-16:81 Parameter 16403
+V[19:42:57.156]  16:83-16:86 Primitive 65536
+V[19:42:57.157]  16:93-16:99 Parameter 16403
+V[19:42:57.157]  18:7-18:13 LocalVariable 16387
+V[19:42:57.157]  18:20-18:23 Macro 131072
+V[19:42:57.157]  18:24-18:29 Class 65536
+V[19:42:57.157]  18:37-18:38 Parameter 16403
+V[19:42:57.158]  18:43-18:46 Primitive 65536
+V[19:42:57.158]  18:56-18:66 Function 131072
+V[19:42:57.158]  18:67-18:68 Parameter 16400
+V[19:42:57.158]  18:70-18:76 Parameter 16400
+V[19:42:57.158]  20:2-20:6 Function 131072
+V[19:42:57.159]  20:7-20:11 Parameter 16400
+V[19:42:57.159]  20:13-20:19 Parameter 18448
+V[19:42:57.159]  20:21-20:27 Parameter 16400
+V[19:42:57.159]  20:29-20:35 LocalVariable 16384
+I[19:42:57.160] Testing features at each token (may be slow in large files)
+V[19:42:57.160]   0:0 #
+V[19:42:57.160]     definition: 0
+V[19:42:57.160]     hover: false
+V[19:42:57.160]     documentHighlight: 0
+V[19:42:57.161]   0:1 include
+V[19:42:57.161] Dex query tree: (LIMIT 1000 (& T=lud T=ncl T=clu T=inc T=ude (| S= (* 2.000000e-01 true)) (| (* 1.403793e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared) (* 2.340640e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared/cuda/yipe/src) (* 1.602388e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared/cuda) (* 1.898658e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared/cuda/yipe) true)))
+V[19:42:57.161] No heuristic index definition for include
+V[19:42:57.162]     definition: 0
+V[19:42:57.162]     hover: false
+V[19:42:57.162]     documentHighlight: 0
+V[19:42:57.162]   0:9 <
+V[19:42:57.163]     definition: 0
+V[19:42:57.163]     hover: false
+V[19:42:57.163]     documentHighlight: 0
+V[19:42:57.163]   0:10 cuda
+V[19:42:57.164] Dex query tree: (LIMIT 1000 (& T=uda T=cud (| S= (* 2.000000e-01 true)) (| (* 1.403793e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared) (* 2.340640e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared/cuda/yipe/src) (* 1.602388e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared/cuda) (* 1.898658e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared/cuda/yipe) true)))
+V[19:42:57.166] No heuristic index definition for cuda
+V[19:42:57.166]     definition: 0
+V[19:42:57.167]     hover: false
+V[19:42:57.167]     documentHighlight: 0
+V[19:42:57.167]   0:14 /
+V[19:42:57.168] Dex query tree: (LIMIT 1000 (& T=uda T=cud (| S= (* 2.000000e-01 true)) (| (* 1.403793e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared) (* 2.340640e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared/cuda/yipe/src) (* 1.602388e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared/cuda) (* 1.898658e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared/cuda/yipe) true)))
+V[19:42:57.170] No heuristic index definition for cuda
+V[19:42:57.170]     definition: 0
+V[19:42:57.170]     hover: false
+V[19:42:57.170]     documentHighlight: 0
+V[19:42:57.171]   0:15 std
+V[19:42:57.171] Dex query tree: (LIMIT 1000 (& T=std (| S= (* 2.000000e-01 true)) (| (* 1.403793e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared) (* 2.340640e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared/cuda/yipe/src) (* 1.602388e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared/cuda) (* 1.898658e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared/cuda/yipe) true)))
+I[19:42:57.171] Found definition heuristically in index for std
+V[19:42:57.172]     definition: 1
+V[19:42:57.172]     hover: false
+V[19:42:57.172]     documentHighlight: 0
+V[19:42:57.173]   0:18 /
+V[19:42:57.173] Dex query tree: (LIMIT 1000 (& T=std (| S= (* 2.000000e-01 true)) (| (* 1.403793e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared) (* 2.340640e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared/cuda/yipe/src) (* 1.602388e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared/cuda) (* 1.898658e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared/cuda/yipe) true)))
+I[19:42:57.173] Found definition heuristically in index for std
+V[19:42:57.174]     definition: 1
+V[19:42:57.174]     hover: false
+V[19:42:57.174]     documentHighlight: 0
+V[19:42:57.174]   0:19 bit
+V[19:42:57.175] Dex query tree: (LIMIT 1000 (& T=bit (| S= (* 2.000000e-01 true)) (| (* 1.403793e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared) (* 2.340640e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared/cuda/yipe/src) (* 1.602388e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared/cuda) (* 1.898658e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared/cuda/yipe) true)))
+V[19:42:57.175] No heuristic index definition for bit
+V[19:42:57.175]     definition: 0
+V[19:42:57.175]     hover: false
+V[19:42:57.176]     documentHighlight: 0
+V[19:42:57.176]   0:22 >
+V[19:42:57.176] Dex query tree: (LIMIT 1000 (& T=bit (| S= (* 2.000000e-01 true)) (| (* 1.403793e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared) (* 2.340640e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared/cuda/yipe/src) (* 1.602388e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared/cuda) (* 1.898658e+00 U=file:///D:/Users/Nemo/OneDrive%20-%20Universit%C3%A0%20degli%20Studi%20di%20Udine/Shared/cuda/yipe) true)))
+V[19:42:57.177] No heuristic index definition for bit
+V[19:42:57.177]     definition: 0
+V[19:42:57.177]     hover: false
+V[19:42:57.177]     documentHighlight: 0
+V[19:42:57.178]   1:0 #
+V[19:42:57.178]     definition: 1
+E[19:42:57.178] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.179]     hover: true
+V[19:42:57.179]     documentHighlight: 0
+V[19:42:57.179]   1:1 include
+V[19:42:57.179]     definition: 1
+E[19:42:57.180] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.180]     hover: true
+V[19:42:57.180]     documentHighlight: 0
+V[19:42:57.181]   1:9 "sort/sort.cuh"
+V[19:42:57.181]     definition: 1
+E[19:42:57.181] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.182]     hover: true
+V[19:42:57.182]     documentHighlight: 0
+V[19:42:57.182]   3:0 gpu
+V[19:42:57.182]     tweak: ExpandMacro
+V[19:42:57.183]     definition: 1
+E[19:42:57.184] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.184]     hover: true
+V[19:42:57.185]     documentHighlight: 2
+V[19:42:57.185]   3:4 int3
+V[19:42:57.185]     definition: 1
+E[19:42:57.186] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.186]     hover: true
+V[19:42:57.187]     documentHighlight: 2
+V[19:42:57.187]   3:9 point_discretize
+V[19:42:57.187]     definition: 1
+E[19:42:57.187] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.188]     hover: true
+V[19:42:57.188]     documentHighlight: 2
+V[19:42:57.188]   3:25 (
+V[19:42:57.189]     definition: 1
+V[19:42:57.189]     hover: false
+V[19:42:57.189]     documentHighlight: 2
+V[19:42:57.190]   3:26 Point
+V[19:42:57.190]     definition: 1
+E[19:42:57.190] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.191]     hover: true
+V[19:42:57.191]     documentHighlight: 4
+V[19:42:57.191]   3:32 const
+V[19:42:57.192]     definition: 0
+V[19:42:57.192]     hover: false
+V[19:42:57.192]     documentHighlight: 0
+V[19:42:57.192]   3:38 &
+V[19:42:57.193]     definition: 0
+V[19:42:57.193]     hover: false
+V[19:42:57.193]     documentHighlight: 0
+V[19:42:57.194]   3:39 point
+V[19:42:57.194]     definition: 1
+E[19:42:57.194] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.195]     hover: true
+V[19:42:57.195]     documentHighlight: 4
+V[19:42:57.195]   3:44 )
+V[19:42:57.196]     definition: 1
+V[19:42:57.196]     hover: false
+V[19:42:57.196]     documentHighlight: 4
+V[19:42:57.196]   3:46 {
+V[19:42:57.197]     definition: 0
+V[19:42:57.197]     hover: false
+V[19:42:57.197]     documentHighlight: 0
+V[19:42:57.198]   4:2 return
+V[19:42:57.198]     definition: 0
+V[19:42:57.198]     hover: false
+V[19:42:57.198]     documentHighlight: 1
+V[19:42:57.199]   4:9 {
+V[19:42:57.199]     tweak: ExtractVariable
+V[19:42:57.199]     definition: 0
+V[19:42:57.200]     hover: false
+V[19:42:57.200]     documentHighlight: 0
+V[19:42:57.200]   4:10 static_cast
+V[19:42:57.200]     tweak: ExtractVariable
+V[19:42:57.201]     definition: 0
+V[19:42:57.201]     hover: false
+V[19:42:57.201]     documentHighlight: 0
+V[19:42:57.201]   4:21 <
+V[19:42:57.202]     tweak: ExtractVariable
+V[19:42:57.202]     definition: 0
+V[19:42:57.202]     hover: false
+V[19:42:57.203]     documentHighlight: 0
+V[19:42:57.203]   4:22 int
+V[19:42:57.203]     definition: 0
+V[19:42:57.203]     hover: false
+V[19:42:57.204]     documentHighlight: 0
+V[19:42:57.204]   4:25 >
+V[19:42:57.204]     tweak: ExtractVariable
+V[19:42:57.204]     definition: 0
+V[19:42:57.205]     hover: false
+V[19:42:57.205]     documentHighlight: 0
+V[19:42:57.205]   4:26 (
+V[19:42:57.205]     tweak: ExtractVariable
+V[19:42:57.206]     definition: 0
+V[19:42:57.206]     hover: false
+V[19:42:57.206]     documentHighlight: 0
+V[19:42:57.206]   4:27 point
+V[19:42:57.207]     definition: 1
+E[19:42:57.207] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.207]     hover: true
+V[19:42:57.208]     documentHighlight: 4
+V[19:42:57.208]   4:32 .
+V[19:42:57.208]     tweak: ExtractVariable
+V[19:42:57.209]     definition: 1
+E[19:42:57.209] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.209]     hover: true
+V[19:42:57.210]     documentHighlight: 1
+V[19:42:57.210]   4:33 x
+V[19:42:57.210]     tweak: ExtractVariable
+V[19:42:57.210]     definition: 1
+E[19:42:57.211] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.211]     hover: true
+V[19:42:57.212]     documentHighlight: 1
+V[19:42:57.212]   4:35 /
+V[19:42:57.212]     tweak: ExtractVariable
+V[19:42:57.213]     definition: 0
+V[19:42:57.213]     hover: false
+V[19:42:57.213]     documentHighlight: 0
+V[19:42:57.213]   4:37 PARTICLE_DIAMETER
+V[19:42:57.214]     tweak: ExpandMacro
+V[19:42:57.214]     tweak: ExtractVariable
+V[19:42:57.214]     definition: 1
+E[19:42:57.215] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.215]     hover: true
+V[19:42:57.216]     documentHighlight: 0
+V[19:42:57.216]   4:54 )
+V[19:42:57.216]     tweak: ExpandMacro
+V[19:42:57.216]     tweak: ExtractVariable
+V[19:42:57.216]     definition: 1
+E[19:42:57.217] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.217]     hover: true
+V[19:42:57.218]     documentHighlight: 0
+V[19:42:57.218]   4:55 ,
+V[19:42:57.219]     tweak: ExtractVariable
+V[19:42:57.219]     definition: 0
+V[19:42:57.219]     hover: false
+V[19:42:57.219]     documentHighlight: 0
+V[19:42:57.220]   4:57 static_cast
+V[19:42:57.220]     tweak: ExtractVariable
+V[19:42:57.220]     definition: 0
+V[19:42:57.221]     hover: false
+V[19:42:57.221]     documentHighlight: 0
+V[19:42:57.221]   4:68 <
+V[19:42:57.222]     tweak: ExtractVariable
+V[19:42:57.222]     definition: 0
+V[19:42:57.222]     hover: false
+V[19:42:57.222]     documentHighlight: 0
+V[19:42:57.222]   4:69 int
+V[19:42:57.223]     definition: 0
+V[19:42:57.223]     hover: false
+V[19:42:57.223]     documentHighlight: 0
+V[19:42:57.224]   4:72 >
+V[19:42:57.224]     tweak: ExtractVariable
+V[19:42:57.224]     definition: 0
+V[19:42:57.224]     hover: false
+V[19:42:57.225]     documentHighlight: 0
+V[19:42:57.225]   4:73 (
+V[19:42:57.225]     tweak: ExtractVariable
+V[19:42:57.226]     definition: 0
+V[19:42:57.226]     hover: false
+V[19:42:57.226]     documentHighlight: 0
+V[19:42:57.226]   4:74 point
+V[19:42:57.227]     definition: 1
+E[19:42:57.227] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.228]     hover: true
+V[19:42:57.228]     documentHighlight: 4
+V[19:42:57.228]   4:79 .
+V[19:42:57.229]     tweak: ExtractVariable
+V[19:42:57.229]     definition: 1
+E[19:42:57.229] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.230]     hover: true
+V[19:42:57.230]     documentHighlight: 1
+V[19:42:57.231]   4:80 y
+V[19:42:57.231]     tweak: ExtractVariable
+V[19:42:57.231]     definition: 1
+E[19:42:57.232] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.232]     hover: true
+V[19:42:57.233]     documentHighlight: 1
+V[19:42:57.233]   4:82 /
+V[19:42:57.233]     tweak: ExtractVariable
+V[19:42:57.234]     definition: 0
+V[19:42:57.234]     hover: false
+V[19:42:57.234]     documentHighlight: 0
+V[19:42:57.235]   4:84 PARTICLE_DIAMETER
+V[19:42:57.235]     tweak: ExpandMacro
+V[19:42:57.235]     tweak: ExtractVariable
+V[19:42:57.235]     definition: 1
+E[19:42:57.236] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.236]     hover: true
+V[19:42:57.236]     documentHighlight: 0
+V[19:42:57.237]   4:101 )
+V[19:42:57.237]     tweak: ExpandMacro
+V[19:42:57.237]     tweak: ExtractVariable
+V[19:42:57.237]     definition: 1
+E[19:42:57.238] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.238]     hover: true
+V[19:42:57.238]     documentHighlight: 0
+V[19:42:57.239]   4:102 ,
+V[19:42:57.239]     tweak: ExtractVariable
+V[19:42:57.239]     definition: 0
+V[19:42:57.239]     hover: false
+V[19:42:57.240]     documentHighlight: 0
+V[19:42:57.240]   5:10 static_cast
+V[19:42:57.240]     tweak: ExtractVariable
+V[19:42:57.240]     definition: 0
+V[19:42:57.241]     hover: false
+V[19:42:57.241]     documentHighlight: 0
+V[19:42:57.241]   5:21 <
+V[19:42:57.241]     tweak: ExtractVariable
+V[19:42:57.242]     definition: 0
+V[19:42:57.242]     hover: false
+V[19:42:57.242]     documentHighlight: 0
+V[19:42:57.242]   5:22 int
+V[19:42:57.242]     definition: 0
+V[19:42:57.243]     hover: false
+V[19:42:57.243]     documentHighlight: 0
+V[19:42:57.243]   5:25 >
+V[19:42:57.244]     tweak: ExtractVariable
+V[19:42:57.244]     definition: 0
+V[19:42:57.244]     hover: false
+V[19:42:57.244]     documentHighlight: 0
+V[19:42:57.245]   5:26 (
+V[19:42:57.245]     tweak: ExtractVariable
+V[19:42:57.245]     definition: 0
+V[19:42:57.246]     hover: false
+V[19:42:57.246]     documentHighlight: 0
+V[19:42:57.246]   5:27 point
+V[19:42:57.247]     definition: 1
+E[19:42:57.247] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.247]     hover: true
+V[19:42:57.248]     documentHighlight: 4
+V[19:42:57.248]   5:32 .
+V[19:42:57.248]     tweak: ExtractVariable
+V[19:42:57.249]     definition: 1
+E[19:42:57.249] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.250]     hover: true
+V[19:42:57.250]     documentHighlight: 1
+V[19:42:57.250]   5:33 z
+V[19:42:57.250]     tweak: ExtractVariable
+V[19:42:57.251]     definition: 1
+E[19:42:57.251] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.252]     hover: true
+V[19:42:57.252]     documentHighlight: 1
+V[19:42:57.252]   5:35 /
+V[19:42:57.253]     tweak: ExtractVariable
+V[19:42:57.253]     definition: 0
+V[19:42:57.253]     hover: false
+V[19:42:57.253]     documentHighlight: 0
+V[19:42:57.254]   5:37 PARTICLE_DIAMETER
+V[19:42:57.254]     tweak: ExpandMacro
+V[19:42:57.254]     tweak: ExtractVariable
+V[19:42:57.255]     definition: 1
+E[19:42:57.255] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.256]     hover: true
+V[19:42:57.256]     documentHighlight: 0
+V[19:42:57.256]   5:54 )
+V[19:42:57.256]     tweak: ExpandMacro
+V[19:42:57.257]     tweak: ExtractVariable
+V[19:42:57.257]     definition: 1
+E[19:42:57.257] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.258]     hover: true
+V[19:42:57.258]     documentHighlight: 0
+V[19:42:57.258]   5:55 }
+V[19:42:57.259]     tweak: ExtractVariable
+V[19:42:57.259]     definition: 0
+V[19:42:57.259]     hover: false
+V[19:42:57.259]     documentHighlight: 0
+V[19:42:57.260]   5:56 ;
+V[19:42:57.260]     definition: 0
+V[19:42:57.260]     hover: false
+V[19:42:57.261]     documentHighlight: 0
+V[19:42:57.261]   6:0 }
+V[19:42:57.261]     definition: 0
+V[19:42:57.262]     hover: false
+V[19:42:57.262]     documentHighlight: 0
+V[19:42:57.262]   8:0 gpu
+V[19:42:57.262]     tweak: ExpandMacro
+V[19:42:57.263]     definition: 1
+E[19:42:57.263] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.264]     hover: true
+V[19:42:57.264]     documentHighlight: 2
+V[19:42:57.264]   8:4 u32
+V[19:42:57.265]     definition: 1
+E[19:42:57.265] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.265]     hover: true
+V[19:42:57.266]     documentHighlight: 8
+V[19:42:57.266]   8:8 point_hash
+V[19:42:57.266]     definition: 1
+E[19:42:57.267] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.267]     hover: true
+V[19:42:57.268]     documentHighlight: 2
+V[19:42:57.268]   8:18 (
+V[19:42:57.268]     definition: 1
+V[19:42:57.269]     hover: false
+V[19:42:57.269]     documentHighlight: 2
+V[19:42:57.269]   8:19 Point
+V[19:42:57.270]     definition: 1
+E[19:42:57.270] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.270]     hover: true
+V[19:42:57.271]     documentHighlight: 4
+V[19:42:57.271]   8:25 const
+V[19:42:57.271]     definition: 0
+V[19:42:57.272]     hover: false
+V[19:42:57.272]     documentHighlight: 0
+V[19:42:57.272]   8:31 &
+V[19:42:57.273]     definition: 0
+V[19:42:57.273]     hover: false
+V[19:42:57.273]     documentHighlight: 0
+V[19:42:57.273]   8:32 point
+V[19:42:57.274]     definition: 1
+E[19:42:57.274] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.274]     hover: true
+V[19:42:57.275]     documentHighlight: 2
+V[19:42:57.275]   8:37 ,
+V[19:42:57.276]     definition: 1
+V[19:42:57.276]     hover: false
+V[19:42:57.276]     documentHighlight: 2
+V[19:42:57.277]   8:39 u32
+V[19:42:57.277]     definition: 1
+E[19:42:57.277] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.278]     hover: true
+V[19:42:57.279]     documentHighlight: 8
+V[19:42:57.279]   8:43 const
+V[19:42:57.279]     definition: 0
+V[19:42:57.279]     hover: false
+V[19:42:57.279]     documentHighlight: 0
+V[19:42:57.280]   8:49 particle_count
+V[19:42:57.280]     definition: 1
+E[19:42:57.280] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.281]     hover: true
+V[19:42:57.281]     documentHighlight: 2
+V[19:42:57.281]   8:63 )
+V[19:42:57.282]     definition: 1
+V[19:42:57.282]     hover: false
+V[19:42:57.282]     documentHighlight: 2
+V[19:42:57.282]   8:65 {
+V[19:42:57.282]     definition: 0
+V[19:42:57.283]     hover: false
+V[19:42:57.283]     documentHighlight: 0
+V[19:42:57.283]   9:2 static
+V[19:42:57.283]     definition: 1
+E[19:42:57.284] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.284]     hover: true
+V[19:42:57.285]     documentHighlight: 4
+V[19:42:57.285]   9:9 u32
+V[19:42:57.285]     definition: 1
+E[19:42:57.285] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.286]     hover: true
+V[19:42:57.286]     documentHighlight: 8
+V[19:42:57.286]   9:13 const
+V[19:42:57.287]     definition: 0
+V[19:42:57.287]     hover: false
+V[19:42:57.287]     documentHighlight: 0
+V[19:42:57.287]   9:19 primes
+V[19:42:57.288]     definition: 1
+E[19:42:57.288] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.288]     hover: true
+V[19:42:57.289]     documentHighlight: 4
+V[19:42:57.289]   9:25 [
+V[19:42:57.289]     definition: 1
+V[19:42:57.289]     hover: false
+V[19:42:57.289]     documentHighlight: 4
+V[19:42:57.290]   9:26 3
+V[19:42:57.290]     definition: 0
+V[19:42:57.290]     hover: false
+V[19:42:57.290]     documentHighlight: 0
+V[19:42:57.291]   9:27 ]
+V[19:42:57.291]     definition: 0
+V[19:42:57.291]     hover: false
+V[19:42:57.291]     documentHighlight: 0
+V[19:42:57.292]   9:29 =
+V[19:42:57.292]     definition: 1
+E[19:42:57.292] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.293]     hover: true
+V[19:42:57.293]     documentHighlight: 4
+V[19:42:57.293]   9:31 {
+V[19:42:57.293]     definition: 0
+V[19:42:57.294]     hover: true
+V[19:42:57.294]     documentHighlight: 0
+V[19:42:57.294]   9:32 73856093
+V[19:42:57.294]     tweak: ExtractVariable
+V[19:42:57.295]     definition: 0
+V[19:42:57.295]     hover: false
+V[19:42:57.295]     documentHighlight: 0
+V[19:42:57.295]   9:40 ,
+V[19:42:57.296]     definition: 0
+V[19:42:57.296]     hover: true
+V[19:42:57.296]     documentHighlight: 0
+V[19:42:57.296]   9:42 19349663
+V[19:42:57.297]     tweak: ExtractVariable
+V[19:42:57.297]     definition: 0
+V[19:42:57.297]     hover: false
+V[19:42:57.297]     documentHighlight: 0
+V[19:42:57.298]   9:50 ,
+V[19:42:57.298]     definition: 0
+V[19:42:57.298]     hover: true
+V[19:42:57.298]     documentHighlight: 0
+V[19:42:57.298]   9:52 83492791
+V[19:42:57.299]     tweak: ExtractVariable
+V[19:42:57.299]     definition: 0
+V[19:42:57.299]     hover: false
+V[19:42:57.299]     documentHighlight: 0
+V[19:42:57.299]   9:60 }
+V[19:42:57.300]     definition: 0
+V[19:42:57.300]     hover: true
+V[19:42:57.300]     documentHighlight: 0
+V[19:42:57.300]   9:61 ;
+V[19:42:57.301]     definition: 0
+V[19:42:57.301]     hover: true
+V[19:42:57.301]     documentHighlight: 0
+V[19:42:57.301]   10:2 int3
+V[19:42:57.302]     definition: 1
+E[19:42:57.302] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.303]     hover: true
+V[19:42:57.303]     documentHighlight: 2
+V[19:42:57.303]   10:7 discrete
+V[19:42:57.303]     definition: 1
+E[19:42:57.304] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.304]     hover: true
+V[19:42:57.304]     documentHighlight: 4
+V[19:42:57.304]   10:16 =
+V[19:42:57.305]     definition: 1
+E[19:42:57.305] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.306]     hover: true
+V[19:42:57.306]     documentHighlight: 4
+V[19:42:57.306]   10:18 point_discretize
+V[19:42:57.306]     definition: 1
+E[19:42:57.307] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.307]     hover: true
+V[19:42:57.307]     documentHighlight: 2
+V[19:42:57.308]   10:34 (
+V[19:42:57.308]     definition: 1
+E[19:42:57.308] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.309]     hover: true
+V[19:42:57.309]     documentHighlight: 2
+V[19:42:57.309]   10:35 point
+V[19:42:57.310]     definition: 1
+E[19:42:57.310] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.310]     hover: true
+V[19:42:57.311]     documentHighlight: 2
+V[19:42:57.311]   10:40 )
+V[19:42:57.311]     definition: 1
+E[19:42:57.312] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.312]     hover: true
+V[19:42:57.313]     documentHighlight: 2
+V[19:42:57.313]   10:41 ;
+V[19:42:57.313]     definition: 1
+E[19:42:57.313] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.314]     hover: true
+V[19:42:57.314]     documentHighlight: 2
+V[19:42:57.314]   11:2 return
+V[19:42:57.315]     definition: 0
+V[19:42:57.315]     hover: false
+V[19:42:57.315]     documentHighlight: 1
+V[19:42:57.315]   11:9 (
+V[19:42:57.316]     tweak: ExtractVariable
+V[19:42:57.316]     definition: 0
+V[19:42:57.316]     hover: false
+V[19:42:57.316]     documentHighlight: 0
+V[19:42:57.316]   11:10 (
+V[19:42:57.317]     tweak: ExtractVariable
+V[19:42:57.317]     tweak: SwapBinaryOperands
+V[19:42:57.317]     definition: 0
+V[19:42:57.317]     hover: false
+V[19:42:57.318]     documentHighlight: 0
+V[19:42:57.318]   11:11 static_cast
+V[19:42:57.318]     tweak: ExtractVariable
+V[19:42:57.318]     tweak: SwapBinaryOperands
+V[19:42:57.319]     definition: 0
+V[19:42:57.319]     hover: false
+V[19:42:57.319]     documentHighlight: 0
+V[19:42:57.319]   11:22 <
+V[19:42:57.320]     tweak: ExtractVariable
+V[19:42:57.320]     tweak: SwapBinaryOperands
+V[19:42:57.320]     definition: 0
+V[19:42:57.320]     hover: false
+V[19:42:57.321]     documentHighlight: 0
+V[19:42:57.321]   11:23 u32
+V[19:42:57.321]     tweak: SwapBinaryOperands
+V[19:42:57.322]     definition: 1
+E[19:42:57.322] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.322]     hover: true
+V[19:42:57.323]     documentHighlight: 8
+V[19:42:57.323]   11:26 >
+V[19:42:57.323]     tweak: ExtractVariable
+V[19:42:57.323]     tweak: SwapBinaryOperands
+V[19:42:57.324]     definition: 1
+V[19:42:57.324]     hover: false
+V[19:42:57.324]     documentHighlight: 8
+V[19:42:57.324]   11:27 (
+V[19:42:57.325]     tweak: ExtractVariable
+V[19:42:57.325]     tweak: SwapBinaryOperands
+V[19:42:57.325]     definition: 0
+V[19:42:57.325]     hover: false
+V[19:42:57.326]     documentHighlight: 0
+V[19:42:57.326]   11:28 discrete
+V[19:42:57.326]     tweak: SwapBinaryOperands
+V[19:42:57.327]     definition: 1
+E[19:42:57.327] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.328]     hover: true
+V[19:42:57.328]     documentHighlight: 4
+V[19:42:57.328]   11:36 .
+V[19:42:57.328]     tweak: ExtractVariable
+V[19:42:57.329]     tweak: SwapBinaryOperands
+V[19:42:57.329]     definition: 1
+E[19:42:57.329] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.330]     hover: true
+V[19:42:57.330]     documentHighlight: 1
+V[19:42:57.330]   11:37 x
+V[19:42:57.330]     tweak: ExtractVariable
+V[19:42:57.331]     tweak: SwapBinaryOperands
+V[19:42:57.331]     definition: 1
+E[19:42:57.331] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.332]     hover: true
+V[19:42:57.332]     documentHighlight: 1
+V[19:42:57.332]   11:38 )
+V[19:42:57.332]     tweak: ExtractVariable
+V[19:42:57.333]     tweak: SwapBinaryOperands
+V[19:42:57.333]     definition: 1
+V[19:42:57.333]     hover: false
+V[19:42:57.333]     documentHighlight: 1
+V[19:42:57.333]   11:40 *
+V[19:42:57.334]     tweak: ExtractVariable
+V[19:42:57.334]     tweak: SwapBinaryOperands
+V[19:42:57.334]     definition: 0
+V[19:42:57.334]     hover: false
+V[19:42:57.335]     documentHighlight: 0
+V[19:42:57.335]   11:42 primes
+V[19:42:57.335]     tweak: SwapBinaryOperands
+V[19:42:57.335]     definition: 1
+E[19:42:57.335] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.336]     hover: true
+V[19:42:57.336]     documentHighlight: 4
+V[19:42:57.337]   11:48 [
+V[19:42:57.337]     tweak: ExtractVariable
+V[19:42:57.337]     tweak: SwapBinaryOperands
+V[19:42:57.337]     definition: 1
+V[19:42:57.337]     hover: true
+V[19:42:57.338]     documentHighlight: 4
+V[19:42:57.338]   11:49 0
+V[19:42:57.338]     tweak: ExtractVariable
+V[19:42:57.338]     tweak: SwapBinaryOperands
+V[19:42:57.338]     definition: 0
+V[19:42:57.339]     hover: false
+V[19:42:57.339]     documentHighlight: 0
+V[19:42:57.339]   11:50 ]
+V[19:42:57.339]     tweak: ExtractVariable
+V[19:42:57.340]     tweak: SwapBinaryOperands
+V[19:42:57.340]     definition: 0
+V[19:42:57.340]     hover: true
+V[19:42:57.340]     documentHighlight: 0
+V[19:42:57.341]   11:51 )
+V[19:42:57.341]     tweak: ExtractVariable
+V[19:42:57.341]     tweak: SwapBinaryOperands
+V[19:42:57.341]     definition: 0
+V[19:42:57.342]     hover: false
+V[19:42:57.342]     documentHighlight: 0
+V[19:42:57.342]   11:53 ^
+V[19:42:57.342]     tweak: ExtractVariable
+V[19:42:57.343]     tweak: SwapBinaryOperands
+V[19:42:57.343]     definition: 0
+V[19:42:57.343]     hover: false
+V[19:42:57.344]     documentHighlight: 0
+V[19:42:57.344]   11:55 (
+V[19:42:57.344]     tweak: ExtractVariable
+V[19:42:57.345]     tweak: SwapBinaryOperands
+V[19:42:57.345]     definition: 0
+V[19:42:57.345]     hover: false
+V[19:42:57.345]     documentHighlight: 0
+V[19:42:57.346]   11:56 static_cast
+V[19:42:57.346]     tweak: ExtractVariable
+V[19:42:57.346]     tweak: SwapBinaryOperands
+V[19:42:57.346]     definition: 0
+V[19:42:57.347]     hover: false
+V[19:42:57.347]     documentHighlight: 0
+V[19:42:57.347]   11:67 <
+V[19:42:57.347]     tweak: ExtractVariable
+V[19:42:57.347]     tweak: SwapBinaryOperands
+V[19:42:57.348]     definition: 0
+V[19:42:57.348]     hover: false
+V[19:42:57.348]     documentHighlight: 0
+V[19:42:57.348]   11:68 u32
+V[19:42:57.349]     tweak: SwapBinaryOperands
+V[19:42:57.349]     definition: 1
+E[19:42:57.349] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.350]     hover: true
+V[19:42:57.350]     documentHighlight: 8
+V[19:42:57.350]   11:71 >
+V[19:42:57.350]     tweak: ExtractVariable
+V[19:42:57.351]     tweak: SwapBinaryOperands
+V[19:42:57.351]     definition: 1
+V[19:42:57.351]     hover: false
+V[19:42:57.351]     documentHighlight: 8
+V[19:42:57.352]   11:72 (
+V[19:42:57.352]     tweak: ExtractVariable
+V[19:42:57.352]     tweak: SwapBinaryOperands
+V[19:42:57.352]     definition: 0
+V[19:42:57.352]     hover: false
+V[19:42:57.353]     documentHighlight: 0
+V[19:42:57.353]   11:73 discrete
+V[19:42:57.353]     tweak: SwapBinaryOperands
+V[19:42:57.353]     definition: 1
+E[19:42:57.354] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.354]     hover: true
+V[19:42:57.354]     documentHighlight: 4
+V[19:42:57.354]   11:81 .
+V[19:42:57.355]     tweak: ExtractVariable
+V[19:42:57.355]     tweak: SwapBinaryOperands
+V[19:42:57.355]     definition: 1
+E[19:42:57.355] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.356]     hover: true
+V[19:42:57.356]     documentHighlight: 1
+V[19:42:57.356]   11:82 y
+V[19:42:57.357]     tweak: ExtractVariable
+V[19:42:57.357]     tweak: SwapBinaryOperands
+V[19:42:57.357]     definition: 1
+E[19:42:57.357] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.358]     hover: true
+V[19:42:57.358]     documentHighlight: 1
+V[19:42:57.358]   11:83 )
+V[19:42:57.358]     tweak: ExtractVariable
+V[19:42:57.359]     tweak: SwapBinaryOperands
+V[19:42:57.359]     definition: 1
+V[19:42:57.359]     hover: false
+V[19:42:57.359]     documentHighlight: 1
+V[19:42:57.360]   11:85 *
+V[19:42:57.360]     tweak: ExtractVariable
+V[19:42:57.360]     tweak: SwapBinaryOperands
+V[19:42:57.360]     definition: 0
+V[19:42:57.361]     hover: false
+V[19:42:57.361]     documentHighlight: 0
+V[19:42:57.361]   11:87 primes
+V[19:42:57.362]     tweak: SwapBinaryOperands
+V[19:42:57.362]     definition: 1
+E[19:42:57.362] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.363]     hover: true
+V[19:42:57.363]     documentHighlight: 4
+V[19:42:57.363]   11:93 [
+V[19:42:57.363]     tweak: ExtractVariable
+V[19:42:57.363]     tweak: SwapBinaryOperands
+V[19:42:57.364]     definition: 1
+V[19:42:57.364]     hover: true
+V[19:42:57.364]     documentHighlight: 4
+V[19:42:57.364]   11:94 1
+V[19:42:57.365]     tweak: ExtractVariable
+V[19:42:57.365]     tweak: SwapBinaryOperands
+V[19:42:57.365]     definition: 0
+V[19:42:57.365]     hover: false
+V[19:42:57.366]     documentHighlight: 0
+V[19:42:57.366]   11:95 ]
+V[19:42:57.366]     tweak: ExtractVariable
+V[19:42:57.366]     tweak: SwapBinaryOperands
+V[19:42:57.366]     definition: 0
+V[19:42:57.367]     hover: true
+V[19:42:57.367]     documentHighlight: 0
+V[19:42:57.367]   11:96 )
+V[19:42:57.367]     tweak: ExtractVariable
+V[19:42:57.368]     tweak: SwapBinaryOperands
+V[19:42:57.368]     definition: 0
+V[19:42:57.368]     hover: false
+V[19:42:57.368]     documentHighlight: 0
+V[19:42:57.368]   11:98 ^
+V[19:42:57.369]     tweak: ExtractVariable
+V[19:42:57.369]     tweak: SwapBinaryOperands
+V[19:42:57.369]     definition: 0
+V[19:42:57.369]     hover: false
+V[19:42:57.370]     documentHighlight: 0
+V[19:42:57.370]   12:10 (
+V[19:42:57.370]     tweak: ExtractVariable
+V[19:42:57.370]     tweak: SwapBinaryOperands
+V[19:42:57.371]     definition: 0
+V[19:42:57.371]     hover: false
+V[19:42:57.371]     documentHighlight: 0
+V[19:42:57.371]   12:11 static_cast
+V[19:42:57.372]     tweak: ExtractVariable
+V[19:42:57.372]     tweak: SwapBinaryOperands
+V[19:42:57.372]     definition: 0
+V[19:42:57.372]     hover: false
+V[19:42:57.372]     documentHighlight: 0
+V[19:42:57.373]   12:22 <
+V[19:42:57.373]     tweak: ExtractVariable
+V[19:42:57.373]     tweak: SwapBinaryOperands
+V[19:42:57.373]     definition: 0
+V[19:42:57.374]     hover: false
+V[19:42:57.374]     documentHighlight: 0
+V[19:42:57.374]   12:23 u32
+V[19:42:57.374]     tweak: SwapBinaryOperands
+V[19:42:57.374]     definition: 1
+E[19:42:57.375] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.375]     hover: true
+V[19:42:57.376]     documentHighlight: 8
+V[19:42:57.376]   12:26 >
+V[19:42:57.376]     tweak: ExtractVariable
+V[19:42:57.377]     tweak: SwapBinaryOperands
+V[19:42:57.377]     definition: 1
+V[19:42:57.377]     hover: false
+V[19:42:57.377]     documentHighlight: 8
+V[19:42:57.378]   12:27 (
+V[19:42:57.378]     tweak: ExtractVariable
+V[19:42:57.378]     tweak: SwapBinaryOperands
+V[19:42:57.378]     definition: 0
+V[19:42:57.379]     hover: false
+V[19:42:57.379]     documentHighlight: 0
+V[19:42:57.379]   12:28 discrete
+V[19:42:57.379]     tweak: SwapBinaryOperands
+V[19:42:57.380]     definition: 1
+E[19:42:57.380] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.380]     hover: true
+V[19:42:57.381]     documentHighlight: 4
+V[19:42:57.381]   12:36 .
+V[19:42:57.381]     tweak: ExtractVariable
+V[19:42:57.381]     tweak: SwapBinaryOperands
+V[19:42:57.382]     definition: 1
+E[19:42:57.382] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.382]     hover: true
+V[19:42:57.383]     documentHighlight: 1
+V[19:42:57.383]   12:37 z
+V[19:42:57.383]     tweak: ExtractVariable
+V[19:42:57.383]     tweak: SwapBinaryOperands
+V[19:42:57.384]     definition: 1
+E[19:42:57.384] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.384]     hover: true
+V[19:42:57.385]     documentHighlight: 1
+V[19:42:57.385]   12:38 )
+V[19:42:57.385]     tweak: ExtractVariable
+V[19:42:57.385]     tweak: SwapBinaryOperands
+V[19:42:57.386]     definition: 1
+V[19:42:57.386]     hover: false
+V[19:42:57.386]     documentHighlight: 1
+V[19:42:57.386]   12:40 *
+V[19:42:57.387]     tweak: ExtractVariable
+V[19:42:57.387]     tweak: SwapBinaryOperands
+V[19:42:57.387]     definition: 0
+V[19:42:57.387]     hover: false
+V[19:42:57.388]     documentHighlight: 0
+V[19:42:57.388]   12:42 primes
+V[19:42:57.388]     tweak: SwapBinaryOperands
+V[19:42:57.388]     definition: 1
+E[19:42:57.389] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.389]     hover: true
+V[19:42:57.389]     documentHighlight: 4
+V[19:42:57.390]   12:48 [
+V[19:42:57.390]     tweak: ExtractVariable
+V[19:42:57.390]     tweak: SwapBinaryOperands
+V[19:42:57.390]     definition: 1
+V[19:42:57.390]     hover: true
+V[19:42:57.391]     documentHighlight: 4
+V[19:42:57.391]   12:49 2
+V[19:42:57.391]     tweak: ExtractVariable
+V[19:42:57.392]     tweak: SwapBinaryOperands
+V[19:42:57.392]     definition: 0
+V[19:42:57.392]     hover: false
+V[19:42:57.393]     documentHighlight: 0
+V[19:42:57.393]   12:50 ]
+V[19:42:57.393]     tweak: ExtractVariable
+V[19:42:57.394]     tweak: SwapBinaryOperands
+V[19:42:57.394]     definition: 0
+V[19:42:57.394]     hover: true
+V[19:42:57.395]     documentHighlight: 0
+V[19:42:57.395]   12:51 )
+V[19:42:57.395]     tweak: ExtractVariable
+V[19:42:57.396]     tweak: SwapBinaryOperands
+V[19:42:57.396]     definition: 0
+V[19:42:57.396]     hover: false
+V[19:42:57.397]     documentHighlight: 0
+V[19:42:57.397]   12:52 )
+V[19:42:57.397]     tweak: ExtractVariable
+V[19:42:57.398]     definition: 0
+V[19:42:57.398]     hover: false
+V[19:42:57.398]     documentHighlight: 0
+V[19:42:57.398]   12:54 %
+V[19:42:57.399]     tweak: ExtractVariable
+V[19:42:57.399]     definition: 0
+V[19:42:57.400]     hover: false
+V[19:42:57.400]     documentHighlight: 0
+V[19:42:57.400]   13:9 particle_count
+V[19:42:57.400]     definition: 1
+E[19:42:57.401] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.401]     hover: true
+V[19:42:57.402]     documentHighlight: 2
+V[19:42:57.403]   13:23 ;
+V[19:42:57.403]     definition: 1
+E[19:42:57.403] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.404]     hover: true
+V[19:42:57.404]     documentHighlight: 2
+V[19:42:57.405]   14:0 }
+V[19:42:57.405]     definition: 0
+V[19:42:57.405]     hover: false
+V[19:42:57.406]     documentHighlight: 0
+V[19:42:57.406]   16:0 extern
+V[19:42:57.406]     definition: 0
+V[19:42:57.407]     hover: false
+V[19:42:57.407]     documentHighlight: 0
+V[19:42:57.407]   16:7 "C"
+V[19:42:57.408]     definition: 0
+V[19:42:57.408]     hover: false
+V[19:42:57.408]     documentHighlight: 0
+V[19:42:57.409]   16:11 void
+V[19:42:57.409]     definition: 0
+V[19:42:57.410]     hover: false
+V[19:42:57.410]     documentHighlight: 0
+V[19:42:57.410]   16:16 launch_sort_points
+V[19:42:57.411]     definition: 1
+E[19:42:57.411] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.412]     hover: true
+V[19:42:57.413]     documentHighlight: 1
+V[19:42:57.413]   16:34 (
+V[19:42:57.413]     definition: 1
+V[19:42:57.414]     hover: false
+V[19:42:57.414]     documentHighlight: 1
+V[19:42:57.414]   16:35 GPUInfo
+V[19:42:57.415]     definition: 1
+E[19:42:57.415] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.415]     hover: true
+V[19:42:57.416]     documentHighlight: 1
+V[19:42:57.416]   16:43 const
+V[19:42:57.416]     definition: 0
+V[19:42:57.417]     hover: false
+V[19:42:57.417]     documentHighlight: 0
+V[19:42:57.417]   16:49 *
+V[19:42:57.418]     definition: 0
+V[19:42:57.418]     hover: false
+V[19:42:57.418]     documentHighlight: 0
+V[19:42:57.419]   16:50 const
+V[19:42:57.419]     definition: 0
+V[19:42:57.419]     hover: false
+V[19:42:57.420]     documentHighlight: 0
+V[19:42:57.420]   16:56 info
+V[19:42:57.420]     definition: 1
+E[19:42:57.421] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.421]     hover: true
+V[19:42:57.421]     documentHighlight: 2
+V[19:42:57.422]   16:60 ,
+V[19:42:57.422]     definition: 1
+V[19:42:57.422]     hover: false
+V[19:42:57.423]     documentHighlight: 2
+V[19:42:57.423]   16:62 Point
+V[19:42:57.423]     definition: 1
+E[19:42:57.423] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.424]     hover: true
+V[19:42:57.424]     documentHighlight: 4
+V[19:42:57.425]   16:68 *
+V[19:42:57.425]     definition: 0
+V[19:42:57.425]     hover: false
+V[19:42:57.425]     documentHighlight: 0
+V[19:42:57.426]   16:69 const
+V[19:42:57.426]     definition: 0
+V[19:42:57.426]     hover: false
+V[19:42:57.427]     documentHighlight: 0
+V[19:42:57.427]   16:75 points
+V[19:42:57.427]     definition: 1
+E[19:42:57.428] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.428]     hover: true
+V[19:42:57.428]     documentHighlight: 2
+V[19:42:57.429]   16:81 ,
+V[19:42:57.429]     definition: 1
+V[19:42:57.429]     hover: false
+V[19:42:57.430]     documentHighlight: 2
+V[19:42:57.430]   16:83 u32
+V[19:42:57.430]     definition: 1
+E[19:42:57.430] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.431]     hover: true
+V[19:42:57.431]     documentHighlight: 8
+V[19:42:57.431]   16:87 const
+V[19:42:57.432]     definition: 0
+V[19:42:57.432]     hover: false
+V[19:42:57.432]     documentHighlight: 0
+V[19:42:57.433]   16:93 length
+V[19:42:57.433]     definition: 1
+E[19:42:57.433] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.434]     hover: true
+V[19:42:57.434]     documentHighlight: 3
+V[19:42:57.434]   16:99 )
+V[19:42:57.435]     definition: 1
+V[19:42:57.435]     hover: false
+V[19:42:57.435]     documentHighlight: 3
+V[19:42:57.435]   16:101 {
+V[19:42:57.436]     definition: 0
+V[19:42:57.436]     hover: false
+V[19:42:57.436]     documentHighlight: 0
+V[19:42:57.436]   18:2 auto
+V[19:42:57.437]     definition: 1
+V[19:42:57.437]     hover: true
+V[19:42:57.438]     documentHighlight: 0
+V[19:42:57.439]   18:7 hasher
+V[19:42:57.439]     definition: 1
+E[19:42:57.439] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.440]     hover: true
+V[19:42:57.440]     documentHighlight: 2
+V[19:42:57.440]   18:14 =
+V[19:42:57.441]     definition: 1
+E[19:42:57.441] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.442]     hover: true
+V[19:42:57.442]     documentHighlight: 2
+V[19:42:57.442]   18:16 [
+V[19:42:57.442]     definition: 0
+V[19:42:57.443]     hover: false
+V[19:42:57.443]     documentHighlight: 0
+V[19:42:57.443]   18:17 =
+V[19:42:57.444]     definition: 0
+V[19:42:57.444]     hover: false
+V[19:42:57.444]     documentHighlight: 0
+V[19:42:57.445]   18:18 ]
+V[19:42:57.445]     definition: 0
+V[19:42:57.445]     hover: false
+V[19:42:57.446]     documentHighlight: 0
+V[19:42:57.446]   18:20 gpu
+V[19:42:57.446]     tweak: ExpandMacro
+V[19:42:57.447]     definition: 1
+E[19:42:57.447] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.448]     hover: true
+V[19:42:57.448]     documentHighlight: 0
+V[19:42:57.448]   18:23 (
+V[19:42:57.449]     tweak: ExpandMacro
+V[19:42:57.449]     definition: 1
+E[19:42:57.449] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.450]     hover: true
+V[19:42:57.450]     documentHighlight: 0
+V[19:42:57.451]   18:24 Point
+V[19:42:57.451]     definition: 1
+E[19:42:57.451] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.452]     hover: true
+V[19:42:57.452]     documentHighlight: 4
+V[19:42:57.452]   18:30 const
+V[19:42:57.453]     definition: 0
+V[19:42:57.453]     hover: false
+V[19:42:57.453]     documentHighlight: 0
+V[19:42:57.453]   18:36 &
+V[19:42:57.454]     definition: 0
+V[19:42:57.454]     hover: false
+V[19:42:57.454]     documentHighlight: 0
+V[19:42:57.455]   18:37 p
+V[19:42:57.455]     definition: 1
+E[19:42:57.455] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.456]     hover: true
+V[19:42:57.456]     documentHighlight: 2
+V[19:42:57.456]   18:38 )
+V[19:42:57.457]     definition: 1
+V[19:42:57.457]     hover: false
+V[19:42:57.457]     documentHighlight: 2
+V[19:42:57.458]   18:40 ->
+V[19:42:57.458]     definition: 0
+V[19:42:57.458]     hover: false
+V[19:42:57.459]     documentHighlight: 0
+V[19:42:57.459]   18:43 u32
+V[19:42:57.459]     definition: 1
+E[19:42:57.460] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.460]     hover: true
+V[19:42:57.461]     documentHighlight: 8
+V[19:42:57.461]   18:47 {
+V[19:42:57.461]     definition: 0
+V[19:42:57.462]     hover: false
+V[19:42:57.462]     documentHighlight: 0
+V[19:42:57.462]   18:49 return
+V[19:42:57.462]     definition: 0
+V[19:42:57.463]     hover: false
+V[19:42:57.463]     documentHighlight: 1
+V[19:42:57.463]   18:56 point_hash
+V[19:42:57.464]     tweak: ExtractVariable
+V[19:42:57.464]     definition: 1
+E[19:42:57.464] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.465]     hover: true
+V[19:42:57.465]     documentHighlight: 2
+V[19:42:57.465]   18:66 (
+V[19:42:57.466]     tweak: ExtractVariable
+V[19:42:57.466]     definition: 1
+E[19:42:57.466] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.467]     hover: true
+V[19:42:57.467]     documentHighlight: 2
+V[19:42:57.468]   18:67 p
+V[19:42:57.468]     definition: 1
+E[19:42:57.468] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.469]     hover: true
+V[19:42:57.469]     documentHighlight: 2
+V[19:42:57.469]   18:68 ,
+V[19:42:57.470]     tweak: ExtractVariable
+V[19:42:57.470]     definition: 1
+E[19:42:57.470] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.471]     hover: true
+V[19:42:57.471]     documentHighlight: 2
+V[19:42:57.471]   18:70 length
+V[19:42:57.472]     definition: 1
+E[19:42:57.472] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.473]     hover: true
+V[19:42:57.473]     documentHighlight: 3
+V[19:42:57.473]   18:76 )
+V[19:42:57.473]     tweak: ExtractVariable
+V[19:42:57.474]     definition: 1
+E[19:42:57.474] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.475]     hover: true
+V[19:42:57.476]     documentHighlight: 2
+V[19:42:57.476]   18:77 ;
+V[19:42:57.476]     definition: 1
+E[19:42:57.477] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.477]     hover: true
+V[19:42:57.477]     documentHighlight: 2
+V[19:42:57.478]   18:79 }
+V[19:42:57.478]     definition: 0
+V[19:42:57.478]     hover: false
+V[19:42:57.478]     documentHighlight: 0
+V[19:42:57.479]   18:80 ;
+V[19:42:57.479]     definition: 0
+V[19:42:57.479]     hover: false
+V[19:42:57.480]     documentHighlight: 0
+V[19:42:57.480]   20:2 sort
+V[19:42:57.480]     definition: 1
+E[19:42:57.481] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.481]     hover: true
+V[19:42:57.482]     documentHighlight: 1
+V[19:42:57.482]   20:6 (
+V[19:42:57.482]     definition: 1
+E[19:42:57.482] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.483]     hover: true
+V[19:42:57.483]     documentHighlight: 1
+V[19:42:57.484]   20:7 info
+V[19:42:57.484]     definition: 1
+E[19:42:57.484] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.485]     hover: true
+V[19:42:57.485]     documentHighlight: 2
+V[19:42:57.485]   20:11 ,
+V[19:42:57.486]     definition: 1
+E[19:42:57.486] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.487]     hover: true
+V[19:42:57.487]     documentHighlight: 1
+V[19:42:57.487]   20:13 points
+V[19:42:57.487]     definition: 1
+E[19:42:57.488] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.488]     hover: true
+V[19:42:57.488]     documentHighlight: 2
+V[19:42:57.489]   20:19 ,
+V[19:42:57.489]     definition: 1
+E[19:42:57.489] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.490]     hover: true
+V[19:42:57.490]     documentHighlight: 1
+V[19:42:57.491]   20:21 length
+V[19:42:57.491]     definition: 1
+E[19:42:57.491] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.492]     hover: true
+V[19:42:57.492]     documentHighlight: 3
+V[19:42:57.492]   20:27 ,
+V[19:42:57.493]     definition: 1
+E[19:42:57.493] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.494]     hover: true
+V[19:42:57.494]     documentHighlight: 1
+V[19:42:57.494]   20:29 hasher
+V[19:42:57.494]     definition: 1
+E[19:42:57.495] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.495]     hover: true
+V[19:42:57.496]     documentHighlight: 2
+V[19:42:57.496]   20:35 )
+V[19:42:57.496]     definition: 1
+E[19:42:57.496] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.497]     hover: true
+V[19:42:57.498]     documentHighlight: 1
+V[19:42:57.498]   20:36 ;
+V[19:42:57.498]     definition: 1
+E[19:42:57.498] IncludeCleaner: Failed to get an entry for resolved path '' from include <cuda/std/bit> : no such file or directory
+V[19:42:57.499]     hover: true
+V[19:42:57.499]     documentHighlight: 1
+V[19:42:57.499]   21:0 }
+V[19:42:57.500]     definition: 0
+V[19:42:57.500]     hover: false
+V[19:42:57.500]     documentHighlight: 0
+I[19:42:57.501] All checks completed, 1 errors

@@ -1,48 +1,36 @@
-#ifndef YIPE_UPFRONT_PASS_CUH
-#define YIPE_UPFRONT_PASS_CUH
+#pragma once
 
-#include "common.h"
-#include "gpu-common.cuh"
-
-// intra-warp inclusive prefix sum using register shuffles
-gpu inline u32 warp_inclusive_scan(u32 val) {
-#pragma unroll
-  for (u32 offset = 1; offset < 32; offset <<= 1) {
-    u32 const remote_val = __shfl_up_sync(SYNC_WARP, val, offset);
-    if ((threadIdx.x % 32) >= offset) {
-      val += remote_val;
-    }
-  }
-  return val;
-}
+#include "sort-common.cuh"
 
 global void exclusive_scan(u32 (*const counters)[DIGIT_PLACES][RADIX]) {
-  // shared memory to store the aggregate sum of each of the 8 warps
-  shared u32 warp_sums[8];
+  constexpr u32 warps = RADIX / 32;
 
-  u32 const lane_id = threadIdx.x % 32;
+  // shared memory to store the aggregate sum of each warp
+  shared u32 warp_sums[warps]; // NOLINT(bugprone-dynamic-static-initializers)
+
+  u32 const lane = threadIdx.x % 32;
   u32 const warp_id = threadIdx.x / 32;
 
   // scan within each warp
-  u32 val = warp_inclusive_scan((*counters)[blockIdx.x][threadIdx.x]);
+  u32 val = warp_inclusive_multiscan<32>((*counters)[blockIdx.x][threadIdx.x]);
 
   // thread 31 in each warp publishes the warp total
-  if (lane_id == 31) {
+  if (lane == 31) {
     warp_sums[warp_id] = val;
   }
   __syncthreads();
 
-  // warp 0 scans the 8 warp totals
+  // warp 0 scans the warp totals
   if (warp_id == 0) {
-    u32 const warp_val = warp_inclusive_scan((lane_id < 8) ? warp_sums[lane_id] : 0);
-    if (lane_id < 8) {
-      warp_sums[lane_id] = warp_val;
+    u32 const warp_val = warp_inclusive_multiscan<warps>((lane < warps) ? warp_sums[lane] : 0);
+    if (lane < warps) {
+      warp_sums[lane] = warp_val;
     }
   }
   __syncthreads();
 
   val = __shfl_up_sync(SYNC_WARP, val, 1);
-  if (lane_id == 0) {
+  if (lane == 0) {
     val = 0;
   }
 
@@ -56,12 +44,11 @@ global void exclusive_scan(u32 (*const counters)[DIGIT_PLACES][RADIX]) {
 
 template <typename T, typename Hasher>
   requires is_hasher<Hasher, T>
-global void upfront_count(T *const data, u32 const size, u32 (*const counters)[DIGIT_PLACES][RADIX], Hasher hasher) {
+global void upfront_count(T *const data, u32 const length, u32 (*const counters)[DIGIT_PLACES][RADIX], Hasher hasher) {
 
   // block-local counters
-  shared u32 local_counters[DIGIT_PLACES][RADIX];
-  auto(&linearized_local_counters)[DIGIT_PLACES * RADIX] =
-      *reinterpret_cast<u32(*)[DIGIT_PLACES * RADIX]>(local_counters);
+  shared u32 local_counters[DIGIT_PLACES][RADIX]; // NOLINT(bugprone-dynamic-static-initializers)
+  auto &linearized_local_counters = *reinterpret_cast<u32(*)[ARRAY_LENGTH_2D(local_counters)]>(local_counters);
 
   for (u32 i = threadIdx.x; i < DIGIT_PLACES * RADIX; i += blockDim.x) {
     linearized_local_counters[i] = 0;
@@ -80,18 +67,18 @@ global void upfront_count(T *const data, u32 const size, u32 (*const counters)[D
   */
 
   // iterate over slices in strides of grid size
-  for (u32 i = blockIdx.x * COUNTING_SLICE_SIZE; i < size; i += gridDim.x * COUNTING_SLICE_SIZE) {
+  for (u32 i = blockIdx.x * counting::slice_length; i < length; i += gridDim.x * counting::slice_length) {
     // iterate over the data slice in strides of block size
-    u32 slice_end = min(size, i + COUNTING_SLICE_SIZE);
+    u32 const slice_end = min(length, i + counting::slice_length);
     for (u32 j = i + threadIdx.x; j < slice_end; j += blockDim.x) {
-      T point = data[j];
-      u32 hash = hasher(point);
+      T const item = data[j];
+      u32 const hash = hasher(item);
       // for each digit place in the key
-      for (u32 k = 0; k < DIGIT_PLACES; ++k) {
+      for (u32 place = 0; place < DIGIT_PLACES; ++place) {
         // extract digit
-        u32 digit = (hash & (RADIX_MASK << (k * RADIX_SIZE))) >> (k * RADIX_SIZE);
+        u32 const digit = (hash >> place * RADIX_SIZE) & RADIX_MASK;
         // increment corresponding counter
-        atomicAdd(&local_counters[k][digit], 1);
+        atomicAdd_block(&local_counters[place][digit], 1);
       }
     }
   }
@@ -100,14 +87,12 @@ global void upfront_count(T *const data, u32 const size, u32 (*const counters)[D
   __syncthreads();
 
   // cast the arrays as a flat 1D layout
-  auto(&linearized_global_counters)[DIGIT_PLACES * RADIX] = *reinterpret_cast<u32(*)[DIGIT_PLACES * RADIX]>(*counters);
+  auto &linearized_global_counters = *reinterpret_cast<u32(*)[ARRAY_LENGTH_2D(*counters)]>(*counters);
   // parallel write to global memory
-  for (u32 i = threadIdx.x; i < DIGIT_PLACES * RADIX; i += blockDim.x) {
-    u32 count = linearized_local_counters[i];
+  for (u32 i = threadIdx.x; i < ARRAY_LENGTH(linearized_global_counters); i += blockDim.x) {
+    u32 const count = linearized_local_counters[i];
     if (count) {
       atomicAdd(&(linearized_global_counters)[i], count);
     }
   }
 }
-
-#endif // YIPE_UPFRONT_PASS_CUH

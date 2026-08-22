@@ -1,9 +1,7 @@
 cmake_minimum_required(VERSION 4.4)
 
-# declare C++ and CUDA as native first-class languages
 project(yipe LANGUAGES C CXX CUDA)
 
-# declare target language standard specifications cleanly
 set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
@@ -19,12 +17,23 @@ set(CMAKE_CUDA_EXTENSIONS OFF)
 find_package(CUDAToolkit REQUIRED)
 
 if(CMAKE_EXPORT_COMPILE_COMMANDS)
+    # clangd hint
+    if(CUDAToolkit_VERSION_MAJOR GREATER_EQUAL 13)
+        set(YIPE_CUDA_ESTIMATED_ARCH "sm_70")
+    else()
+        set(YIPE_CUDA_ESTIMATED_ARCH "sm_61")
+    endif()
     configure_file(
         "${PROJECT_SOURCE_DIR}/.clangd.in"
         "${PROJECT_SOURCE_DIR}/.clangd"
         @ONLY
     )
 endif()
+
+set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES
+    "${PROJECT_SOURCE_DIR}/.clangd"
+    "${PROJECT_SOURCE_DIR}/compile_commands.json"
+)
 
 add_executable(yipe)
 
@@ -38,14 +47,21 @@ target_include_directories(yipe
     ${PROJECT_SOURCE_DIR}/src
 )
 
-# Enable relocatable device compilation cleanly via target properties
 set_target_properties(yipe PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_ARCHITECTURES "native")
 
 target_compile_options(yipe PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>:-Wall>
-    $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CXX_COMPILER_ID:MSVC>>:-Xcompiler=/wd4514,/wd4820,/wd4668,/wd4459,/wd4626,/wd5027,/wd5045>
+    # $<$<COMPILE_LANG_AND_ID:C,MSVC>:/Zc:preprocessor>
+    $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CXX_COMPILER_ID:MSVC>>:-Xcompiler=/Zc:preprocessor,/external:W0,/wd4514,/wd5045,/wd4668,/wd4626,/wd5027>
+    # ,/wd4820,/wd4459
+    # ,/wd4619,/wd5031
     $<$<COMPILE_LANG_AND_ID:CUDA,NVIDIA>:--extended-lambda;-Xcudafe;--display_error_number>)
+
+
+target_include_directories(yipe SYSTEM PRIVATE
+    "${CUDAToolkit_INCLUDE_DIRS}"
+)
 
 target_link_libraries(yipe PRIVATE CUDA::cudart)
