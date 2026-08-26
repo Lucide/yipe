@@ -4,16 +4,19 @@
 #pragma warning(disable : 5039)
 #endif
 
-#include <stdint.h>
-
 #ifdef __cplusplus
+#include <cstdint>
 extern "C" {
+#else
+#include <stdint.h>
 #endif
 
 #define ARRAY_LENGTH(arr) (sizeof(arr) / sizeof(*(arr)))
 #define ARRAY_LENGTH_2D(arr) (sizeof(arr) / sizeof(**(arr)))
 
 typedef unsigned int uint;
+typedef uint8_t u8;
+typedef uint16_t u16;
 typedef uint32_t u32;
 
 #define PARTICLE_DIAMETER 1.0f

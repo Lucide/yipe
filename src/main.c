@@ -1,9 +1,9 @@
-#include "common.h"
 #include <cuda_runtime.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "common.h"
 
-#define ARR_SIZE 200000 // 2^31 / sizeof(Point) = 2^31 / 12 = 178956970
+#define ARR_SIZE 400000 // 2^31 / sizeof(Point) = 2^31 / 12 = 178956970
 #define ROOM_WIDTH 600.
 #define ROOM_DEPTH 400.
 #define ROOM_HEIGHT 300.

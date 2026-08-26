@@ -12,6 +12,9 @@
 				"kind": "build",
 				"isDefault": true
 			},
+			"presentation": {
+				"clear": true
+			},
 			"problemMatcher": [
 				"$msCompile",
 				"$nvcc",

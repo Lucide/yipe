@@ -54,9 +54,9 @@ set_target_properties(yipe PROPERTIES
 target_compile_options(yipe PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>:-Wall>
     # $<$<COMPILE_LANG_AND_ID:C,MSVC>:/Zc:preprocessor>
-    $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CXX_COMPILER_ID:MSVC>>:-Xcompiler=/Zc:preprocessor,/external:W0,/wd4514,/wd5045,/wd4668,/wd4626,/wd5027>
+    $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CXX_COMPILER_ID:MSVC>>:-Xcompiler=/Zc:preprocessor,/external:W0,/wd4514,/wd5045,/wd4668,/wd4626,/wd5027,/wd5031>
     # ,/wd4820,/wd4459
-    # ,/wd4619,/wd5031
+    # ,/wd4619
     $<$<COMPILE_LANG_AND_ID:CUDA,NVIDIA>:--extended-lambda;-Xcudafe;--display_error_number>)
 
 

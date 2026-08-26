@@ -2,19 +2,16 @@ If:
   PathMatch: .*\.(c|h)
 CompileFlags:
   Add:
-    # Windows MSVC support
+    # windows MSVC support
     - --driver-mode=cl
 
 ---
-# For all CUDA source and header files:
-# - Force clang++ as the compiler so cl.exe is never used (important for
-#   headers that clangd may "inherit" a context from main.c).
-# - Mark as CUDA so clangd activates its CUDA language mode.
 If:
-  PathMatch: .*\.(cu|cuh)
+  PathMatch: .*(/common\.h|\.(cu|cuh))
+# Compiler: clang++
 CompileFlags:
   Remove:
-    # Strip NVCC flags that cause clangd parsing errors
+    # strip NVCC flags that cause clangd parsing errors
     - -forward-unknown-to-host-compiler
     - -Xcompiler=*
     - -Xcudafe
@@ -29,11 +26,12 @@ CompileFlags:
     - --display_error_number
     - -arch=*
   Add:
-    # - -Wno-c++98-compat
-    # - -Wno-c++98-compat-pedantic
+    # workaround since cuda seems to directly intercept assert(calls)
+    - -DNDEBUG
+    - -Wno-c++98-compat
+    - -Wno-c++98-compat-pedantic
     # - -Wno-missing-prototypes
-    # - -x
-    # - cuda
-    # Set the path to your NVIDIA CUDA installation
+    - -x
+    - cuda
     - --cuda-path=@CMAKE_CUDA_COMPILER_TOOLKIT_ROOT@
     - --cuda-gpu-arch=@YIPE_CUDA_ESTIMATED_ARCH@

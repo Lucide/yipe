@@ -1,6 +1,13 @@
 ---
 BasedOnStyle: LLVM
 AlignArrayOfStructures: Right
-BinPackParameters: OnePerLine
 ColumnLimit: 120
-PackConstructorInitializers: NextLine
+# BinPackInitializers: OnePerLine
+# PackConstructorInitializers: CurrentLine
+BinPackParameters: OnePerLine
+# PackParameters: OnePerLine
+IncludeCategories:
+  - Regex: "^<.*>"
+    Priority: 1
+  - Regex: '^".*"'
+    Priority: 2
