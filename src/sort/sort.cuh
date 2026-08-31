@@ -1,26 +1,24 @@
 #pragma once
 
 #include <cstdio>
+#include <cuda_runtime_api.h>
+#include <driver_types.h>
 #include "sort/onesweep.cuh"
 #include "sort/upfront-pass.cuh"
 
 template <typename T, typename Hasher>
 void sort(GPUInfo const *const info, T *const data, u32 const length, Hasher hasher) {
-  // u32(*counters)[DIGIT_PLACES][RADIX];
   Counters *counters;
   cudaMalloc(&counters, sizeof(*counters));
   cudaMemset(counters, 0, sizeof(*counters));
 
-  u32 const blocks_per_grid = min(info->multiprocessors * counting::blocks_per_sm,
-                                  (length + counting::slice_length - 1) / counting::slice_length);
-  printf(
-      "info:\n\tblocks per grid: %d\n\tthreads per block: %d\n\tmultiprocessors: %d\n\tcores per multiprocessor: %d\n",
-      blocks_per_grid, counting::threads_per_block, info->multiprocessors, info->cores_per_multiprocessor);
+  u32 const blocks_per_grid =
+      min(info->multiprocessors * upfront::blocks_per_sm, (length + upfront::slice_length - 1) / upfront::slice_length);
 
-  upfront_count<<<blocks_per_grid, counting::threads_per_block>>>(data, length, &counters->counters, hasher);
+  upfront::count<<<blocks_per_grid, upfront::threads_per_block>>>(data, length, counters->counters, hasher);
   handle_cuda_error();
 
-  exclusive_scan<<<DIGIT_PLACES, RADIX>>>(counters, length);
+  upfront::exclusive_scan<<<DIGIT_PLACES, RADIX>>>(counters, length);
   handle_cuda_error();
 
   decltype(counters->degenerates) degenerates;
@@ -30,38 +28,59 @@ void sort(GPUInfo const *const info, T *const data, u32 const length, Hasher has
   cudaMalloc(&atomic_counter, sizeof(u32));
   cudaMemset(atomic_counter, 0, sizeof(u32));
 
-  u32 const slices = (length + sorting::slice_length - 1) / sorting::slice_length;
-  sorting::StatusCounter *status_counters;
-  cudaMalloc(&status_counters, RADIX * slices * sizeof(sorting::StatusCounter));
-  cudaMemset(status_counters, 0, RADIX * slices * sizeof(sorting::StatusCounter));
+  u32 const slices = (length + onesweep::slice_length - 1) / onesweep::slice_length;
+  u32 const status_couters_size = RADIX * slices * sizeof(onesweep::StatusCounter);
+  onesweep::StatusCounter *status_counters;
+  cudaMalloc(&status_counters, status_couters_size);
+
+  auto src = data;
+  T *dst;
+  cudaError_t err = cudaMalloc(&dst, sizeof(T) * length);
+  if (err != cudaSuccess)
+    printf("alloc failed: %s\n", cudaGetErrorString(err));
 
   // onesweep iterations
-  for (u32 place = 0; place < ARRAY_LENGTH(counters->counters); ++place) {
+  cudaDeviceSynchronize();
+  for (u8 place = 0; place < ARRAY_LENGTH(counters->counters); ++place) {
     if (degenerates[place])
       continue;
-    sorting::onesweep<<<slices, sorting::threads_per_block>>>(atomic_counter, data, length, place, status_counters,
-                                                              &counters->counters[place], hasher);
+    printf("place: %d\n", place);
+    cudaMemset(status_counters, 0, status_couters_size);
+    onesweep::onesweep<<<slices, onesweep::threads_per_block>>>(atomic_counter, src, dst, length, place,
+                                                                status_counters, counters->counters[place], hasher);
+    cudaDeviceSynchronize();
+    handle_cuda_error();
+    auto temp = src;
+    src = dst;
+    dst = temp;
   }
 
-  for (u32 place = 0; place < ARRAY_LENGTH(degenerates); ++place) {
-    printf("%d, ", degenerates[place]);
-    // if (degenerates[place]
+  if (dst == data) {
+    cudaMemcpy(data, src, sizeof(T) * length, cudaMemcpyDeviceToDevice);
+    cudaFree(src);
+  } else {
+    cudaFree(dst);
   }
-  printf("\n");
-  // debug copyback
-  auto cpu_counters = new u32[1][DIGIT_PLACES][RADIX];
-  cudaMemcpy(cpu_counters, counters->counters, sizeof(counters->counters), cudaMemcpyDeviceToHost);
-  for (u32 place = 0; place < DIGIT_PLACES; ++place) {
-    if (degenerates[place])
-      continue;
-    printf("place %d: [", place);
-    for (u32 digit = 0; digit < RADIX; ++digit) {
-      printf("%d:%d,", digit, (*cpu_counters)[place][digit]);
-    }
-    printf("]\n");
-  }
-  delete[] cpu_counters;
-  // end debug copyback
+
+  // for (u32 place = 0; place < ARRAY_LENGTH(degenerates); ++place) {
+  //   printf("%d, ", degenerates[place]);
+  //   // if (degenerates[place]
+  // }
+  // printf("\n");
+  // // debug copyback
+  // auto cpu_counters = new u32[1][DIGIT_PLACES][RADIX];
+  // cudaMemcpy(cpu_counters, counters->counters, sizeof(counters->counters), cudaMemcpyDeviceToHost);
+  // for (u32 place = 0; place < DIGIT_PLACES; ++place) {
+  //   if (degenerates[place])
+  //     continue;
+  //   printf("place %d: [", place);
+  //   for (u32 digit = 0; digit < RADIX; ++digit) {
+  //     printf("%d:%d,", digit, (*cpu_counters)[place][digit]);
+  //   }
+  //   printf("]\n");
+  // }
+  // delete[] cpu_counters;
+  // // end debug copyback
 
   cudaFree(counters);
   cudaFree(atomic_counter);

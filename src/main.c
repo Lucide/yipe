@@ -1,4 +1,6 @@
 #include <cuda_runtime.h>
+#include <driver_types.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "common.h"
@@ -8,7 +10,7 @@
 #define ROOM_DEPTH 400.
 #define ROOM_HEIGHT 300.
 
-int get_cores_per_SM(int major, int minor) {
+int get_cores_per_SM(u32 major, u32 minor) {
   switch (major) {
   case 2: // Fermi
     return (minor == 1) ? 48 : 32;
@@ -55,7 +57,7 @@ GPUInfo fetch_gpu_info() {
 }
 
 // Function to fill an array with random numbers within a specific range
-void generate_random_points(Point *const points, uint seed) {
+void generate_random_points(Point *const points, u32 seed) {
   // 1. Initialize the random number generator with the provided seed
   srand(seed);
 
@@ -68,10 +70,15 @@ void generate_random_points(Point *const points, uint seed) {
 }
 
 int main(int const argc, char const *const *const argv) {
+  u32 const seed = 0;
   GPUInfo const info = fetch_gpu_info();
 
+  printf("info:\n\tmultiprocessors: %d\n\tcores per multiprocessor: %d\n", info.multiprocessors,
+         info.cores_per_multiprocessor);
+  printf("seed %d\n", seed);
+
   struct Point *const cpu_points = malloc(sizeof(Point[ARR_SIZE]));
-  generate_random_points(cpu_points, 0);
+  generate_random_points(cpu_points, 549951);
 
   struct Point *gpu_points;
   cudaMalloc((void **)&gpu_points, sizeof(Point[ARR_SIZE]));
@@ -79,9 +86,33 @@ int main(int const argc, char const *const *const argv) {
 
   printf("Launch\n");
   launch_sort_points(&info, gpu_points, ARR_SIZE);
+  printf("Done\n");
 
   // Copy result back and clean up
+
+  cudaMemcpy(cpu_points, gpu_points, sizeof(Point[ARR_SIZE]), cudaMemcpyDeviceToHost);
+  cudaDeviceSynchronize();
   cudaFree(gpu_points);
+
+  for (u32 i = 0; i < ARR_SIZE && ARR_SIZE <= 4096; ++i) {
+    u32 hash1 = point_hash(&cpu_points[i], ARR_SIZE);
+    printf("%d ", hash1);
+  }
+
+  printf("\n");
+
+  u32 count = 0;
+  for (u32 i = 0; i < ARR_SIZE - 1; ++i) {
+    u32 hash1 = point_hash(&cpu_points[i], ARR_SIZE);
+    u32 hash2 = point_hash(&cpu_points[i + 1], ARR_SIZE);
+    if (hash1 > hash2) {
+      printf("sorting error: %d %d, index: %d %d\n", hash1, hash2, i, i + 1);
+      ++count;
+    }
+  }
+  printf("errors: %d", count);
+
+  free(cpu_points);
 
   return 0;
 }

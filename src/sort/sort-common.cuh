@@ -1,16 +1,12 @@
 #pragma once
 
-#include <bit>
 #include <cassert>
 #include <concepts>
 #include <cuda/std/bit>
 #include <cuda/std/optional>
+#include <cuda/std/span>
 #include <variant>
 #include "common.h"
-
-#define gpu __device__
-#define kernel __global__
-#define shared __shared__
 
 // size of the hash in bits
 constexpr u8 KEY_SIZE = sizeof(u32) * 8;
@@ -18,8 +14,6 @@ constexpr u8 KEY_SIZE = sizeof(u32) * 8;
 constexpr u8 RADIX_SIZE = 8;
 static_assert(KEY_SIZE > 0 && RADIX_SIZE > 0, "KEY_SIZE and RADIX_SIZE must be greater than 0");
 static_assert(RADIX_SIZE < KEY_SIZE, "RADIX_SIZE must be less than KEY_SIZE");
-
-// TODO: assert < maxint
 
 // number of radix values
 constexpr u16 RADIX = 1u << RADIX_SIZE;
@@ -32,44 +26,19 @@ constexpr u32 RADIX_MASK = RADIX - 1;
 
 constexpr u32 SYNC_WARP = 0xffffffff;
 
-namespace counting {
+namespace upfront {
 inline constexpr u8 blocks_per_sm = 2;
 inline constexpr u16 threads_per_block = 256;
 inline constexpr u16 items_per_thread_per_slice = 8;
-inline constexpr u32 slice_length = threads_per_block * items_per_thread_per_slice;
-} // namespace counting
+} // namespace upfront
 
-namespace sorting {
-enum class Status : u32 {
-  Invalid = 0,
-  Count = 1,
-  Prefix = 2,
-};
-
-struct StatusCounter {
-  Status status : 2;
-  u32 counter : 30;
-};
-
-static_assert(sizeof(StatusCounter) == sizeof(u32), "status and counter must be packed in a single 32 bit word");
-
+namespace onesweep {
 inline constexpr u16 threads_per_block = 256;
 static_assert(threads_per_block % 32 == 0, "threads_per_block must be a multiple of 32");
 static_assert(threads_per_block >= RADIX, "threads_per_block must be at least RADIX");
 
 inline constexpr u16 items_per_thread = 8;
-
-// todo: not parameters not shared, move in onesweep
-inline constexpr u16 slice_length = threads_per_block * items_per_thread;
-inline constexpr u8 warp_slices = threads_per_block / 32;
-static_assert(warp_slices <= 32, "warp_slices must be at most 32");
-constexpr u16 warp_slice_length = 32 * items_per_thread;
-
-// (32 - count_leading_zeroes(n-1)) calculates the smallest power of two >=n
-// undefined behaviour for clz(0)
-inline constexpr u8 subwarp_size =
-    (sorting::warp_slices == 1) ? 1U : 1 << (32 - std::countl_zero(sorting::warp_slices - 1U));
-} // namespace sorting
+} // namespace onesweep
 
 struct Counters {
   u32 counters[DIGIT_PLACES][RADIX];
@@ -88,6 +57,10 @@ void handle_cuda_error() {
     printf("CUDA Error: %s\n", cudaGetErrorString(err));
     exit(-1);
   }
+}
+
+template <typename T, size_t N1, size_t N2> __device__ constexpr auto flatten(T (&arr)[N1][N2]) {
+  return cuda::std::span<T, N1 * N2>(&arr[0][0], N1 * N2);
 }
 
 // intra-warp inclusive prefix sum using register shuffles
@@ -111,9 +84,11 @@ radix_scan(u32 const digit_count, std::conditional_t<detect, u32, std::monostate
   assert(threadIdx.x < RADIX);
 
   constexpr u8 warps = RADIX / 32;
+  u8 const lane = threadIdx.x % 32;
+  u8 const warp_id = threadIdx.x / 32;
 
   // shared memory to store the aggregate sum of each warp
-  shared u32 warp_sums[warps];                                          // NOLINT(bugprone-dynamic-static-initializers)
+  shared u32 warp_counters[warps];                                      // NOLINT(bugprone-dynamic-static-initializers)
   shared std::conditional_t<detect, u32[warps], char> degenerate_warps; // NOLINT(bugprone-dynamic-static-initializers)
 
   // scan within each warp
@@ -122,17 +97,14 @@ radix_scan(u32 const digit_count, std::conditional_t<detect, u32, std::monostate
     // detect if the warp is degenerate, i.e. only one digit population
     degenerate_warp = __any_sync(SYNC_WARP, digit_count == length);
   }
-  u32 acc = warp_inclusive_multiscan<32>(digit_count);
-
-  u8 const lane = threadIdx.x % 32;
-  u8 const warp_id = threadIdx.x / 32;
+  u32 sum = warp_inclusive_multiscan<32>(digit_count);
 
   // last thread in each warp publishes the warp total
   if (lane == 31) {
     if constexpr (detect) {
       degenerate_warps[warp_id] = degenerate_warp;
     }
-    warp_sums[warp_id] = acc;
+    warp_counters[warp_id] = sum;
   }
 
   __syncthreads();
@@ -149,9 +121,9 @@ radix_scan(u32 const digit_count, std::conditional_t<detect, u32, std::monostate
       }
     }
     if (!flag) {
-      u32 const warp_acc = warp_inclusive_multiscan<warps>((lane < warps) ? warp_sums[lane] : 0);
+      u32 const sum = warp_inclusive_multiscan<warps>((lane < warps) ? warp_counters[lane] : 0);
       if (lane < warps) {
-        warp_sums[lane] = warp_acc;
+        warp_counters[lane] = sum;
       }
     }
   }
@@ -164,15 +136,15 @@ radix_scan(u32 const digit_count, std::conditional_t<detect, u32, std::monostate
     }
   }
 
-  acc = __shfl_up_sync(SYNC_WARP, acc, 1);
+  sum = __shfl_up_sync(SYNC_WARP, sum, 1);
   if (lane == 0) {
-    acc = 0;
+    sum = 0;
   }
 
   // add prefix sum of previous warps to local warp results
   if (warp_id > 0) {
-    acc += warp_sums[warp_id - 1];
+    sum += warp_counters[warp_id - 1];
   }
 
-  return acc;
+  return sum;
 }

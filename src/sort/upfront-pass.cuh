@@ -2,15 +2,18 @@
 
 #include "sort-common.cuh"
 
+namespace upfront {
+inline constexpr u32 slice_length = threads_per_block * items_per_thread_per_slice;
+
 template <typename T, typename Hasher>
   requires is_hasher<Hasher, T>
-kernel void upfront_count(T *const data, u32 const length, u32 (*const counters)[DIGIT_PLACES][RADIX], Hasher hasher) {
+kernel void count(T *const data, u32 const length, u32 (&counters)[DIGIT_PLACES][RADIX], Hasher hasher) {
 
   // block-local counters
   shared u32 local_counters[DIGIT_PLACES][RADIX]; // NOLINT(bugprone-dynamic-static-initializers)
-  auto &linearized_local_counters = *reinterpret_cast<u32(*)[ARRAY_LENGTH_2D(local_counters)]>(local_counters);
+  auto linearized_local_counters = flatten(local_counters);
 
-  for (u16 i = threadIdx.x; i < ARRAY_LENGTH(linearized_local_counters); i += blockDim.x) {
+  for (u16 i = threadIdx.x; i < size(linearized_local_counters); i += blockDim.x) {
     linearized_local_counters[i] = 0;
   }
 
@@ -27,9 +30,9 @@ kernel void upfront_count(T *const data, u32 const length, u32 (*const counters)
   */
 
   // iterate over slices in strides of grid size
-  for (u32 i = blockIdx.x * counting::slice_length; i < length; i += gridDim.x * counting::slice_length) {
+  for (u32 i = blockIdx.x * slice_length; i < length; i += gridDim.x * slice_length) {
     // iterate over the data slice in strides of block size
-    u32 const slice_end = min(length, i + counting::slice_length);
+    u32 const slice_end = min(length, i + slice_length);
     for (u32 j = i + threadIdx.x; j < slice_end; j += blockDim.x) {
       T const item = data[j];
       u32 const hash = hasher(item);
@@ -47,9 +50,9 @@ kernel void upfront_count(T *const data, u32 const length, u32 (*const counters)
   __syncthreads();
 
   // cast the arrays as a flat 1D layout
-  auto &linearized_global_counters = *reinterpret_cast<u32(*)[ARRAY_LENGTH_2D(*counters)]>(*counters);
+  auto linearized_global_counters = flatten(counters);
   // parallel write to global memory
-  for (u16 i = threadIdx.x; i < ARRAY_LENGTH(linearized_global_counters); i += blockDim.x) {
+  for (u16 i = threadIdx.x; i < size(linearized_global_counters); i += blockDim.x) {
     u32 const count = linearized_local_counters[i];
     if (count) {
       atomicAdd(&(linearized_global_counters)[i], count);
@@ -66,3 +69,4 @@ kernel void exclusive_scan(Counters *const counters, u32 const length) {
     (counters->counters)[blockIdx.x][threadIdx.x] = result.value();
   }
 }
+} // namespace upfront
