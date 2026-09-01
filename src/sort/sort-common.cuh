@@ -1,30 +1,50 @@
 #pragma once
 
 #include <cassert>
-#include <concepts>
-#include <cuda/std/bit>
 #include <cuda/std/optional>
-#include <cuda/std/span>
-#include <variant>
-#include "common.h"
+#include "gpu-common.cuh"
 
-// size of the hash in bits
-constexpr u8 KEY_SIZE = sizeof(u32) * 8;
 // size of the radix in bits
 constexpr u8 RADIX_SIZE = 8;
-static_assert(KEY_SIZE > 0 && RADIX_SIZE > 0, "KEY_SIZE and RADIX_SIZE must be greater than 0");
-static_assert(RADIX_SIZE < KEY_SIZE, "RADIX_SIZE must be less than KEY_SIZE");
+static_assert(RADIX_SIZE > 0, "RADIX_SIZE must be greater than 0");
 
 // number of radix values
 constexpr u16 RADIX = 1u << RADIX_SIZE;
 static_assert(RADIX % 32 == 0, "RADIX must be a multiple of 32");
 static_assert(RADIX <= 1024, "RADIX can't be higher than 1024");
-// digit places in a hash
-constexpr u8 DIGIT_PLACES = KEY_SIZE / RADIX_SIZE;
-// all 1 in the first RADIX_SIZE bits
-constexpr u32 RADIX_MASK = RADIX - 1;
 
-constexpr u32 SYNC_WARP = 0xffffffff;
+template <typename Func, typename T>
+concept is_hasher = requires(Func f, T const &val) {
+  // enforces that f(val) is valid and returns an unsigned integer
+  { f(val) } -> std::unsigned_integral;
+};
+
+template <typename Hasher, typename Data>
+  requires is_hasher<Hasher, Data>
+struct Key {
+  using KeyType = std::invoke_result_t<Hasher, Data>;
+  // size of the hash in bits
+  static constexpr u8 key_size = sizeof(KeyType) * 8;
+  static_assert(RADIX_SIZE < key_size, "RADIX_SIZE must be less than KEY_SIZE");
+  // digit places in a hash
+  static constexpr u8 digit_places = key_size / RADIX_SIZE;
+  static constexpr u16 total_bits = std::numeric_limits<KeyType>::digits;
+
+  // mask generation safe for bit counts up to total_bits
+  gpu host static constexpr KeyType mask(u16 num_bits) {
+    if (num_bits >= total_bits)
+      return ~KeyType(0);
+    return (KeyType(1) << num_bits) - KeyType(1);
+  }
+
+  // all 1 in the first RADIX_SIZE bits
+  static constexpr KeyType radix_mask = mask(RADIX_SIZE);
+
+  gpu host static constexpr u16 extract_digit(KeyType key, u8 place) {
+    const KeyType shift = place * RADIX_SIZE;
+    return (key >> shift) & radix_mask;
+  }
+};
 
 namespace upfront {
 inline constexpr u8 blocks_per_sm = 2;
@@ -40,42 +60,10 @@ static_assert(threads_per_block >= RADIX, "threads_per_block must be at least RA
 inline constexpr u16 items_per_thread = 8;
 } // namespace onesweep
 
-struct Counters {
-  u32 counters[DIGIT_PLACES][RADIX];
-  bool degenerates[DIGIT_PLACES];
+template <IsInstanceOf<Key> Key> struct Counters {
+  u32 counters[Key::digit_places][RADIX];
+  bool degenerates[Key::digit_places];
 };
-
-template <typename Func, typename T>
-concept is_hasher = requires(Func f, T const &val) {
-  // enforces that f(val) is valid and returns exactly an u32
-  { f(val) } -> std::same_as<u32>;
-};
-
-void handle_cuda_error() {
-  cudaError_t err = cudaGetLastError();
-  if (err != cudaSuccess) {
-    printf("CUDA Error: %s\n", cudaGetErrorString(err));
-    exit(-1);
-  }
-}
-
-template <typename T, size_t N1, size_t N2> __device__ constexpr auto flatten(T (&arr)[N1][N2]) {
-  return cuda::std::span<T, N1 * N2>(&arr[0][0], N1 * N2);
-}
-
-// intra-warp inclusive prefix sum using register shuffles
-template <u32 width> gpu inline u32 warp_inclusive_multiscan(u32 val) {
-  static_assert(cuda::std::has_single_bit(width), "Width of warp_inclusive_scan must be a power of two");
-  static_assert(width <= 32, "Width of warp_inclusive_scan must <= 32");
-#pragma unroll
-  for (u32 offset = 1; offset < width; offset <<= 1) {
-    u32 const remote_val = __shfl_up_sync(SYNC_WARP, val, offset, width);
-    if ((threadIdx.x % width) >= offset) {
-      val += remote_val;
-    }
-  }
-  return val;
-}
 
 template <bool detect = false>
 gpu inline std::conditional_t<detect, cuda::std::optional<u32>, u32>

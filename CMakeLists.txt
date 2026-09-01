@@ -40,7 +40,7 @@ add_executable(yipe)
 target_sources(yipe
     PRIVATE
     src/main.c
-    src/spatial-hash.cu)
+    src/entrypoints.cu)
 
 target_include_directories(yipe
     PRIVATE

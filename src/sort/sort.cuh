@@ -3,12 +3,15 @@
 #include <cstdio>
 #include <cuda_runtime_api.h>
 #include <driver_types.h>
-#include "sort/onesweep.cuh"
-#include "sort/upfront-pass.cuh"
+#include "onesweep.cuh"
+#include "upfront-pass.cuh"
 
-template <typename T, typename Hasher>
-void sort(GPUInfo const *const info, T *const data, u32 const length, Hasher hasher) {
-  Counters *counters;
+template <typename Data, typename Hasher>
+// requires is_hasher<Hasher, Data>
+void sort(GPUInfo const *const info, Data *const data, u32 const length, Hasher hasher) {
+  using Key = Key<Hasher, Data>;
+  Counters<Key> *counters;
+
   cudaMalloc(&counters, sizeof(*counters));
   cudaMemset(counters, 0, sizeof(*counters));
 
@@ -17,8 +20,7 @@ void sort(GPUInfo const *const info, T *const data, u32 const length, Hasher has
 
   upfront::count<<<blocks_per_grid, upfront::threads_per_block>>>(data, length, counters->counters, hasher);
   handle_cuda_error();
-
-  upfront::exclusive_scan<<<DIGIT_PLACES, RADIX>>>(counters, length);
+  upfront::exclusive_scan<Key><<<Key::digit_places, RADIX>>>(counters, length);
   handle_cuda_error();
 
   decltype(counters->degenerates) degenerates;
@@ -27,20 +29,19 @@ void sort(GPUInfo const *const info, T *const data, u32 const length, Hasher has
   u32 *atomic_counter;
   cudaMalloc(&atomic_counter, sizeof(u32));
   cudaMemset(atomic_counter, 0, sizeof(u32));
-
   u32 const slices = (length + onesweep::slice_length - 1) / onesweep::slice_length;
-  u32 const status_couters_size = RADIX * slices * sizeof(onesweep::StatusCounter);
-  onesweep::StatusCounter *status_counters;
+  u32 const status_couters_size = RADIX * slices * sizeof(StatusCounter);
+  StatusCounter *status_counters;
   cudaMalloc(&status_counters, status_couters_size);
-
-  auto src = data;
-  T *dst;
-  cudaError_t err = cudaMalloc(&dst, sizeof(T) * length);
-  if (err != cudaSuccess)
+  Data *dst;
+  if (auto err = cudaMalloc(&dst, sizeof(Data) * length); err != cudaSuccess)
     printf("alloc failed: %s\n", cudaGetErrorString(err));
+  auto src = data;
+
+  // await pending device operations
+  cudaDeviceSynchronize();
 
   // onesweep iterations
-  cudaDeviceSynchronize();
   for (u8 place = 0; place < ARRAY_LENGTH(counters->counters); ++place) {
     if (degenerates[place])
       continue;
@@ -48,15 +49,12 @@ void sort(GPUInfo const *const info, T *const data, u32 const length, Hasher has
     cudaMemset(status_counters, 0, status_couters_size);
     onesweep::onesweep<<<slices, onesweep::threads_per_block>>>(atomic_counter, src, dst, length, place,
                                                                 status_counters, counters->counters[place], hasher);
-    cudaDeviceSynchronize();
     handle_cuda_error();
-    auto temp = src;
-    src = dst;
-    dst = temp;
+    std::swap(src, dst);
   }
 
   if (dst == data) {
-    cudaMemcpy(data, src, sizeof(T) * length, cudaMemcpyDeviceToDevice);
+    cudaMemcpy(data, src, sizeof(Data) * length, cudaMemcpyDeviceToDevice);
     cudaFree(src);
   } else {
     cudaFree(dst);

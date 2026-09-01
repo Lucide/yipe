@@ -54,3 +54,19 @@
 * I bin privatizzati sono memorizzati in modo da minimizzare i bank conflict
   * L'ordine degli indici massimizza "stride" tra bin in conflitto, riduce la possibilità di conflitti popolando i bin
   * Extra celle in ogni array di bin garantisce 0 conflitti in fase di prefix sum
+* La funzione è generica sulla chiave, che può essere qualsiasi tipo integrale unsigned (da `u8` a `u128`)
+  * La chiave non viene mai salvata, solo il conteggio delle cifre (`u16`) quindi non influisce sul register file
+* La funzione è generica sul dato, e viene salvato in dei bin in shared memory, insieme ai conteggi per warp per digit
+  * I conteggi per warp per digit occupano circa 4kB
+  * Con punti `float3` i bin occupano 24kB
+  * Insieme rientrano ampiamente in shared memory
+  * La dimensione massima degli oggetti ordinabili dipende dalla dimensione della shared memory, nel caso di 64kB si parla di circa 26 byte
+
+## Prefix scan semplice
+
+* È una versione semplificata della fase di scan in onesweep
+  * Manca la parte di scattering
+  * Non fa operazioni per digit, solo totali
+* Può usare più thread per batch più grandi
+* Il numero di elementi per thread e di thread per blocco va dimensionato in base al register file
+  * 8 item per thread, con 1024 thread, con item `u64` occuperebbe 64kB solo leggere gli item

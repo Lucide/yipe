@@ -4,56 +4,26 @@
 #include <cuda/std/mdspan>
 #include "sort-common.cuh"
 
-// #define __CUDA_ARCH__ 700
-// #define __CUDA_ARCH__ 610
 namespace onesweep {
-enum class Status : u32 {
-  Invalid = 0,
-  Count = 1,
-  Prefix = 2,
-};
-
-struct StatusCounter {
-  Status status : 2;
-  u32 counter : 30;
-};
-
-static_assert(sizeof(StatusCounter) == sizeof(u32), "status and counter must be packed in a single 32 bit word");
-
 inline constexpr u16 slice_length = threads_per_block * items_per_thread;
 inline constexpr u8 warp_slices = threads_per_block / 32;
 static_assert(warp_slices <= 32, "warp_slices must be at most 32");
 inline constexpr u16 warp_slice_length = 32 * items_per_thread;
-// (32 - count_leading_zeroes(n-1)) calculates the smallest power of two >=n
-// undefined behaviour for clz(0)
-inline constexpr u8 subwarp_size = (warp_slices == 1) ? 1u : 1u << (32u - std::countl_zero(warp_slices - 1u));
+inline constexpr u8 subwarp_size = pow2_ceiling(warp_slices);
 inline constexpr u8 subwarps_per_warp = 32 / subwarp_size;
 inline constexpr u16 subwarps = warp_slices * subwarps_per_warp;
 
-gpu u32 match_any_polyfill(u32 thread_mask, u32 key) {
-#if __CUDA_ARCH__ >= 700
-  // sm_70+ volta, turing, ...
-  return __match_any_sync(thread_mask, key);
-#else
-  u32 candidates = thread_mask;
-  for (u32 mask = 1; mask < RADIX; mask <<= 1) {
-    u32 bit = key & mask;
-    candidates &= __ballot_sync(thread_mask, static_cast<int>(bit)) ^ (UINT_MAX * !bit);
-  }
-  return candidates;
-#endif
-}
-
-template <typename T, typename Hasher>
-  requires is_hasher<Hasher, T>
+template <typename Data, typename Hasher>
+  requires is_hasher<Hasher, Data>
 kernel void onesweep(u32 *const atomic_id,
-                     const T *const data,
-                     T *const sorted,
+                     const Data *const data,
+                     Data *const sorted,
                      u32 const length,
                      u8 const place,
                      StatusCounter *const linearized_global_status_counters,
                      u32 (&global_totals)[RADIX],
                      Hasher hasher) {
+  using Key = Key<Hasher, Data>;
   shared u32 block_id; // NOLINT(bugprone-dynamic-static-initializers)
   if (threadIdx.x == 0) {
     block_id = atomicAdd(atomic_id, 1) % gridDim.x;
@@ -81,15 +51,13 @@ kernel void onesweep(u32 *const atomic_id,
   u16 warp_slice_prefix[items_per_thread]; // NOLINT(bugprone-dynamic-static-initializers)
 
   // iterate over the data slice, partitioned by warps
-  for (u32 i = warp_slice_start; i + lane < warp_slice_end; i += 32) {
-    u16 const pass = (i - warp_slice_start) / 32;
-
-    T const item = data[i + lane];
-    u32 const hash = hasher(item);
-    u16 const digit = (hash >> place * RADIX_SIZE) & RADIX_MASK;
-
-    u32 const warp_usage = min(warp_slice_end - i, 32);
+  for (u32 i = lane; i < warp_slice_end - warp_slice_start; i += 32) {
+    u16 const pass = i / 32;
+    u32 const warp_usage = min(warp_slice_end - warp_slice_start - i - lane, 32);
     u32 const thread_mask = __funnelshift_lc(UINT_MAX, 0, warp_usage);
+    Data const item = data[i];
+    typename Key::KeyType const hash = hasher(item);
+    u16 const digit = Key::extract_digit(hash, place);
     u32 const matches = match_any_polyfill(thread_mask, digit);
     // __ffs is 1-indexed
     u8 const leader_id = __ffs(matches) - 1;
@@ -125,7 +93,7 @@ kernel void onesweep(u32 *const atomic_id,
 
   // chained scan exclusive sums
   shared u32 global_prefix[RADIX]; // NOLINT(bugprone-dynamic-static-initializers)
-  cuda::std::span const slice_counters(slice_prefixes[warp_slices - 1], RADIX);
+  cuda::std::span const slice_totals(slice_prefixes[warp_slices - 1], RADIX);
 
   if (threadIdx.x < RADIX) {
     // slice containing the slice totals
@@ -138,67 +106,57 @@ kernel void onesweep(u32 *const atomic_id,
         global_status_counters(threadIdx.x, block_id));
 
     // publish the block totals
-    global_status_counter.store({block_id == 0 ? Status::Prefix : Status::Count, slice_counters[threadIdx.x]},
+    global_status_counter.store({block_id == 0 ? Status::Prefix : Status::Count, slice_totals[threadIdx.x]},
                                 cuda::memory_order_release);
 
     global_prefix[threadIdx.x] = 0;
     for (u32 i = block_id - 1; block_id != 0; --i) {
       cuda::atomic_ref<StatusCounter, cuda::thread_scope_device> const sc_ref(global_status_counters(threadIdx.x, i));
-      StatusCounter sc; // NOLINT(cppcoreguidelines-pro-type-member-init)
-      do {
+      StatusCounter sc = sc_ref.load(cuda::memory_order_acquire);
+      while (sc.status == Status::Invalid) {
+        nanosleep_polyfill(32);
         sc = sc_ref.load(cuda::memory_order_acquire);
-      } while (sc.status == Status::Invalid);
+      }
 
       global_prefix[threadIdx.x] += sc.counter;
       if (sc.status == Status::Prefix) {
         // publish the total inclusive prefix
-        global_status_counter.store({Status::Prefix, global_prefix[threadIdx.x] + slice_counters[threadIdx.x]},
+        global_status_counter.store({Status::Prefix, global_prefix[threadIdx.x] + slice_totals[threadIdx.x]},
                                     cuda::memory_order_release);
         break;
       }
     }
 
     // scan the block totals
-    slice_counters[threadIdx.x] = radix_scan(slice_counters[threadIdx.x]);
+    slice_totals[threadIdx.x] = radix_scan(slice_totals[threadIdx.x]);
   }
 
   __syncthreads();
 
-  shared T bins[slice_length]; // NOLINT(bugprone-dynamic-static-initializers)
+  shared Data bins[slice_length]; // NOLINT(bugprone-dynamic-static-initializers)
 
   // iterate over the data slice, partitioned by warps
   for (u32 i = warp_slice_start; i + lane < warp_slice_end; i += 32) {
     u16 const pass = (i - warp_slice_start) / 32;
 
-    T const item = data[i + lane];
-    u32 const hash = hasher(item);
-    u16 const digit = (hash >> place * RADIX_SIZE) & RADIX_MASK;
+    Data const item = data[i + lane];
+    typename Key::KeyType const hash = hasher(item);
+    u16 const digit = Key::extract_digit(hash, place);
 
     u16 const dest =
-        slice_counters[digit] + (warp_id == 0 ? 0 : slice_prefixes[warp_id - 1][digit]) + warp_slice_prefix[pass];
+        slice_totals[digit] + (warp_id == 0 ? 0 : slice_prefixes[warp_id - 1][digit]) + warp_slice_prefix[pass];
     bins[dest] = item;
   }
 
   __syncthreads();
 
   for (u16 i = threadIdx.x; i < slice_end - slice_start; i += blockDim.x) {
-    T const item = bins[i];
-    u32 const hash = hasher(item);
-    u16 const digit = (hash >> place * RADIX_SIZE) & RADIX_MASK;
+    Data const item = bins[i];
+    typename Key::KeyType const hash = hasher(item);
+    u16 const digit = Key::extract_digit(hash, place);
 
-    u32 const global_dest = global_totals[digit] + global_prefix[digit] + (i - slice_counters[digit]);
+    u32 const global_dest = global_totals[digit] + global_prefix[digit] + i - slice_totals[digit];
     sorted[global_dest] = item;
-
-    if (i < ARRAY_LENGTH(bins) - 1) {
-      T const item2 = bins[i + 1];
-      u32 const hash2 = hasher(item);
-      u16 const partial = hash & __funnelshift_lc(UINT_MAX, RADIX_MASK, digit * 8);
-      u16 const partial2 = hash2 & __funnelshift_lc(UINT_MAX, RADIX_MASK, digit * 8);
-      if (partial > partial2) {
-        printf("%d %d\n", partial, partial2);
-        printf("error\n");
-      }
-    }
   }
 }
 } // namespace onesweep

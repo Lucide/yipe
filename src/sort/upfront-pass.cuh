@@ -1,16 +1,18 @@
 #pragma once
 
+#include "scan/scan-common.cuh"
 #include "sort-common.cuh"
 
 namespace upfront {
 inline constexpr u32 slice_length = threads_per_block * items_per_thread_per_slice;
 
-template <typename T, typename Hasher>
-  requires is_hasher<Hasher, T>
-kernel void count(T *const data, u32 const length, u32 (&counters)[DIGIT_PLACES][RADIX], Hasher hasher) {
-
+template <typename Data, typename Hasher>
+  requires is_hasher<Hasher, Data>
+kernel void
+count(Data *const data, u32 const length, u32 (&counters)[Key<Hasher, Data>::digit_places][RADIX], Hasher hasher) {
   // block-local counters
-  shared u32 local_counters[DIGIT_PLACES][RADIX]; // NOLINT(bugprone-dynamic-static-initializers)
+  using Key = Key<Hasher, Data>;
+  shared u32 local_counters[Key::digit_places][RADIX]; // NOLINT(bugprone-dynamic-static-initializers)
   auto linearized_local_counters = flatten(local_counters);
 
   for (u16 i = threadIdx.x; i < size(linearized_local_counters); i += blockDim.x) {
@@ -34,12 +36,12 @@ kernel void count(T *const data, u32 const length, u32 (&counters)[DIGIT_PLACES]
     // iterate over the data slice in strides of block size
     u32 const slice_end = min(length, i + slice_length);
     for (u32 j = i + threadIdx.x; j < slice_end; j += blockDim.x) {
-      T const item = data[j];
-      u32 const hash = hasher(item);
+      Data const item = data[j];
+      typename Key::KeyType const hash = hasher(item);
       // for each digit place in the key
-      for (u8 place = 0; place < DIGIT_PLACES; ++place) {
+      for (u8 place = 0; place < Key::digit_places; ++place) {
         // extract digit
-        u16 const digit = (hash >> place * RADIX_SIZE) & RADIX_MASK;
+        u16 const digit = Key::extract_digit(hash, place);
         // increment corresponding counter
         atomicAdd_block(&local_counters[place][digit], 1);
       }
@@ -60,7 +62,7 @@ kernel void count(T *const data, u32 const length, u32 (&counters)[DIGIT_PLACES]
   }
 }
 
-kernel void exclusive_scan(Counters *const counters, u32 const length) {
+template <IsInstanceOf<Key> Key> kernel void exclusive_scan(Counters<Key> *const counters, u32 const length) {
   auto result = radix_scan<true>((counters->counters)[blockIdx.x][threadIdx.x], length);
   if (threadIdx.x == 0) {
     (counters->degenerates)[blockIdx.x] = !result.has_value();
