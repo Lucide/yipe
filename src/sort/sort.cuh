@@ -1,8 +1,5 @@
 #pragma once
 
-#include <cstdio>
-#include <cuda_runtime_api.h>
-#include <driver_types.h>
 #include "onesweep.cuh"
 #include "upfront-pass.cuh"
 
@@ -29,10 +26,10 @@ void sort(GPUInfo const *const info, Data *const data, u32 const length, Hasher 
   u32 *atomic_counter;
   cudaMalloc(&atomic_counter, sizeof(u32));
   cudaMemset(atomic_counter, 0, sizeof(u32));
-  u32 const slices = (length + onesweep::slice_length - 1) / onesweep::slice_length;
-  u32 const status_couters_size = RADIX * slices * sizeof(StatusCounter);
-  StatusCounter *status_counters;
-  cudaMalloc(&status_counters, status_couters_size);
+  u32 const slices = (length + onesweep::slice_max_length - 1) / onesweep::slice_max_length;
+  u32 const state_couters_size = RADIX * slices * sizeof(onesweep::StateCounter);
+  onesweep::StateCounter *state_counters;
+  cudaMalloc(&state_counters, state_couters_size);
   Data *dst;
   if (auto err = cudaMalloc(&dst, sizeof(Data) * length); err != cudaSuccess)
     printf("alloc failed: %s\n", cudaGetErrorString(err));
@@ -42,13 +39,13 @@ void sort(GPUInfo const *const info, Data *const data, u32 const length, Hasher 
   cudaDeviceSynchronize();
 
   // onesweep iterations
-  for (u8 place = 0; place < ARRAY_LENGTH(counters->counters); ++place) {
+  for (u8 place = 0; place < Key::digit_places; ++place) {
     if (degenerates[place])
       continue;
     printf("place: %d\n", place);
-    cudaMemset(status_counters, 0, status_couters_size);
-    onesweep::onesweep<<<slices, onesweep::threads_per_block>>>(atomic_counter, src, dst, length, place,
-                                                                status_counters, counters->counters[place], hasher);
+    cudaMemset(state_counters, 0, state_couters_size);
+    onesweep::onesweep<<<slices, onesweep::threads_per_block>>>(atomic_counter, src, dst, length, place, state_counters,
+                                                                counters->counters[place], hasher);
     handle_cuda_error();
     std::swap(src, dst);
   }
@@ -82,5 +79,5 @@ void sort(GPUInfo const *const info, Data *const data, u32 const length, Hasher 
 
   cudaFree(counters);
   cudaFree(atomic_counter);
-  cudaFree(status_counters);
+  cudaFree(state_counters);
 }

@@ -13,13 +13,18 @@ extern "C" {
 #include <stdint.h>
 #endif
 
+#define STR_HELPER(str) #str
+#define XSTR(x) STR_HELPER(x)
+#define CPRINT_HELPER(str) _Pragma(#str)
+#define CPRINT(msg) CPRINT_HELPER(message(msg))
+
 #define ARRAY_LENGTH(arr) (sizeof(arr) / sizeof(*(arr)))
 #define ARRAY_LENGTH_2D(arr) (sizeof(arr) / sizeof(**(arr)))
 
-#define gpu __device__
-#define host __host__
-#define kernel __global__
-#define shared __shared__
+#define GPU __device__
+#define HOST __host__
+#define KERNEL __global__
+#define SHARED __shared__
 
 typedef unsigned int uint;
 typedef uint8_t u8;
@@ -41,7 +46,7 @@ typedef struct Point {
 void launch_exclusive_scan(GPUInfo const *info, u32 *data, u32 length);
 void launch_sort_points(GPUInfo const *info, Point *points, u32 length);
 
-gpu host u32 point_hash(const Point *point, u32 particle_count);
+GPU HOST u32 point_hash(const Point *point, u32 particle_count);
 
 #ifdef __cplusplus
 }

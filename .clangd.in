@@ -13,10 +13,11 @@ CompileFlags:
   Remove:
     # strip NVCC flags that cause clangd parsing errors
     - -forward-unknown-to-host-compiler
-    - -Xcompiler=*
+    - -Xcompiler*
     - -Xcudafe
     - -Xfatbin*
     - -Xclang*
+    - -Xptxas*
     - --generate-code=*
     - -gencode*
     - -ccbin*

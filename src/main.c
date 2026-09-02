@@ -1,5 +1,4 @@
 #include <cuda_runtime.h>
-#include <driver_types.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -84,9 +83,9 @@ int main(int const argc, char const *const *const argv) {
   cudaMalloc((void **)&gpu_points, sizeof(Point[ARR_SIZE]));
   cudaMemcpy(gpu_points, cpu_points, sizeof(Point[ARR_SIZE]), cudaMemcpyHostToDevice);
 
-  printf("Launch\n");
+  printf("launch\n");
   launch_sort_points(&info, gpu_points, ARR_SIZE);
-  printf("Done\n");
+  printf("done\n");
 
   // Copy result back and clean up
 

@@ -1,8 +1,7 @@
 #pragma once
 
-#include <cassert>
 #include <cuda/std/optional>
-#include "gpu-common.cuh"
+#include "scan/scan-common.cuh"
 
 // size of the radix in bits
 constexpr u8 RADIX_SIZE = 8;
@@ -31,7 +30,7 @@ struct Key {
   static constexpr u16 total_bits = std::numeric_limits<KeyType>::digits;
 
   // mask generation safe for bit counts up to total_bits
-  gpu host static constexpr KeyType mask(u16 num_bits) {
+  GPU HOST static constexpr KeyType mask(u16 num_bits) {
     if (num_bits >= total_bits)
       return ~KeyType(0);
     return (KeyType(1) << num_bits) - KeyType(1);
@@ -40,7 +39,7 @@ struct Key {
   // all 1 in the first RADIX_SIZE bits
   static constexpr KeyType radix_mask = mask(RADIX_SIZE);
 
-  gpu host static constexpr u16 extract_digit(KeyType key, u8 place) {
+  GPU HOST static constexpr u16 extract_digit(KeyType key, u8 place) {
     const KeyType shift = place * RADIX_SIZE;
     return (key >> shift) & radix_mask;
   }
@@ -66,7 +65,7 @@ template <IsInstanceOf<Key> Key> struct Counters {
 };
 
 template <bool detect = false>
-gpu inline std::conditional_t<detect, cuda::std::optional<u32>, u32>
+GPU inline std::conditional_t<detect, cuda::std::optional<u32>, u32>
 radix_scan(u32 const digit_count, std::conditional_t<detect, u32, std::monostate> const length = std::monostate{}) {
   // threads must be within the radix range
   assert(threadIdx.x < RADIX);
@@ -76,8 +75,8 @@ radix_scan(u32 const digit_count, std::conditional_t<detect, u32, std::monostate
   u8 const warp_id = threadIdx.x / 32;
 
   // shared memory to store the aggregate sum of each warp
-  shared u32 warp_counters[warps];                                      // NOLINT(bugprone-dynamic-static-initializers)
-  shared std::conditional_t<detect, u32[warps], char> degenerate_warps; // NOLINT(bugprone-dynamic-static-initializers)
+  SHARED u32 warp_counters[warps];                                      // NOLINT(bugprone-dynamic-static-initializers)
+  SHARED std::conditional_t<detect, u32[warps], char> degenerate_warps; // NOLINT(bugprone-dynamic-static-initializers)
 
   // scan within each warp
   bool degenerate_warp;
@@ -85,7 +84,7 @@ radix_scan(u32 const digit_count, std::conditional_t<detect, u32, std::monostate
     // detect if the warp is degenerate, i.e. only one digit population
     degenerate_warp = __any_sync(SYNC_WARP, digit_count == length);
   }
-  u32 sum = warp_inclusive_multiscan<32>(digit_count);
+  u32 sum = warp_inclusive_multiscan(digit_count);
 
   // last thread in each warp publishes the warp total
   if (lane == 31) {
@@ -97,7 +96,7 @@ radix_scan(u32 const digit_count, std::conditional_t<detect, u32, std::monostate
 
   __syncthreads();
 
-  shared bool degenerate_block; // NOLINT(bugprone-dynamic-static-initializers)
+  SHARED bool degenerate_block; // NOLINT(bugprone-dynamic-static-initializers)
 
   // warp 0 scans the warp totals
   if (warp_id == 0) {

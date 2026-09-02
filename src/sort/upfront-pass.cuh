@@ -1,6 +1,5 @@
 #pragma once
 
-#include "scan/scan-common.cuh"
 #include "sort-common.cuh"
 
 namespace upfront {
@@ -8,14 +7,14 @@ inline constexpr u32 slice_length = threads_per_block * items_per_thread_per_sli
 
 template <typename Data, typename Hasher>
   requires is_hasher<Hasher, Data>
-kernel void
+KERNEL void
 count(Data *const data, u32 const length, u32 (&counters)[Key<Hasher, Data>::digit_places][RADIX], Hasher hasher) {
   // block-local counters
   using Key = Key<Hasher, Data>;
-  shared u32 local_counters[Key::digit_places][RADIX]; // NOLINT(bugprone-dynamic-static-initializers)
+  SHARED u32 local_counters[Key::digit_places][RADIX]; // NOLINT(bugprone-dynamic-static-initializers)
   auto linearized_local_counters = flatten(local_counters);
 
-  for (u16 i = threadIdx.x; i < size(linearized_local_counters); i += blockDim.x) {
+  for (u16 i = threadIdx.x; i < cuda::std::size(linearized_local_counters); i += blockDim.x) {
     linearized_local_counters[i] = 0;
   }
 
@@ -54,7 +53,7 @@ count(Data *const data, u32 const length, u32 (&counters)[Key<Hasher, Data>::dig
   // cast the arrays as a flat 1D layout
   auto linearized_global_counters = flatten(counters);
   // parallel write to global memory
-  for (u16 i = threadIdx.x; i < size(linearized_global_counters); i += blockDim.x) {
+  for (u16 i = threadIdx.x; i < cuda::std::size(linearized_global_counters); i += blockDim.x) {
     u32 const count = linearized_local_counters[i];
     if (count) {
       atomicAdd(&(linearized_global_counters)[i], count);
@@ -62,7 +61,7 @@ count(Data *const data, u32 const length, u32 (&counters)[Key<Hasher, Data>::dig
   }
 }
 
-template <IsInstanceOf<Key> Key> kernel void exclusive_scan(Counters<Key> *const counters, u32 const length) {
+template <IsInstanceOf<Key> Key> KERNEL void exclusive_scan(Counters<Key> *const counters, u32 const length) {
   auto result = radix_scan<true>((counters->counters)[blockIdx.x][threadIdx.x], length);
   if (threadIdx.x == 0) {
     (counters->degenerates)[blockIdx.x] = !result.has_value();

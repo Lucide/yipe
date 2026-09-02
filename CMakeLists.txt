@@ -52,7 +52,7 @@ set_target_properties(yipe PROPERTIES
     CUDA_ARCHITECTURES "native")
 
 target_compile_options(yipe PRIVATE
-    $<$<COMPILE_LANGUAGE:CUDA>:-Wall>
+    $<$<COMPILE_LANGUAGE:CUDA>:-Wall;-Xptxas=-v,--warn-on-spills,--warn-on-local-memory-usage>
     # $<$<COMPILE_LANGUAGE:CUDA>:-Wall;-g;-G>
     # $<$<COMPILE_LANG_AND_ID:C,MSVC>:/Zc:preprocessor>
     $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CXX_COMPILER_ID:MSVC>>:-Xcompiler=/Zc:preprocessor,/external:W0,/wd4514,/wd5045,/wd4668,/wd4626,/wd5027,/wd5031>
