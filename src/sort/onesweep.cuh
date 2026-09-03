@@ -65,11 +65,11 @@ KERNEL void onesweep(u32 *const atomic_id,
   u16 warp_slice_prefix[items_per_thread]; // NOLINT(bugprone-dynamic-static-initializers)
 
   // iterate over the data slice, partitioned by warps
-  for (u32 i = 0; i < warp_slice_length; i += 32) {
+  for (u32 i = lane; i < warp_slice_length; i += 32) {
     u16 const pass = i / 32;
-    u8 const warp_usage = min(warp_slice_length - i, 32);
+    u8 const warp_usage = min(warp_slice_length - (i - lane), 32);
     u32 const thread_mask = __funnelshift_lc(UINT_MAX, 0, warp_usage);
-    Data const item = data[warp_slice_start + i + lane];
+    Data const item = data[warp_slice_start + i];
     typename Key::KeyType const hash = hasher(item);
     u16 const digit = Key::extract_digit(hash, place);
     u32 const matches = match_any_polyfill<RADIX_SIZE>(thread_mask, digit);
@@ -148,10 +148,10 @@ KERNEL void onesweep(u32 *const atomic_id,
   SHARED Data bins[slice_max_length]; // NOLINT(bugprone-dynamic-static-initializers)
 
   // iterate over the data slice, partitioned by warps
-  for (u32 i = 0; i < warp_slice_length; i += 32) {
+  for (u32 i = lane; i < warp_slice_length; i += 32) {
     u16 const pass = i / 32;
 
-    Data const item = data[warp_slice_start + i + lane];
+    Data const item = data[warp_slice_start + i];
     typename Key::KeyType const hash = hasher(item);
     u16 const digit = Key::extract_digit(hash, place);
 
@@ -169,6 +169,17 @@ KERNEL void onesweep(u32 *const atomic_id,
 
     u32 const global_dest = global_totals[digit] + global_prefix[digit] + i - slice_totals[digit];
     sorted[global_dest] = item;
+
+    if (i < ARRAY_LENGTH(bins) - 1) {
+      Data const item2 = bins[i + 1];
+      u32 const hash2 = hasher(item);
+      u16 const partial = hash & __funnelshift_lc(UINT_MAX, Key::radix_mask, digit * 8);
+      u16 const partial2 = hash2 & __funnelshift_lc(UINT_MAX, Key::radix_mask, digit * 8);
+      if (partial > partial2) {
+        printf("%d %d\n", partial, partial2);
+        printf("error\n");
+      }
+    }
   }
 }
 } // namespace onesweep

@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include "common.h"
 
-#define ARR_SIZE 400000 // 2^31 / sizeof(Point) = 2^31 / 12 = 178956970
+#define ARR_SIZE 550 // 2^31 / sizeof(Point) = 2^31 / 12 = 178956970
 #define ROOM_WIDTH 600.
 #define ROOM_DEPTH 400.
 #define ROOM_HEIGHT 300.
@@ -80,8 +80,17 @@ int main(int const argc, char const *const *const argv) {
   generate_random_points(cpu_points, 549951);
 
   struct Point *gpu_points;
-  cudaMalloc((void **)&gpu_points, sizeof(Point[ARR_SIZE]));
-  cudaMemcpy(gpu_points, cpu_points, sizeof(Point[ARR_SIZE]), cudaMemcpyHostToDevice);
+  handle_cuda_result(cudaMalloc((void **)&gpu_points, sizeof(Point[ARR_SIZE])), "Main: Allocate points");
+  handle_cuda_result(cudaMemcpy(gpu_points, cpu_points, sizeof(Point[ARR_SIZE]), cudaMemcpyHostToDevice),
+                     "Main: Load points");
+
+  printf("\n printing unsorted points\n");
+  for (u32 i = 0; i < ARR_SIZE && ARR_SIZE <= 4096; ++i) {
+    u32 hash1 = point_hash(&cpu_points[i], ARR_SIZE);
+    printf("%d ", hash1);
+  }
+
+  printf("\n");
 
   printf("launch\n");
   launch_sort_points(&info, gpu_points, ARR_SIZE);
@@ -89,10 +98,11 @@ int main(int const argc, char const *const *const argv) {
 
   // Copy result back and clean up
 
-  cudaMemcpy(cpu_points, gpu_points, sizeof(Point[ARR_SIZE]), cudaMemcpyDeviceToHost);
+  handle_cuda_result(cudaMemcpy(cpu_points, gpu_points, sizeof(Point[ARR_SIZE]), cudaMemcpyDeviceToHost),
+                     "Main: Unload points");
   cudaDeviceSynchronize();
-  cudaFree(gpu_points);
 
+  printf("\n printing sorted points\n");
   for (u32 i = 0; i < ARR_SIZE && ARR_SIZE <= 4096; ++i) {
     u32 hash1 = point_hash(&cpu_points[i], ARR_SIZE);
     printf("%d ", hash1);
@@ -109,9 +119,17 @@ int main(int const argc, char const *const *const argv) {
       ++count;
     }
   }
-  printf("errors: %d", count);
+
+  printf("errors: %d\n", count);
+
+  // HashTable *table = new_hashtable(&info, gpu_points, ARR_SIZE);
+  handle_cuda_result(cudaFree(gpu_points), "Main: Free points");
+  printf("hashtable done\n");
+
+  // launch_exclusive_scan(&info, ((u32 *)table), ARR_SIZE);
+  // handle_cuda_result(cudaFree(table), "Main: Free table");
+  printf("scan done\n");
 
   free(cpu_points);
-
   return 0;
 }

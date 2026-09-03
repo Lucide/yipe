@@ -51,14 +51,14 @@ KERNEL void chained_scan(u32 *const atomic_id,
   u32 const slice_start = block_id * slice_max_length;
   u32 const warp_slice_start = min(length, slice_start + warp_id * warp_slice_max_length);
   u32 const warp_slice_end = min(length, warp_slice_start + warp_slice_max_length);
-  u16 const warp_slice_length = warp_slice_start - warp_slice_end;
+  u16 const warp_slice_length = warp_slice_end - warp_slice_start;
 
   Data warp_slice_prefix[items_per_thread]; // NOLINT(bugprone-dynamic-static-initializers)
 
   // iterate over the data slice, partitioned by warps
   for (u32 i = lane; i < warp_slice_length; i += 32) {
     u16 const pass = i / 32;
-    u8 const warp_usage = min(warp_slice_length - i - lane, 32);
+    u8 const warp_usage = min(warp_slice_length - (i - lane), 32);
     Data const item = data[warp_slice_start + i];
     u32 const thread_mask = __funnelshift_lc(UINT_MAX, 0, warp_usage);
     u8 const leader_id = warp_usage - 1;

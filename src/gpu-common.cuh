@@ -14,15 +14,6 @@ concept IsInstanceOf = is_instance_of<T, TargetTemplate>::value;
 
 constexpr u32 SYNC_WARP = 0xffffffff;
 
-void handle_cuda_error() {
-  cudaDeviceSynchronize();
-  cudaError_t err = cudaGetLastError();
-  if (err != cudaSuccess) {
-    printf("CUDA Error: %s\n", cudaGetErrorString(err));
-    exit(-1);
-  }
-}
-
 template <typename T, size_t N1, size_t N2> GPU constexpr auto flatten(T (&arr)[N1][N2]) {
   return cuda::std::span<T, N1 * N2>(&arr[0][0], N1 * N2);
 }

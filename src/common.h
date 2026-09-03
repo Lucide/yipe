@@ -43,8 +43,14 @@ typedef struct Point {
   float x, y, z;
 } Point;
 
-void launch_exclusive_scan(GPUInfo const *info, u32 *data, u32 length);
+typedef struct HashTable HashTable;
+
+void handle_cuda_error(const char *message);
+void handle_cuda_result(cudaError_t err, const char *message);
+
+void launch_exclusive_scan(u32 *data, u32 length);
 void launch_sort_points(GPUInfo const *info, Point *points, u32 length);
+struct HashTable *new_hashtable(GPUInfo const *info, Point *points, u32 length);
 
 GPU HOST u32 point_hash(const Point *point, u32 particle_count);
 

@@ -40,7 +40,7 @@ struct Key {
   static constexpr KeyType radix_mask = mask(RADIX_SIZE);
 
   GPU HOST static constexpr u16 extract_digit(KeyType key, u8 place) {
-    const KeyType shift = place * RADIX_SIZE;
+    const auto shift = static_cast<KeyType>(place * RADIX_SIZE);
     return (key >> shift) & radix_mask;
   }
 };
