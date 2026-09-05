@@ -7,14 +7,16 @@ inline constexpr u32 slice_length = threads_per_block * items_per_thread_per_sli
 
 template <typename Data, typename Hasher>
   requires is_hasher<Hasher, Data>
-KERNEL void
-count(Data *const data, u32 const length, u32 (&counters)[Key<Hasher, Data>::digit_places][RADIX], Hasher hasher) {
+KERNEL void count(Data *const data,
+                  u32 const length,
+                  u32 (&counters)[Key<Hasher, Data>::digit_places][RADIX],
+                  const Hasher hasher) {
   // block-local counters
   using Key = Key<Hasher, Data>;
   SHARED u32 local_counters[Key::digit_places][RADIX]; // NOLINT(bugprone-dynamic-static-initializers)
   auto linearized_local_counters = flatten(local_counters);
 
-  for (u16 i = threadIdx.x; i < cuda::std::size(linearized_local_counters); i += blockDim.x) {
+  for (u16 i = static_cast<u16>(threadIdx.x); i < cuda::std::size(linearized_local_counters); i += blockDim.x) {
     linearized_local_counters[i] = 0;
   }
 
@@ -53,7 +55,7 @@ count(Data *const data, u32 const length, u32 (&counters)[Key<Hasher, Data>::dig
   // cast the arrays as a flat 1D layout
   auto linearized_global_counters = flatten(counters);
   // parallel write to global memory
-  for (u16 i = threadIdx.x; i < cuda::std::size(linearized_global_counters); i += blockDim.x) {
+  for (u16 i = static_cast<u16>(threadIdx.x); i < cuda::std::size(linearized_global_counters); i += blockDim.x) {
     u32 const count = linearized_local_counters[i];
     if (count) {
       atomicAdd(&(linearized_global_counters)[i], count);
@@ -67,7 +69,7 @@ template <IsInstanceOf<Key> Key> KERNEL void exclusive_scan(Counters<Key> *const
     (counters->degenerates)[blockIdx.x] = !result.has_value();
   }
   if (result) {
-    (counters->counters)[blockIdx.x][threadIdx.x] = result.value();
+    (counters->counters)[blockIdx.x][threadIdx.x] = *result;
   }
 }
 } // namespace upfront

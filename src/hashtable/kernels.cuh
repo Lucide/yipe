@@ -4,15 +4,14 @@
 #include "sort/sort-common.cuh"
 
 struct Bucket {
-  u32 begin;
-  u32 end;
+  u32 begin, end;
 };
 
 struct HashTable {
   u32 length;
-  u32 table[0];
+  u32 table[1];
 
-  template <std::unsigned_integral Hash> GPU cuda::std::optional<Bucket> lookup(Hash hash) {
+  template <std::unsigned_integral Hash> GPU cuda::std::optional<Bucket> lookup(const Hash hash) const {
     assert(hash + 1 < this->length);
     const u32 begin = this->table[hash];
     const u32 end = this->table[hash + 1];
@@ -30,7 +29,7 @@ inline constexpr u32 slice_length = threads_per_block * items_per_thread_per_sli
 
 template <typename Data, typename Hasher>
   requires is_hasher<Hasher, Data>
-KERNEL void build(Data *const data, u32 const length, HashTable *hash_table, Hasher hasher) {
+KERNEL void build(const Data *const data, const u32 length, HashTable *const hash_table, const Hasher hasher) {
   using Key = Key<Hasher, Data>;
   hash_table->length = length + 1;
   cuda::std::span<u32, cuda::std::dynamic_extent> table(hash_table->table, length + 1);
@@ -38,9 +37,17 @@ KERNEL void build(Data *const data, u32 const length, HashTable *hash_table, Has
 
   for (u32 i = blockIdx.x * slice_length; i < length; i += gridDim.x * slice_length) {
     // iterate over the data slice in strides of block size
+    // if first element[0], add manually.
+    u32 loop_start = i + threadIdx.x;
+    if (loop_start == 0) {
+      const Data item = data[0];
+      typename Key::KeyType const hash = hasher(item);
+      table[hash] = 1;
+    }
     // check the slice fits inside length-1, we are reading two points at a time
     u32 const slice_end = min(length - 1, i + slice_length);
-    for (u32 j = i + threadIdx.x; j < slice_end; j += blockDim.x) {
+    u32 j;
+    for (j = loop_start; j < slice_end; j += blockDim.x) {
       Data const item_left = data[j];
       typename Key::KeyType const hash_left = hasher(item_left);
       assert(hash_left < length); // invalid hash function
@@ -61,6 +68,61 @@ KERNEL void build(Data *const data, u32 const length, HashTable *hash_table, Has
         if (hash_right > left_next) {
           // the start of the right bucket is the end of the left bucket
           table[hash_right] = left_end;
+        }
+      }
+    }
+    if (j == length - 1) {
+      const Data item = data[j];
+      typename Key::KeyType const hash = hasher(item);
+      table[hash + 1] = length + 1;
+    }
+  }
+}
+
+template <typename Data, typename Hasher>
+  requires is_hasher<Hasher, Data>
+KERNEL void verify(const Data *const data, const u32 length, const HashTable *const hash_table, const Hasher hasher) {
+  using Key = Key<Hasher, Data>;
+  cuda::std::span<const u32, cuda::std::dynamic_extent> table(hash_table->table, length + 1);
+  const u32 warps = blockDim.x / 32;
+  const u32 warp = threadIdx.x / 32;
+  const u32 lane = threadIdx.x % 32;
+
+  for (u32 i = blockIdx.x * slice_length; i < length; i += gridDim.x * slice_length) {
+    // iterate over the data slice in strides of block size
+    // check the slice fits inside length-1, we are reading two points at a time
+    u32 const slice_end = min(length, i + slice_length);
+    for (u32 j = i + threadIdx.x; j < slice_end; j += blockDim.x) {
+      const Data item = data[j];
+      typename Key::KeyType const hash = hasher(item);
+      const auto bucket = hash_table->lookup(hash);
+      // if (!bucket) {
+      //   printf("data[%d] = %d\n", j, hash);
+      // }
+      // if (j >= bucket->end || j < bucket->begin) {
+      //   printf("data[%d] = %d, %d: (%d, %d)\n", j, hash, hash, bucket->begin, bucket->end);
+      // }
+      assert(bucket);
+      assert(bucket->begin <= j);
+      assert(j < bucket->end);
+    }
+  }
+
+  for (u32 i = blockIdx.x * slice_length; i < length; i += gridDim.x * slice_length) {
+    // iterate over the data slice in strides of block size
+    // check the slice fits inside length-1, we are reading two points at a time
+    u32 const slice_end = min(length, i + slice_length);
+    for (u32 j = i + warp; j < slice_end; j += warps) {
+      const auto bucket = hash_table->lookup(j);
+
+      if (bucket) {
+        for (u32 k = bucket->begin + lane; k < bucket->end; k += 32) {
+          const Data item = data[k];
+          typename Key::KeyType const hash = hasher(item);
+          assert(j == hash);
+          // if (j != hash) {
+          //   printf("data[%d] = %d, %d: (%d, %d)\n", k, hash, j, bucket->begin, bucket->end);
+          // }
         }
       }
     }

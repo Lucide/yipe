@@ -4,6 +4,9 @@ CompileFlags:
   Add:
     # windows MSVC support
     - --driver-mode=cl
+    - -Wno-unused-macros
+    - -Wno-unsafe-buffer-usage
+    - -Wno-declaration-after-statement
 
 ---
 If:
@@ -27,6 +30,12 @@ CompileFlags:
     - --display_error_number
     - -arch=*
   Add:
+    - -Wall
+    - -Wextra
+    - -Wpedantic
+    - -Wconversion
+    - -Wsign-conversion
+
     # workaround since cuda seems to directly intercept assert(calls)
     - -DNDEBUG
     - -Wno-c++98-compat

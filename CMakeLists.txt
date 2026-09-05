@@ -51,14 +51,14 @@ set_target_properties(yipe PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_ARCHITECTURES "native")
 
+set(MSVC_OPTIONS -Wall;/Zc:preprocessor;/external:W0;/W4;/permissive-;/wd4514;/wd5045;/wd4668;/wd4626;/wd5027;/wd5031)
+list(JOIN MSVC_OPTIONS "," MSVC_OPTIONS_COMMA)
+
 target_compile_options(yipe PRIVATE
-    $<$<COMPILE_LANGUAGE:CUDA>:-Wall;-Xptxas=-v,--warn-on-spills,--warn-on-local-memory-usage>
-    # $<$<COMPILE_LANGUAGE:CUDA>:-Wall;-g;-G>
-    # $<$<COMPILE_LANG_AND_ID:C,MSVC>:/Zc:preprocessor>
-    $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CXX_COMPILER_ID:MSVC>>:-Xcompiler=/Zc:preprocessor,/external:W0,/wd4514,/wd5045,/wd4668,/wd4626,/wd5027,/wd5031>
-    # ,/wd4820,/wd4459
-    # ,/wd4619
-    $<$<COMPILE_LANG_AND_ID:CUDA,NVIDIA>:--extended-lambda;-Xcudafe;--display_error_number>)
+    $<$<AND:$<COMPILE_LANGUAGE:C,CXX>,$<CXX_COMPILER_ID:MSVC>>:${MSVC_OPTIONS}>
+    # $<$<COMPILE_LANGUAGE:CUDA>:-Wall;-Wextra;-Wpedantic;-Wconversion;-Wsign-conversion;--default-stream per-thread>
+    $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CXX_COMPILER_ID:MSVC>>:-Xcompiler=${MSVC_OPTIONS_COMMA}>
+    $<$<COMPILE_LANG_AND_ID:CUDA,NVIDIA>:--extended-lambda;-Xptxas=-v,--warn-on-spills,--warn-on-local-memory-usage;-Xcudafe;--display_error_number>)
 
 
 target_include_directories(yipe SYSTEM PRIVATE

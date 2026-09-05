@@ -10,7 +10,7 @@ enum class State : u8 {
   Prefix = 2,
 };
 
-inline constexpr u16 threads_per_block = 1024;
+inline constexpr u16 threads_per_block = 512;
 static_assert(threads_per_block % 32 == 0, "threads_per_block must be a multiple of 32");
 
 inline constexpr u16 items_per_thread = 12;
@@ -24,7 +24,8 @@ inline constexpr u16 warp_slice_max_length = 32 * items_per_thread;
 
 template <std::integral Data>
 KERNEL void chained_scan(u32 *const atomic_id,
-                         Data *const data,
+                         const Data *const src,
+                         Data *const dst,
                          u32 const length,
                          chained_scan::State *global_states,
                          Data *linearized_global_counters_prefixes) {
@@ -36,7 +37,7 @@ KERNEL void chained_scan(u32 *const atomic_id,
   // RADIX is multiple of 32, thus row reads are guaranteed to conflict
   // RADIX + subwarps_per_warp offsets the rows by subwarp slice
   SHARED Data slice_prefixes[warp_slices]; // NOLINT(bugprone-dynamic-static-initializers)
-  for (u16 i = threadIdx.x; i < cuda::std::size(slice_prefixes); i += blockDim.x) {
+  for (u16 i = static_cast<u16>(threadIdx.x); i < cuda::std::size(slice_prefixes); i += blockDim.x) {
     slice_prefixes[i] = 0;
   }
 
@@ -47,22 +48,24 @@ KERNEL void chained_scan(u32 *const atomic_id,
   const cuda::std::span<Data, cuda::std::dynamic_extent> global_prefixes(
       &linearized_global_counters_prefixes[gridDim.x], gridDim.x);
   u8 const lane = threadIdx.x % 32;
-  u16 const warp_id = threadIdx.x / 32;
+  u16 const warp_id = static_cast<u16>(threadIdx.x) / 32;
   u32 const slice_start = block_id * slice_max_length;
   u32 const warp_slice_start = min(length, slice_start + warp_id * warp_slice_max_length);
   u32 const warp_slice_end = min(length, warp_slice_start + warp_slice_max_length);
-  u16 const warp_slice_length = warp_slice_end - warp_slice_start;
+  u16 const warp_slice_length = static_cast<u16>(warp_slice_end - warp_slice_start);
 
   Data warp_slice_prefix[items_per_thread]; // NOLINT(bugprone-dynamic-static-initializers)
 
   // iterate over the data slice, partitioned by warps
-  for (u32 i = lane; i < warp_slice_length; i += 32) {
-    u16 const pass = i / 32;
-    u8 const warp_usage = min(warp_slice_length - (i - lane), 32);
-    Data const item = data[warp_slice_start + i];
+  // iterate over `pass` with explicit bound instead of `i`
+  // prevents spilling of `warp_slice_prefix`
+  for (u16 pass = 0; pass < items_per_thread && pass * 32 + lane < warp_slice_length; ++pass) {
+    u32 i = pass * 32 + lane;
+    u8 const warp_usage = static_cast<u8>(min(warp_slice_length - pass * 32U, 32U));
+    Data const item = src[warp_slice_start + i];
     u32 const thread_mask = __funnelshift_lc(UINT_MAX, 0, warp_usage);
     u8 const leader_id = warp_usage - 1;
-    Data warp_prefix = warp_inclusive_multiscan(item);
+    Data warp_prefix = warp_inclusive_multiscan(item, thread_mask);
 
     Data prefix = 0;
 
@@ -128,9 +131,13 @@ KERNEL void chained_scan(u32 *const atomic_id,
 
   __syncthreads();
 
-  for (u32 i = lane; i < warp_slice_length; i += 32) {
-    u16 const pass = i / 32;
-    data[i] = global_prefix + (warp_id == 0 ? 0 : slice_prefixes[warp_id - 1]) + warp_slice_prefix[pass];
+  // iterate over the data slice, partitioned by warps
+  // iterate over `pass` with explicit bound instead of `i`
+  // prevents spilling of `warp_slice_prefix`
+  for (u16 pass = 0; pass < items_per_thread && pass * 32 + lane < warp_slice_length; ++pass) {
+    u32 i = pass * 32 + lane;
+    dst[warp_slice_start + i] =
+        global_prefix + (warp_id == 0 ? 0 : slice_prefixes[warp_id - 1]) + warp_slice_prefix[pass];
   }
 }
 } // namespace chained_scan

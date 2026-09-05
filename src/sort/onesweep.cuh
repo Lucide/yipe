@@ -34,7 +34,7 @@ KERNEL void onesweep(u32 *const atomic_id,
                      u8 const place,
                      StateCounter *const linearized_global_state_counters,
                      u32 (&global_totals)[RADIX],
-                     Hasher hasher) {
+                     const Hasher hasher) {
   using Key = Key<Hasher, Data>;
   SHARED u32 block_id; // NOLINT(bugprone-dynamic-static-initializers)
   if (threadIdx.x == 0) {
@@ -45,34 +45,37 @@ KERNEL void onesweep(u32 *const atomic_id,
   // RADIX + subwarps_per_warp offsets the rows by subwarp slice
   SHARED u16 slice_prefixes[warp_slices][RADIX + subwarps_per_warp]; // NOLINT(bugprone-dynamic-static-initializers)
   auto linearized_slice_prefixes = flatten(slice_prefixes);
-  for (u16 i = threadIdx.x; i < cuda::std::size(linearized_slice_prefixes); i += blockDim.x) {
+  for (u16 i = static_cast<u16>(threadIdx.x); i < static_cast<u16>(cuda::std::size(linearized_slice_prefixes));
+       i += blockDim.x) {
     linearized_slice_prefixes[i] = 0;
   }
 
   __syncthreads();
 
   u8 const lane = threadIdx.x % 32;
-  u16 const warp_id = threadIdx.x / 32;
-  u16 const subwarp_id = threadIdx.x / subwarp_size;
+  u16 const warp_id = static_cast<u16>(threadIdx.x) / 32;
+  u16 const subwarp_id = static_cast<u16>(threadIdx.x) / subwarp_size;
   u8 const subwarp_lane = threadIdx.x % subwarp_size;
   u32 const slice_start = block_id * slice_max_length;
   u32 const slice_end = min(length, slice_start + slice_max_length);
-  u16 const slice_length = slice_end - slice_start;
+  u16 const slice_length = static_cast<u16>(slice_end - slice_start);
   u32 const warp_slice_start = min(slice_end, slice_start + warp_id * warp_slice_max_length);
   u32 const warp_slice_end = min(slice_end, warp_slice_start + warp_slice_max_length);
-  u16 const warp_slice_length = warp_slice_end - warp_slice_start;
+  u16 const warp_slice_length = static_cast<u16>(warp_slice_end - warp_slice_start);
 
   u16 warp_slice_prefix[items_per_thread]; // NOLINT(bugprone-dynamic-static-initializers)
 
   // iterate over the data slice, partitioned by warps
-  for (u32 i = lane; i < warp_slice_length; i += 32) {
-    u16 const pass = i / 32;
-    u8 const warp_usage = min(warp_slice_length - (i - lane), 32);
+  // iterate over `pass` with explicit bound instead of `i`
+  // prevents spilling of `warp_slice_prefix`
+  for (u16 pass = 0; pass < items_per_thread && pass * 32 + lane < warp_slice_length; ++pass) {
+    u32 i = pass * 32 + lane;
+    u8 const warp_usage = static_cast<u8>(min(warp_slice_length - pass * 32, 32U));
     u32 const thread_mask = __funnelshift_lc(UINT_MAX, 0, warp_usage);
     Data const item = data[warp_slice_start + i];
     typename Key::KeyType const hash = hasher(item);
     u16 const digit = Key::extract_digit(hash, place);
-    u32 const matches = match_any_polyfill<RADIX_SIZE>(thread_mask, digit);
+    u32 const matches = match_any_polyfill<RADIX_SIZE>(digit, thread_mask);
     // __ffs is 1-indexed
     u8 const leader_id = __ffs(matches) - 1;
 
@@ -140,7 +143,7 @@ KERNEL void onesweep(u32 *const atomic_id,
     }
 
     // scan the block totals
-    slice_totals[threadIdx.x] = radix_scan(slice_totals[threadIdx.x]);
+    slice_totals[threadIdx.x] = static_cast<u16>(radix_scan(slice_totals[threadIdx.x]));
   }
 
   __syncthreads();
@@ -148,8 +151,10 @@ KERNEL void onesweep(u32 *const atomic_id,
   SHARED Data bins[slice_max_length]; // NOLINT(bugprone-dynamic-static-initializers)
 
   // iterate over the data slice, partitioned by warps
-  for (u32 i = lane; i < warp_slice_length; i += 32) {
-    u16 const pass = i / 32;
+  // iterate over `pass` with explicit bound instead of `i`
+  // prevents spilling of `warp_slice_prefix`
+  for (u16 pass = 0; pass < items_per_thread && pass * 32 + lane < warp_slice_length; ++pass) {
+    u32 i = pass * 32 + lane;
 
     Data const item = data[warp_slice_start + i];
     typename Key::KeyType const hash = hasher(item);
@@ -162,7 +167,7 @@ KERNEL void onesweep(u32 *const atomic_id,
 
   __syncthreads();
 
-  for (u16 i = threadIdx.x; i < slice_length; i += blockDim.x) {
+  for (u16 i = static_cast<u16>(threadIdx.x); i < slice_length; i += blockDim.x) {
     Data const item = bins[i];
     typename Key::KeyType const hash = hasher(item);
     u16 const digit = Key::extract_digit(hash, place);
@@ -170,16 +175,16 @@ KERNEL void onesweep(u32 *const atomic_id,
     u32 const global_dest = global_totals[digit] + global_prefix[digit] + i - slice_totals[digit];
     sorted[global_dest] = item;
 
-    if (i < ARRAY_LENGTH(bins) - 1) {
-      Data const item2 = bins[i + 1];
-      u32 const hash2 = hasher(item);
-      u16 const partial = hash & __funnelshift_lc(UINT_MAX, Key::radix_mask, digit * 8);
-      u16 const partial2 = hash2 & __funnelshift_lc(UINT_MAX, Key::radix_mask, digit * 8);
-      if (partial > partial2) {
-        printf("%d %d\n", partial, partial2);
-        printf("error\n");
-      }
-    }
+    // if (i < ARRAY_LENGTH(bins) - 1) {
+    //   Data const item2 = bins[i + 1];
+    //   u32 const hash2 = hasher(item);
+    //   u16 const partial = hash & __funnelshift_lc(UINT_MAX, Key::radix_mask, digit * 8);
+    //   u16 const partial2 = hash2 & __funnelshift_lc(UINT_MAX, Key::radix_mask, digit * 8);
+    //   if (partial > partial2) {
+    //     printf("%d %d\n", partial, partial2);
+    //     printf("error\n");
+    //   }
+    // }
   }
 }
 } // namespace onesweep
