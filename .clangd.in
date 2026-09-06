@@ -35,6 +35,7 @@ CompileFlags:
     - -Wpedantic
     - -Wconversion
     - -Wsign-conversion
+    - -Wno-c++17-attribute-extensions
 
     # workaround since cuda seems to directly intercept assert(calls)
     - -DNDEBUG

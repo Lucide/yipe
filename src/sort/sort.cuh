@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cuda_runtime_api.h>
 #include <driver_types.h>
 #include "onesweep.cuh"
 #include "upfront-pass.cuh"
@@ -19,7 +18,7 @@ void sort(GPUInfo const *const info, Data *const data, u32 const length, const H
   handle_cuda_error_debug("Sort: Memset global counters");
 
   u32 const blocks_per_grid =
-      min(info->multiprocessors * upfront::blocks_per_sm, (length + upfront::slice_length - 1) / upfront::slice_length);
+      min(info->multiprocessors * upfront::blocks_per_sm, ceil_div<u32, u16, u32>(length, upfront::slice_length));
 
   upfront::count<<<blocks_per_grid, upfront::threads_per_block>>>(data, length, counters->counters, hasher);
   handle_cuda_error_debug("Sort: `upfront_count` kernel");
@@ -31,7 +30,7 @@ void sort(GPUInfo const *const info, Data *const data, u32 const length, const H
   handle_cuda_error_debug("Sort: Allocate id counter");
   handle_cuda_result(cudaMemsetAsync(atomic_counter, 0, sizeof(u32)), "Sort: Memset id counter");
   handle_cuda_error_debug("Sort: Memset id counter");
-  u32 const slices = (length + onesweep::slice_max_length - 1) / onesweep::slice_max_length;
+  u32 const slices = ceil_div<u32, u16, u32>(length, onesweep::slice_max_length);
   u32 const state_couters_size = RADIX * slices * sizeof(onesweep::StateCounter);
   onesweep::StateCounter *state_counters;
   handle_cuda_result(cudaMallocAsync(&state_counters, state_couters_size, cudaStreamPerThread),

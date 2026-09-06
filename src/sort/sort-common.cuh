@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cuda/std/optional>
-#include "scan/scan-common.cuh"
+#include "scan/scan.cuh"
 
 // size of the radix in bits
 constexpr u8 RADIX_SIZE = 8;

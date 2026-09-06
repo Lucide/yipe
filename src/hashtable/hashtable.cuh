@@ -5,7 +5,7 @@
 
 template <typename Data, typename Hasher>
   requires is_hasher<Hasher, Data>
-HashTable *new_hashtable(GPUInfo const *const info, Data *const data, u32 const length, const Hasher hasher) {
+HashTable *build_hashtable(GPUInfo const *const info, Data *const data, u32 const length, const Hasher hasher) {
   sort(info, data, length, hasher);
 
   // HashTable - u32 + ((length + 1) * u32)
@@ -16,8 +16,8 @@ HashTable *new_hashtable(GPUInfo const *const info, Data *const data, u32 const 
   handle_cuda_error_debug("Hashtable: Allocate table");
   handle_cuda_result(cudaMemsetAsync(table, 0, full_table_size), "Hashtable: Memset table");
   handle_cuda_error_debug("Hashtable: Memset table");
-  u32 const blocks_per_grid = min(info->multiprocessors * hash_table::blocks_per_sm,
-                                  (length + hash_table::slice_length - 1) / hash_table::slice_length);
+  u32 const blocks_per_grid =
+      min(info->multiprocessors * hash_table::blocks_per_sm, ceil_div<u32, u16, u32>(length, hash_table::slice_length));
 
   hash_table::build<<<blocks_per_grid, hash_table::threads_per_block>>>(data, length, table, hasher);
   handle_cuda_error_debug("Hashtable: `build` kernel");
