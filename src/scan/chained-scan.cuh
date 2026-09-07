@@ -65,7 +65,7 @@ KERNEL void chained_scan(u32 *const atomic_id,
     Data const item = src[warp_slice_start + i];
     u32 const thread_mask = __funnelshift_lc(UINT_MAX, 0, warp_usage);
     u8 const leader_id = warp_usage - 1;
-    Data warp_prefix = warp_inclusive_multiscan(item, thread_mask);
+    Data const warp_prefix = warp_inclusive_multiscan(item, thread_mask);
 
     Data prefix = 0;
 
@@ -76,7 +76,7 @@ KERNEL void chained_scan(u32 *const atomic_id,
     __syncwarp(thread_mask);
 
     // share the exclusive sum within the warp
-    warp_prefix = __shfl_sync(thread_mask, prefix, leader_id);
+    prefix = __shfl_sync(thread_mask, prefix, leader_id);
     // warp_slice-relative sums are stored in shared memory
     warp_slice_prefix[pass] = prefix + warp_prefix - item;
   }
@@ -104,10 +104,11 @@ KERNEL void chained_scan(u32 *const atomic_id,
     // publish the block totals
     if (block_id == 0) {
       global_prefixes[block_id] = slice_total;
+      global_state.store(State::Prefix, cuda::memory_order_release);
     } else {
       global_counters[block_id] = slice_total;
+      global_state.store(State::Count, cuda::memory_order_release);
     }
-    global_state.store(block_id == 0 ? State::Prefix : State::Count, cuda::memory_order_release);
 
     global_prefix = 0;
     for (u32 i = block_id - 1; block_id != 0; --i) {
@@ -121,7 +122,7 @@ KERNEL void chained_scan(u32 *const atomic_id,
       if (sc == State::Prefix) {
         // publish the total inclusive prefix
         global_prefix += global_prefixes[i];
-        global_prefixes[i] = global_prefix + slice_total;
+        global_prefixes[block_id] = global_prefix + slice_total;
         global_state.store(State::Prefix, cuda::memory_order_release);
         break;
       }

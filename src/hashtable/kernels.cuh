@@ -75,12 +75,6 @@ KERNEL void verify(const Data *const data, const u32 length, const HashTable *co
       const Data item = data[j];
       typename Key::KeyType const hash = hasher(item);
       const auto bucket = hash_table->lookup(hash);
-      // if (!bucket) {
-      //   printf("data[%d] = %d\n", j, hash);
-      // }
-      // if (j >= bucket->end || j < bucket->begin) {
-      //   printf("data[%d] = %d, %d: (%d, %d)\n", j, hash, hash, bucket->begin, bucket->end);
-      // }
       assert(bucket);
       assert(bucket->begin <= j);
       assert(j < bucket->end);
@@ -99,9 +93,6 @@ KERNEL void verify(const Data *const data, const u32 length, const HashTable *co
           const Data item = data[k];
           typename Key::KeyType const hash = hasher(item);
           assert(j == hash);
-          // if (j != hash) {
-          //   printf("data[%d] = %d, %d: (%d, %d)\n", k, hash, j, bucket->begin, bucket->end);
-          // }
         }
       }
     }

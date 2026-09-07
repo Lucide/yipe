@@ -27,6 +27,7 @@ extern "C" {
 #define KERNEL __global__
 #define SHARED __shared__
 #define CONSTANT __constant__
+#define INLINE __forceinline__
 
 typedef unsigned int uint;
 typedef int8_t i8;
@@ -34,6 +35,7 @@ typedef uint8_t u8;
 typedef int16_t i16;
 typedef uint16_t u16;
 typedef uint32_t u32;
+typedef int32_t i32;
 typedef uint64_t u64;
 
 #define ROOM_WIDTH 600
@@ -71,7 +73,7 @@ typedef union mat4x4 {
 typedef float4 Point;
 
 typedef struct Triangle {
-  Point points[3];
+  float3 points[3];
 } Triangle;
 
 typedef struct HashTable HashTable;

@@ -48,24 +48,10 @@ void sort(GPUInfo const *const info, Data *const data, u32 const length, const H
   for (u8 place = 0; place < Key::digit_places; ++place) {
     if (degenerates[place])
       continue;
-    // printf("place: %d\n", place);
     handle_cuda_result(cudaMemsetAsync(state_counters, 0, state_couters_size), "Sort: Memset state/counters");
     onesweep::onesweep<<<slices, onesweep::threads_per_block>>>(atomic_counter, src, dst, length, place, state_counters,
                                                                 counters->counters[place], hasher);
     handle_cuda_error_debug("Sort: `onesweep` kernel");
-    /*
-        if (place == 0) {
-          Data *temp = reinterpret_cast<Data *>(malloc(length * sizeof(Data)));
-          if (temp == nullptr)
-            printf("out of memory\n");
-          handle_cuda_result(cudaMemcpy(temp, dst, length * sizeof(Data), cudaMemcpyDeviceToHost), "allocate print
-       points"); printf("\n printing sorted digits\n"); for (u32 i = 0; i < length && length <= 4096; ++i) { typename
-       Key::KeyType hash = hasher(temp[i]); printf("%d ", Key::extract_digit(hash, 0));
-          }
-          printf("\n");
-          free(temp);
-        }
-    */
     std::swap(src, dst);
   }
 
@@ -79,27 +65,6 @@ void sort(GPUInfo const *const info, Data *const data, u32 const length, const H
     handle_cuda_result(cudaFreeAsync((void *)dst, cudaStreamPerThread), "Sort: Free helper array");
     handle_cuda_error_debug("Sort: Free helper array");
   }
-  /*
-    for (u32 place = 0; place < ARRAY_LENGTH(degenerates); ++place) {
-      printf("%d, ", degenerates[place]);
-      // if (degenerates[place]
-    }
-    printf("\n");
-    // debug copyback
-    auto cpu_counters = new u32[1][Key::digit_places][RADIX];
-    cudaMemcpy(cpu_counters, counters->counters, sizeof(counters->counters), cudaMemcpyDeviceToHost);
-    for (u32 place = 0; place < Key::digit_places; ++place) {
-      if (degenerates[place])
-        continue;
-      printf("place %d: [", place);
-      for (u32 digit = 0; digit < RADIX; ++digit) {
-        printf("%d:%d,", digit, (*cpu_counters)[place][digit]);
-      }
-      printf("]\n");
-    }
-    delete[] cpu_counters;
-    // end debug copyback
-   */
   handle_cuda_result(cudaFreeAsync(counters, cudaStreamPerThread), "Sort: Free counters");
   handle_cuda_error_debug("Sort: Free counters");
   handle_cuda_result(cudaFreeAsync(atomic_counter, cudaStreamPerThread), "Sort: Free id counter");

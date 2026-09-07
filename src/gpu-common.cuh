@@ -82,11 +82,11 @@ GPU HOST constexpr u8 pow2_ceiling(const u8 val) {
   return (val == 1) ? 1u : static_cast<u8>(1u << (32 - cuda::std::countl_zero(val - 1u)));
 }
 
-GPU HOST __forceinline__ float sq_prod3(const Point lhs, const Point rhs) {
+GPU HOST INLINE float sq_prod3(const Point lhs, const Point rhs) {
   return fmaf(lhs.x, rhs.x, fmaf(lhs.y, rhs.y, lhs.z * rhs.z));
 }
 
-GPU HOST __forceinline__ constexpr mat4x4 transpose(const mat4x4 op) {
+GPU HOST INLINE constexpr mat4x4 transpose(const mat4x4 op) {
   return {
       .rows = {
                {op.comp.m00, op.comp.m10, op.comp.m20, op.comp.m30},
@@ -97,32 +97,58 @@ GPU HOST __forceinline__ constexpr mat4x4 transpose(const mat4x4 op) {
   };
 }
 
-GPU HOST __forceinline__ constexpr Point operator+(const Point lhs, const Point rhs) {
+GPU HOST INLINE constexpr Point operator+(const Point lhs, const Point rhs) {
   return {lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, 1};
 }
 
-GPU HOST __forceinline__ constexpr Point operator-(const Point lhs, const Point rhs) {
+GPU HOST INLINE constexpr Point operator-(const Point lhs, const Point rhs) {
   return {lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z, 1};
 }
 
-GPU HOST __forceinline__ float operator*(const float4 lhs, const float4 rhs) {
+GPU HOST INLINE constexpr Point operator*(const Point lhs, const float rhs) {
+  return {lhs.x * rhs, lhs.y * rhs, lhs.z * rhs, 1};
+}
+GPU HOST INLINE constexpr Point operator/(const Point lhs, const float rhs) {
+  return {lhs.x / rhs, lhs.y / rhs, lhs.z / rhs, 1};
+}
+
+GPU HOST INLINE float operator*(const float4 lhs, const float4 rhs) {
   return fmaf(lhs.x, rhs.x, fmaf(lhs.y, rhs.y, fmaf(lhs.z, rhs.z, lhs.w * rhs.w)));
 }
 
-GPU HOST __forceinline__ float norm(const float4 v) { return sqrtf(v * v); }
+GPU HOST INLINE constexpr bool operator<(const Point lhs, const Point rhs) {
+  if (lhs.x < rhs.x)
+    return true;
+  else if (lhs.x > rhs.x)
+    return false;
 
-GPU HOST __forceinline__ float sq_dist(const Point lhs, const Point rhs) {
+  if (lhs.y < rhs.y)
+    return true;
+  else if (lhs.y > rhs.y)
+    return false;
+
+  if (lhs.z < rhs.z)
+    return true;
+  else if (lhs.z > rhs.z)
+    return false;
+
+  return false;
+}
+
+GPU HOST INLINE float norm(const float4 v) { return sqrtf(v * v); }
+
+GPU HOST INLINE float sq_dist(const Point lhs, const Point rhs) {
   const Point diff = lhs - rhs;
   return sq_prod3(diff, diff);
 }
 
-GPU HOST __forceinline__ float dist(const float4 lhs, const float4 rhs) { return sqrt(sq_dist(lhs, rhs)); }
+GPU HOST INLINE float dist(const float4 lhs, const float4 rhs) { return sqrt(sq_dist(lhs, rhs)); }
 
-GPU HOST __forceinline__ float4 operator*(const mat4x4 lhs, const float4 rhs) {
+GPU HOST INLINE float4 operator*(const mat4x4 lhs, const float4 rhs) {
   return {lhs.rows.r0 * rhs, lhs.rows.r1 * rhs, lhs.rows.r2 * rhs, lhs.rows.r3 * rhs};
 }
 
-GPU HOST __forceinline__ mat4x4 operator*(const mat4x4 lhs, const mat4x4 rhs) {
+GPU HOST INLINE mat4x4 operator*(const mat4x4 lhs, const mat4x4 rhs) {
   mat4x4 rhs_t = transpose(rhs);
   return {
       .rows = {{lhs.rows.r0 * rhs_t.rows.r0, lhs.rows.r0 * rhs_t.rows.r1, lhs.rows.r0 * rhs_t.rows.r2,
@@ -135,3 +161,5 @@ GPU HOST __forceinline__ mat4x4 operator*(const mat4x4 lhs, const mat4x4 rhs) {
                 lhs.rows.r3 * rhs_t.rows.r3}}
   };
 }
+
+GPU HOST constexpr float3 project4to3(const Point point) { return {point.x, point.y, point.z}; }

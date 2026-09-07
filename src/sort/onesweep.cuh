@@ -174,17 +174,6 @@ KERNEL void onesweep(u32 *const atomic_id,
 
     u32 const global_dest = global_totals[digit] + global_prefix[digit] + i - slice_totals[digit];
     sorted[global_dest] = item;
-
-    // if (i < ARRAY_LENGTH(bins) - 1) {
-    //   Data const item2 = bins[i + 1];
-    //   u32 const hash2 = hasher(item);
-    //   u16 const partial = hash & __funnelshift_lc(UINT_MAX, Key::radix_mask, digit * 8);
-    //   u16 const partial2 = hash2 & __funnelshift_lc(UINT_MAX, Key::radix_mask, digit * 8);
-    //   if (partial > partial2) {
-    //     printf("%d %d\n", partial, partial2);
-    //     printf("error\n");
-    //   }
-    // }
   }
 }
 } // namespace onesweep
