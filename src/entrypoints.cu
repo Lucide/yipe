@@ -52,12 +52,12 @@ extern "C" void launch_verify_hashtable(GPUInfo const *const info,
   verify_hashtable(info, data, length, table, hasher);
 }
 
-extern "C" Triangle *triangulate(GPUInfo const *const info,
-                                 Point *const data,
-                                 const u32 length,
-                                 const float3 room_dim,
-                                 const float particle_diameter,
-                                 const float isolevel) {
+extern "C" Geometry triangulate(GPUInfo const *const info,
+                                Point *const data,
+                                const u32 length,
+                                const float3 room_dim,
+                                const float particle_diameter,
+                                const float isolevel) {
 
   return compute_marching_cubes(info, data, length, room_dim, particle_diameter, isolevel);
 }

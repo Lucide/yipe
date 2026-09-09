@@ -6,12 +6,12 @@
 #include "kernels.cuh"
 #include "scan/scan.cuh"
 
-Triangle *compute_marching_cubes(GPUInfo const *const info,
-                                 Point *const points,
-                                 const u32 length,
-                                 const float3 room_dim,
-                                 const float particle_diameter,
-                                 const float isolevel) {
+Geometry compute_marching_cubes(GPUInfo const *const info,
+                                Point *const points,
+                                const u32 length,
+                                const float3 room_dim,
+                                const float particle_diameter,
+                                const float isolevel) {
   const auto hasher = get_hasher(length, particle_diameter);
   const auto params = marching_cubes::Params(length, room_dim, particle_diameter, isolevel);
   const dim3 field_block_count = {
@@ -35,18 +35,6 @@ Triangle *compute_marching_cubes(GPUInfo const *const info,
                                                                                                   fields, hasher);
   handle_cuda_error_debug("Marching_cubes: compute scalar fields");
 
-  // if (params.field_count() <= 4096) {
-  //   auto cpu_fields = (float *)malloc(sizeof(float) * params.field_count());
-  //   cudaMemcpy(cpu_fields, fields, sizeof(float) * params.field_count(), cudaMemcpyDeviceToHost);
-  //   printf("fields:\n");
-  //   for (u32 i = 0; i < params.field_count(); ++i) {
-  //     if (cpu_fields[i] > 0) {
-  //       printf("%d:%.1f ", i, cpu_fields[i]);
-  //     }
-  //   }
-  //   printf("\n");
-  // }
-
   // get triangle counts
   u32 *triangle_counts;
   // we allocate an extra cell that will be set to 0 by the counting kernel
@@ -65,23 +53,16 @@ Triangle *compute_marching_cubes(GPUInfo const *const info,
   scan(triangle_counts, triangle_counts, params.cell_count() + 1);
 
   // get total triangles
-  u32 last_triangles;
+  u32 total_triangles;
   handle_cuda_result(
-      cudaMemcpy(&last_triangles, &triangle_counts[params.cell_count()], sizeof(u32), cudaMemcpyDeviceToHost),
+      cudaMemcpy(&total_triangles, &triangle_counts[params.cell_count()], sizeof(u32), cudaMemcpyDeviceToHost),
       "Marching_cubes: fetch triangle total count");
   handle_cuda_error_debug("Marching_cubes: fetch triangle total count");
 
-  // u32 *count = (u32 *)malloc(sizeof(u32) * (params.cell_count() + 1));
-  // cudaMemcpy(count, triangle_counts, sizeof(u32) * (params.cell_count() + 1), cudaMemcpyDeviceToHost);
-  // for (u32 i = 0; i < params.cell_count() + 1; ++i) {
-  //   printf("%d\n", count[i]);
-  // }
-  // free(count);
-
   // make triangles
-  printf("triangle count: %d\n", last_triangles);
+  printf("triangle count: %d\n", total_triangles);
   Triangle *triangles;
-  handle_cuda_result(cudaMallocAsync(&triangles, sizeof(Triangle) * last_triangles, cudaStreamPerThread),
+  handle_cuda_result(cudaMallocAsync(&triangles, sizeof(Triangle) * total_triangles, cudaStreamPerThread),
                      "Marching_cubes: allocate triangle buffer");
   handle_cuda_error_debug("Marching_cubes: allocate triangle buffer");
 
@@ -94,5 +75,5 @@ Triangle *compute_marching_cubes(GPUInfo const *const info,
   handle_cuda_result(cudaFreeAsync(triangle_counts, cudaStreamPerThread), "Marching_cubes: free triangle counts");
   handle_cuda_error_debug("Marching_cubes: free triangle counts");
 
-  return triangles;
+  return {total_triangles, triangles};
 }

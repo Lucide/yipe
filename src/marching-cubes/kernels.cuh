@@ -38,10 +38,10 @@ KERNEL void compute_scalar_fields(const Point *const points,
         const u32 hash = hasher(neighbor_cell);
 
         if (const auto bucket = table->lookup(hash); bucket) {
-          // 4. Accumulate density from all points in this cell
           for (u32 i = bucket->begin; i < bucket->end; i++) {
             const Point point = points[i];
-            scalar_value += calculate_density(node_pos, point, params.particle_diameter_sq);
+            // currently calculated using Wendland C2
+            scalar_value += calculate_density(node_pos, point, params);
           }
         }
       }

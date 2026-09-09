@@ -1,4 +1,5 @@
 #pragma once
+#include <cuda/std/limits>
 #include <cuda/std/mdspan>
 #include <cuda_runtime.h>
 #include "gpu-common.cuh"
@@ -35,16 +36,25 @@ struct Params {
   GPU HOST constexpr u32 field_count() const { return this->fields.x * this->fields.y * this->fields.z; }
 };
 
-GPU float calculate_density(const Point node_pos, const Point point_pos, const float radius_sq) {
+// Estimate *unnormalised* Wendland C2 density
+GPU float calculate_density(const Point node_pos, const Point point_pos, const Params params) {
+  // NOTE: unnormalised C2 is fine for graphics but not for physics
+
   const float dist_sq = sq_dist(node_pos, point_pos);
 
-  if (dist_sq >= radius_sq) {
+  if (dist_sq >= params.particle_diameter_sq) {
     return 0.0f;
   }
 
-  // Quadratic falloff kernel (Metaball style)
-  float v = 1.0f / dist_sq;
-  return v;
+  // fast sqrt: sqrt(x) == x * rsqrt(x). +epsilon guards against
+  // rsqrtf(0) -> inf -> 0*inf -> NaN when node_pos == point_pos exactly.
+  const float distance = dist_sq * rsqrtf(dist_sq + cuda::std::numeric_limits<float>::min());
+
+  // Wendland C2 kernel
+  const float u = distance / params.particle_diameter;
+  const float term = 1.0f - u;
+  const float w = (term * term * term * term) * (4.0f * u + 1.0f);
+  return w;
 }
 
 GPU Point interpolate_vertex(const float isolevel, Point p1, Point p2, const float field1, const float field2) {

@@ -153,9 +153,22 @@ int main(int const argc, char const *const *const argv) {
   // handle_cuda_result(cudaFree(table), "Main: Free table");
   // printf("scan done\n");
 
-  Triangle *triangles = triangulate(&info, gpu_points, length, room_dims, PARTICLE_DIAMETER, ISOLEVEL);
+  Geometry geometry = triangulate(&info, gpu_points, length, room_dims, PARTICLE_DIAMETER, ISOLEVEL);
+  if (geometry.count <= 1024) {
+    Triangle *const triangles = (Triangle *)malloc(sizeof(Triangle) * geometry.count);
+    cudaMemcpy(triangles, geometry.triangles, sizeof(Triangle) * geometry.count, cudaMemcpyDeviceToHost);
+    for (u32 i = 0; i < geometry.count - 1; ++i) {
+      const Triangle triangle = triangles[i];
+      printf("(%.1f, %.1f, %.1f) (%.1f, %.1f, %.1f) (%.1f, %.1f, %.1f)\n", (double)triangle.points[0].x,
+             (double)triangle.points[0].y, (double)triangle.points[0].z, (double)triangle.points[1].x,
+             (double)triangle.points[1].y, (double)triangle.points[1].z, (double)triangle.points[2].x,
+             (double)triangle.points[2].y, (double)triangle.points[2].z);
+    }
+    free(triangles);
+  }
+
   handle_cuda_result(cudaFree(gpu_points), "Main: Free points");
-  handle_cuda_result(cudaFree(triangles), "Main: Free triangles");
+  handle_cuda_result(cudaFree(geometry.triangles), "Main: Free triangles");
   printf("triangulation done\n");
 
   free(cpu_points);
