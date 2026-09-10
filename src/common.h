@@ -78,6 +78,7 @@ typedef struct Triangle {
 
 typedef struct Geometry {
   u32 count;
+  u32 : 32;
   Triangle *triangles;
 } Geometry;
 
@@ -89,7 +90,7 @@ void handle_cuda_error_debug(const char *message);
 
 void launch_exclusive_scan(const u32 *src, u32 *dst, u32 length);
 void launch_sort_points(GPUInfo const *info, Point *points, u32 length);
-struct HashTable *new_hashtable(GPUInfo const *info, Point *points, u32 length);
+struct HashTable *new_hashtable(GPUInfo const *info, Point *points, u32 length, u32 buckets);
 void launch_verify_hashtable(GPUInfo const *info, const Point *data, u32 length, const HashTable *table);
 Geometry
 triangulate(GPUInfo const *info, Point *data, u32 length, float3 room_dim, float particle_diameter, float isolevel);

@@ -10,7 +10,7 @@ namespace marching_cubes {
 using extents_3d =
     cuda::std::extents<u32, cuda::std::dynamic_extent, cuda::std::dynamic_extent, cuda::std::dynamic_extent>;
 
-constexpr dim3 threads_per_block = {8, 8, 8};
+constexpr dim3 threads_per_block = {4, 4, 4};
 
 struct Params {
   u32 points;
@@ -110,7 +110,7 @@ GPU Point INLINE get_edge_vertex(
 
   float field0 = select_field(vertexes.c0, fields);
 
-  float field1 = select_field(vertexes.c0, fields);
+  float field1 = select_field(vertexes.c1, fields);
 
   return interpolate_vertex(isolevel, corner0, corner1, field0, field1);
 }

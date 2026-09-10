@@ -8,10 +8,11 @@ struct Bucket {
 };
 
 struct HashTable {
-  u32 length;
+  u32 length; // number of buckets + 1
   u32 table[1];
 
   template <std::unsigned_integral Hash> GPU cuda::std::optional<Bucket> lookup(const Hash hash) const {
+    assert(hash + 1 < this->length);
     assert(hash + 1 < this->length);
     const u32 begin = this->table[hash];
     const u32 end = this->table[hash + 1];

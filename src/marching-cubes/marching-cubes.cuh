@@ -1,7 +1,6 @@
 #pragma once
 
-#include <cstdio>
-#include <driver_types.h>
+#include <algorithm>
 #include "hashtable/hashtable.cuh"
 #include "kernels.cuh"
 #include "scan/scan.cuh"
@@ -12,8 +11,8 @@ Geometry compute_marching_cubes(GPUInfo const *const info,
                                 const float3 room_dim,
                                 const float particle_diameter,
                                 const float isolevel) {
-  const auto hasher = get_hasher(length, particle_diameter);
   const auto params = marching_cubes::Params(length, room_dim, particle_diameter, isolevel);
+  const u32 buckets = std::min(params.cell_count(), length);
   const dim3 field_block_count = {
       ceil_div<unsigned int, unsigned int, unsigned int>(params.fields.x, marching_cubes::threads_per_block.x),
       ceil_div<unsigned int, unsigned int, unsigned int>(params.fields.y, marching_cubes::threads_per_block.y),
@@ -24,7 +23,8 @@ Geometry compute_marching_cubes(GPUInfo const *const info,
       ceil_div<unsigned int, unsigned int, unsigned int>(params.fields.z, marching_cubes::threads_per_block.z)};
 
   // compute hashtable
-  const auto table = build_hashtable(info, points, length, hasher);
+  const auto hasher = get_hasher(buckets, particle_diameter);
+  const auto table = build_hashtable(info, points, length, buckets, hasher);
 
   // compute scalar fields
   float *fields;
@@ -60,7 +60,6 @@ Geometry compute_marching_cubes(GPUInfo const *const info,
   handle_cuda_error_debug("Marching_cubes: fetch triangle total count");
 
   // make triangles
-  printf("triangle count: %d\n", total_triangles);
   Triangle *triangles;
   handle_cuda_result(cudaMallocAsync(&triangles, sizeof(Triangle) * total_triangles, cudaStreamPerThread),
                      "Marching_cubes: allocate triangle buffer");

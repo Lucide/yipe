@@ -12,6 +12,7 @@ KERNEL void compute_scalar_fields(const Point *const points,
                                   const Params params,
                                   float *const linearized_fields,
                                   const Hasher hasher) {
+  using Key = Key<Hasher, Point>;
   const cuda::std::mdspan fields(linearized_fields, extents_3d{params.fields.x, params.fields.y, params.fields.z});
 
   const uint3 vertex = {
@@ -19,29 +20,58 @@ KERNEL void compute_scalar_fields(const Point *const points,
       blockIdx.y * blockDim.y + threadIdx.y,
       blockIdx.z * blockDim.z + threadIdx.z,
   };
-  if (vertex.x >= params.cells.x || vertex.y >= params.cells.y || vertex.z >= params.cells.z)
+  if (vertex.x >= params.fields.x || vertex.y >= params.fields.y || vertex.z >= params.fields.z)
     return;
 
   // convert index to float at maximum precision
-  const Point node_pos = {static_cast<float>(static_cast<double>(vertex.x) * params.particle_diameter),
-                          static_cast<float>(static_cast<double>(vertex.y) * params.particle_diameter),
-                          static_cast<float>(static_cast<double>(vertex.z) * params.particle_diameter), 1};
+  const Point vertex_pos = {static_cast<float>(static_cast<double>(vertex.x) * params.particle_diameter),
+                            static_cast<float>(static_cast<double>(vertex.y) * params.particle_diameter),
+                            static_cast<float>(static_cast<double>(vertex.z) * params.particle_diameter), 1};
 
   float scalar_value = 0.0f;
+  u32 checked[8];
+  u8 i = 0;
+  for (i8 dz = -1; dz <= 0; ++dz) {
+    for (i8 dy = -1; dy <= 0; ++dy) {
+      for (i8 dx = -1; dx <= 0; ++dx, i += 1) {
+        // calculate cell position and hash
+        const Point neighbour_cell = {vertex_pos.x + static_cast<float>(dx) * params.particle_diameter,
+                                      vertex_pos.y + static_cast<float>(dy) * params.particle_diameter,
+                                      vertex_pos.z + static_cast<float>(dz) * params.particle_diameter, 1};
+        const typename Key::KeyType hash = hasher(neighbour_cell);
+        // add hash
+        checked[i] = hash;
 
-  for (int dz = -1; dz <= 1; ++dz) {
-    for (int dy = -1; dy <= 1; ++dy) {
-      for (int dx = -1; dx <= 1; ++dx) {
-        const Point neighbor_cell = {node_pos.x + static_cast<float>(dx) * params.particle_diameter,
-                                     node_pos.y + static_cast<float>(dy) * params.particle_diameter,
-                                     node_pos.z + static_cast<float>(dz) * params.particle_diameter, 1};
-        const u32 hash = hasher(neighbor_cell);
+        // check if the cell is outside of the room's bounds
+        const int3 neighbour = {
+            static_cast<int>(vertex.x) + dx,
+            static_cast<int>(vertex.y) + dy,
+            static_cast<int>(vertex.z) + dz,
+        };
+        if (neighbour.x < 0 || neighbour.y < 0 || neighbour.z < 0 || neighbour.x >= static_cast<int>(params.cells.x) ||
+            neighbour.y >= static_cast<int>(params.cells.y) || neighbour.z >= static_cast<int>(params.cells.z)) {
+          continue;
+        }
+
+        // check for clashes in previous hashes
+        if (i > 0 &&
+            (checked[0] == hash ||
+             (i > 1 &&
+              (checked[1] == hash ||
+               (i > 2 && (checked[2] == hash ||
+                          (i > 3 && (checked[3] == hash ||
+                                     (i > 4 && (checked[4] == hash ||
+                                                (i > 5 && (checked[5] == hash ||
+                                                           (i > 6 && (checked[6] == hash ||
+                                                                      (i > 7 && checked[7] == hash))))))))))))))) {
+          continue;
+        }
 
         if (const auto bucket = table->lookup(hash); bucket) {
           for (u32 i = bucket->begin; i < bucket->end; i++) {
             const Point point = points[i];
             // currently calculated using Wendland C2
-            scalar_value += calculate_density(node_pos, point, params);
+            scalar_value += calculate_density(vertex_pos, point, params);
           }
         }
       }

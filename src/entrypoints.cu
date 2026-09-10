@@ -1,3 +1,4 @@
+#include <driver_types.h>
 #include "common.h"
 #include "hashtable/hashtable.cuh"
 #include "marching-cubes/marching-cubes.cuh"
@@ -35,11 +36,12 @@ extern "C" void launch_sort_points(GPUInfo const *const info, Point *const point
   sort(info, points, length, hasher);
 }
 
-extern "C" HashTable *new_hashtable(GPUInfo const *const info, Point *const points, u32 const length) {
+extern "C" HashTable *
+new_hashtable(GPUInfo const *const info, Point *const points, u32 const length, u32 const buckets) {
 
-  const auto hasher = get_hasher(length, PARTICLE_DIAMETER);
+  const auto hasher = get_hasher(buckets, PARTICLE_DIAMETER);
 
-  return build_hashtable(info, points, length, hasher);
+  return build_hashtable(info, points, length, buckets, hasher);
 }
 
 extern "C" void launch_verify_hashtable(GPUInfo const *const info,
@@ -47,7 +49,9 @@ extern "C" void launch_verify_hashtable(GPUInfo const *const info,
                                         u32 const length,
                                         const HashTable *const table) {
 
-  const auto hasher = get_hasher(length, PARTICLE_DIAMETER);
+  u32 table_length;
+  cudaMemcpy(&table_length, table, sizeof(u32), cudaMemcpyDeviceToHost);
+  const auto hasher = get_hasher(table_length - 1, PARTICLE_DIAMETER);
 
   verify_hashtable(info, data, length, table, hasher);
 }

@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 4.4)
 
 project(yipe LANGUAGES C CXX CUDA)
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
 set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -35,6 +36,8 @@ set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES
     "${PROJECT_SOURCE_DIR}/compile_commands.json"
 )
 
+include(raylib)
+
 add_executable(yipe)
 
 target_sources(yipe
@@ -65,4 +68,4 @@ target_include_directories(yipe SYSTEM PRIVATE
     "${CUDAToolkit_INCLUDE_DIRS}"
 )
 
-target_link_libraries(yipe PRIVATE CUDA::cudart)
+target_link_libraries(yipe PRIVATE CUDA::cudart raylib)
