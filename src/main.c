@@ -1,9 +1,11 @@
 #include <math.h>
+#include <raylib.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "common.h"
+#include "viewer/viewer.h"
 
-#define ARR_LENGTH 4096 // 2^31 / sizeof(Point) = 2^31 / 12 = 178956970
+#define ARR_LENGTH 10
 
 static u32 get_cores_per_SM(int major, int minor) {
   switch (major) {
@@ -64,6 +66,22 @@ static void generate_random_points(Point *const points, const u32 length, u32 se
   }
 }
 
+static void free_gpu_geometry(Geometry const geometry) {
+  handle_cuda_result(cudaFree(geometry.triangles), "Main: Free triangles");
+}
+
+static Geometry download_geometry(Geometry const gpu_geometry) {
+  Geometry cpu_geometry =
+      (Geometry){.count = gpu_geometry.count, .triangles = malloc(gpu_geometry.count * sizeof(Triangle))};
+  handle_cuda_result(cudaMemcpy(cpu_geometry.triangles, gpu_geometry.triangles, gpu_geometry.count * sizeof(Triangle),
+                                cudaMemcpyDeviceToHost),
+                     "Main: download triangles");
+  handle_cuda_result(cudaFree(gpu_geometry.triangles), "Main: Free triangles");
+  return cpu_geometry;
+}
+
+static void free_geometry(Geometry const geometry) { free(geometry.triangles); }
+
 int main(int const argc, char const *const *const argv) {
   u32 const seed = 0;
   GPUInfo const info = fetch_gpu_info();
@@ -75,7 +93,7 @@ int main(int const argc, char const *const *const argv) {
     char *endptr;
     length = strtoul(argv[1], &endptr, 0);
     if (argv[1] == endptr) {
-      printf("Invalid argument: \"%s\"", argv[1]);
+      printf("Invalid argument: \"%s\"\n", argv[1]);
       exit(1);
     }
   }
@@ -87,13 +105,63 @@ int main(int const argc, char const *const *const argv) {
   Point *const cpu_points = (Point *)malloc(sizeof(Point) * length);
   generate_random_points(cpu_points, length, 549951);
 
-  // if (length <= 4096) {
-  //   printf("\n printing unsorted points\n");
-  //   for (u32 i = 0; i < length; ++i) {
-  //     u32 hash1 = point_hash(cpu_points[i], length, PARTICLE_DIAMETER);
-  //     printf("%u ", hash1);
-  //   }
-  // }
+  Point *gpu_points;
+  handle_cuda_result(cudaMalloc((void **)&gpu_points, sizeof(Point) * length), "Main: Allocate points");
+  handle_cuda_result(cudaMemcpy(gpu_points, cpu_points, sizeof(Point) * length, cudaMemcpyHostToDevice),
+                     "Main: Load points");
+  printf("points loaded\n");
+
+  Viewer viewer = new_viewer();
+
+  for (u8 fc = 0; !WindowShouldClose(); ++fc) {
+    Geometry gpu_geometry = triangulate(&info, gpu_points, length, room_dims, PARTICLE_DIAMETER, ISOLEVEL);
+    Geometry geometry = download_geometry(gpu_geometry);
+    // if (gpu_geometry.count) {
+    //   Geometry geometry = download_geometry(gpu_geometry);
+    //   free_geometry(geometry);
+    // }
+    // BeginDrawing();
+    // EndDrawing();
+
+    if (OWNERSHIP_BORROWED == render(&viewer, &geometry)) {
+      free_geometry(geometry);
+    }
+    // Draw horizon / ground plane
+    // DrawGrid(40, 20.0f);
+
+    if (fc % 60 == 0) {
+      char titleBuffer[256];
+      snprintf(titleBuffer, sizeof(titleBuffer), "CUDA Dynamic Triangle Renderer | Triangles: %u | FPS: %d",
+               gpu_geometry.count, GetFPS());
+      SetWindowTitle(titleBuffer);
+    }
+  }
+
+  CloseWindow();
+
+  handle_cuda_result(cudaFree(gpu_points), "Main: Free points");
+  free(cpu_points);
+  return 0;
+}
+
+[[maybe_unused]] static void test(const u32 length) {
+  u32 const seed = 0;
+  GPUInfo const info = fetch_gpu_info();
+
+  printf("info:\n\tmultiprocessors: %u\n\tcores per multiprocessor: %u\n", info.multiprocessors,
+         info.cores_per_multiprocessor);
+  printf("seed %u\n", seed);
+
+  Point *const cpu_points = (Point *)malloc(sizeof(Point) * length);
+  generate_random_points(cpu_points, length, 549951);
+
+  if (length <= 4096) {
+    printf("\n printing unsorted points\n");
+    for (u32 i = 0; i < length; ++i) {
+      u32 hash1 = point_hash(cpu_points[i], length, PARTICLE_DIAMETER);
+      printf("%u ", hash1);
+    }
+  }
 
   Point *gpu_points;
   handle_cuda_result(cudaMalloc((void **)&gpu_points, sizeof(Point) * length), "Main: Allocate points");
@@ -101,77 +169,74 @@ int main(int const argc, char const *const *const argv) {
                      "Main: Load points");
   printf("points loaded\n");
 
-  // printf("\n");
+  printf("launch\n");
+  launch_sort_points(&info, gpu_points, length);
+  printf("done\n");
 
-  // printf("launch\n");
-  // launch_sort_points(&info, gpu_points, length);
-  // printf("done\n");
+  // Copy result back and clean up
+  handle_cuda_result(cudaMemcpy(cpu_points, gpu_points, sizeof(Point) * length, cudaMemcpyDeviceToHost),
+                     "Main: Unload points");
 
-  // // Copy result back and clean up
-  // handle_cuda_result(cudaMemcpy(cpu_points, gpu_points, sizeof(Point) * length, cudaMemcpyDeviceToHost),
-  //                    "Main: Unload points");
+  if (length <= 4096) {
+    printf("\n printing sorted points\n");
+    for (u32 i = 0; i < length; ++i) {
+      u32 hash1 = point_hash(cpu_points[i], length, PARTICLE_DIAMETER);
+      printf("%u ", hash1);
+    }
+  }
 
-  // if (length <= 4096) {
-  //   printf("\n printing sorted points\n");
-  //   for (u32 i = 0; i < length; ++i) {
-  //     u32 hash1 = point_hash(cpu_points[i], length, PARTICLE_DIAMETER);
-  //     printf("%u ", hash1);
-  //   }
-  // }
+  printf("\n");
 
-  // printf("\n");
+  u32 count = 0;
+  for (u32 i = 0; i < length - 1; ++i) {
+    u32 hash1 = point_hash(cpu_points[i], length, PARTICLE_DIAMETER);
+    u32 hash2 = point_hash(cpu_points[i + 1], length, PARTICLE_DIAMETER);
+    if (hash1 > hash2) {
+      printf("sorting error: %u %u, index: %u %u\n", hash1, hash2, i, i + 1);
+      ++count;
+    }
+  }
 
-  // u32 count = 0;
-  // for (u32 i = 0; i < length - 1; ++i) {
-  //   u32 hash1 = point_hash(cpu_points[i], length, PARTICLE_DIAMETER);
-  //   u32 hash2 = point_hash(cpu_points[i + 1], length, PARTICLE_DIAMETER);
-  //   if (hash1 > hash2) {
-  //     printf("sorting error: %u %u, index: %u %u\n", hash1, hash2, i, i + 1);
-  //     ++count;
-  //   }
-  // }
+  printf("errors: %u\n", count);
 
-  // printf("errors: %u\n", count);
+  HashTable *table = new_hashtable(&info, gpu_points, length, length);
+  u32 *cpu_table = (u32 *)malloc(sizeof(u32) * length + 1 + sizeof(u32));
+  cudaMemcpy(cpu_table, table, sizeof(float) * length + 1 + sizeof(u32), cudaMemcpyDeviceToHost);
+  if (length <= 4096) {
+    for (u32 i = 0; i < length - 1; ++i) {
+      u32 b = cpu_table[1 + i];
+      u32 e = cpu_table[1 + i + 1];
+      if (b != 0 && e != 0 && b != e) {
+        printf("cell %u: %u, %u\n", i, b - 1, e - 1);
+      }
+    }
+  }
+  printf("hashtable done\n");
+  launch_verify_hashtable(&info, gpu_points, length, table);
+  handle_cuda_error("collect `verify_hashtable` errors");
+  printf("hashtable verified\n");
 
-  // HashTable *table = new_hashtable(&info, gpu_points, length, length);
-  // u32 *cpu_table = (u32 *)malloc(sizeof(u32) * length + 1 + sizeof(u32));
-  // cudaMemcpy(cpu_table, table, sizeof(float) * length + 1 + sizeof(u32), cudaMemcpyDeviceToHost);
-  // if (length <= 4096) {
-  //   for (u32 i = 0; i < length - 1; ++i) {
-  //     u32 b = cpu_table[1 + i];
-  //     u32 e = cpu_table[1 + i + 1];
-  //     if (b != 0 && e != 0 && b != e) {
-  //       printf("cell %u: %u, %u\n", i, b - 1, e - 1);
-  //     }
-  //   }
-  // }
-  // printf("hashtable done\n");
-  // launch_verify_hashtable(&info, gpu_points, length, table);
-  // handle_cuda_error("collect `verify_hashtable` errors");
-  // printf("hashtable verified\n");
-
-  // launch_exclusive_scan(((const u32 *)table), ((u32 *)table), length);
-  // handle_cuda_result(cudaFree(table), "Main: Free table");
-  // printf("scan done\n");
+  launch_exclusive_scan(((const u32 *)table), ((u32 *)table), length);
+  handle_cuda_result(cudaFree(table), "Main: Free table");
+  printf("scan done\n");
 
   Geometry geometry = triangulate(&info, gpu_points, length, room_dims, PARTICLE_DIAMETER, ISOLEVEL);
-  // if (geometry.count <= 1024) {
-  //   Triangle *const triangles = (Triangle *)malloc(sizeof(Triangle) * geometry.count);
-  //   cudaMemcpy(triangles, geometry.triangles, sizeof(Triangle) * geometry.count, cudaMemcpyDeviceToHost);
-  //   for (u32 i = 0; i < geometry.count - 1; ++i) {
-  //     const Triangle triangle = triangles[i];
-  //     printf("(%.1f, %.1f, %.1f) (%.1f, %.1f, %.1f) (%.1f, %.1f, %.1f)\n", (double)triangle.points[0].x,
-  //            (double)triangle.points[0].y, (double)triangle.points[0].z, (double)triangle.points[1].x,
-  //            (double)triangle.points[1].y, (double)triangle.points[1].z, (double)triangle.points[2].x,
-  //            (double)triangle.points[2].y, (double)triangle.points[2].z);
-  //   }
-  //   free(triangles);
-  // }
+  if (geometry.count <= 1024) {
+    Triangle *const triangles = (Triangle *)malloc(sizeof(Triangle) * geometry.count);
+    cudaMemcpy(triangles, geometry.triangles, sizeof(Triangle) * geometry.count, cudaMemcpyDeviceToHost);
+    for (u32 i = 0; i < geometry.count - 1; ++i) {
+      const Triangle triangle = triangles[i];
+      printf("(%.1f, %.1f, %.1f) (%.1f, %.1f, %.1f) (%.1f, %.1f, %.1f)\n", (double)triangle.points[0].x,
+             (double)triangle.points[0].y, (double)triangle.points[0].z, (double)triangle.points[1].x,
+             (double)triangle.points[1].y, (double)triangle.points[1].z, (double)triangle.points[2].x,
+             (double)triangle.points[2].y, (double)triangle.points[2].z);
+    }
+    free(triangles);
+  }
 
   handle_cuda_result(cudaFree(gpu_points), "Main: Free points");
   handle_cuda_result(cudaFree(geometry.triangles), "Main: Free triangles");
   printf("triangulation done\n");
 
   free(cpu_points);
-  return 0;
 }

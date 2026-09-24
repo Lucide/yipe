@@ -4,13 +4,16 @@ set(RAYLIB_VERSION 6.0)
 
 FetchContent_Declare(
     raylib
-    URL https://github.com/raysan5/raylib/archive/refs/tags/${RAYLIB_VERSION}.tar.gz
+    # URL https://github.com/raysan5/raylib/archive/refs/tags/${RAYLIB_VERSION}.tar.gz
+    URL https://github.com/raysan5/raylib/archive/fc03d77be9f8b1141ac0f9b6b9c8ba892a5f2eb6.zip
     DOWNLOAD_EXTRACT_TIMESTAMP OFF
     SYSTEM
     FIND_PACKAGE_ARGS
     ${RAYLIB_VERSION}
     CONFIG
 )
+
+set(PLATFORM RGFW CACHE INTERNAL "")
 
 # prerequisite to enable options customization
 set(CUSTOMIZE_BUILD ON CACHE INTERNAL "")

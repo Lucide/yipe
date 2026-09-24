@@ -43,7 +43,8 @@ add_executable(yipe)
 target_sources(yipe
     PRIVATE
     src/main.c
-    src/entrypoints.cu)
+    src/entrypoints.cu
+    src/viewer/viewer.c)
 
 target_include_directories(yipe
     PRIVATE
@@ -61,7 +62,7 @@ target_compile_options(yipe PRIVATE
     $<$<AND:$<COMPILE_LANGUAGE:C,CXX>,$<CXX_COMPILER_ID:MSVC>>:${MSVC_OPTIONS}>
     # $<$<COMPILE_LANGUAGE:CUDA>:-Wall;-Wextra;-Wpedantic;-Wconversion;-Wsign-conversion;--default-stream per-thread>
     $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CXX_COMPILER_ID:MSVC>>:-Xcompiler=${MSVC_OPTIONS_COMMA}>
-    $<$<COMPILE_LANG_AND_ID:CUDA,NVIDIA>:--extended-lambda;-Xptxas=-v,--warn-on-spills,--warn-on-local-memory-usage;-Xcudafe;--display_error_number>)
+    $<$<COMPILE_LANG_AND_ID:CUDA,NVIDIA>:--default-stream=per-thread;--extended-lambda;-Xptxas=-v,--warn-on-spills,--warn-on-local-memory-usage;-Xcudafe;--display_error_number>)
 
 
 target_include_directories(yipe SYSTEM PRIVATE
