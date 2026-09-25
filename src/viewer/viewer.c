@@ -5,7 +5,7 @@
 
 Viewer new_viewer(void) {
   SetConfigFlags(FLAG_VSYNC_HINT);
-  InitWindow(1024, 768, "3D Visualizer");
+  InitWindow(1024, 768, "");
   SetTargetFPS(60);
   Vector3 const origin = (Vector3){ROOM_WIDTH / 2.0f, ROOM_DEPTH / 2.0f, ROOM_HEIGHT / 2.0f};
   return (Viewer){
@@ -14,7 +14,7 @@ Viewer new_viewer(void) {
           (Camera3D){
                      .target = origin,
                      // Position the camera to fit the room in view
-              .position = (Vector3){ROOM_WIDTH * 1.5f, ROOM_DEPTH * 1.5f, ROOM_HEIGHT * 1.5f},
+              .position = (Vector3){ROOM_WIDTH * -1.f, ROOM_DEPTH * -1.f, ROOM_HEIGHT * 1.5f},
                      .up = (Vector3){0.0f, 0.0f, 1.0f}, // Z is up
               .fovy = 45.0f,
                      .projection = CAMERA_PERSPECTIVE,
@@ -66,6 +66,41 @@ static void update_camera(Camera3D *const camera) {
   CameraMoveToTarget(camera, -GetMouseWheelMove() * zoom_step);
 }
 
+static void draw_room_dimensions(Viewer const *const viewer) {
+  // float const half_width = ROOM_WIDTH * 0.5f;
+  // float const half_depth = ROOM_DEPTH * 0.5f;
+  // float const half_height = ROOM_HEIGHT * 0.5f;
+
+  Vector3 const width_point = {
+      ROOM_WIDTH,
+      0,
+      0,
+  };
+
+  Vector3 const depth_point = {
+      0,
+      ROOM_DEPTH,
+      0,
+  };
+
+  Vector3 const height_point = {
+      0,
+      0,
+      ROOM_HEIGHT,
+  };
+
+  Vector2 const origin_screen = GetWorldToScreen((Vector3){0}, viewer->camera);
+  Vector2 const width_screen = GetWorldToScreen(width_point, viewer->camera);
+  Vector2 const depth_screen = GetWorldToScreen(depth_point, viewer->camera);
+  Vector2 const height_screen = GetWorldToScreen(height_point, viewer->camera);
+
+  DrawText("0", (int)origin_screen.x, (int)origin_screen.y, 15, DARKGRAY);
+
+  DrawText(TextFormat("%d", ROOM_WIDTH), (int)width_screen.x, (int)width_screen.y, 15, DARKGRAY);
+  DrawText(TextFormat("%d", ROOM_HEIGHT), (int)height_screen.x, (int)height_screen.y, 15, DARKGRAY);
+  DrawText(TextFormat("%d", ROOM_DEPTH), (int)depth_screen.x, (int)depth_screen.y, 15, DARKGRAY);
+}
+
 Ownership render(Viewer *const viewer, Geometry const *const geometry) {
   Ownership const ownership = update_model(&viewer->model, &viewer->mesh_capacity, *geometry);
   // bool const owned = false;
@@ -75,16 +110,18 @@ Ownership render(Viewer *const viewer, Geometry const *const geometry) {
   ClearBackground(RAYWHITE);
 
   BeginDrawing();
-  BeginMode3D(viewer->camera);
 
+  BeginMode3D(viewer->camera);
   // rlDisableBackfaceCulling();
 
   DrawCubeWires(viewer->origin, ROOM_WIDTH, ROOM_DEPTH, ROOM_HEIGHT, DARKGRAY);
 
   DrawModel(viewer->model, (Vector3){0}, 1.0f, RED);
   DrawModelWires(viewer->model, (Vector3){0}, 1.0f, BLACK);
-
   EndMode3D();
+
+  draw_room_dimensions(viewer);
+
   EndDrawing();
 
   return ownership;

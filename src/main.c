@@ -54,15 +54,15 @@ static GPUInfo fetch_gpu_info(void) {
 }
 
 // Function to fill an array with random numbers within a specific range
-static void generate_random_points(Point *const points, const u32 length, u32 seed) {
+static void generate_random_points(float4 *const points, u32 const length, u32 seed) {
   srand(seed);
   for (u32 i = 0; i < length; ++i) {
     // (double)+ is the "unary plus sign operator" for double, it avoids a bad cast from u32 to double
     points[i] =
-        (Point){.x = (float)(((double)+rand() / (double)RAND_MAX) * (double)room_dims.x), // NOLINT(cert-msc50-cpp)
-                .y = (float)(((double)+rand() / (double)RAND_MAX) * (double)room_dims.y), // NOLINT(cert-msc50-cpp)
-                .z = (float)(((double)+rand() / (double)RAND_MAX) * (double)room_dims.z), // NOLINT(cert-msc50-cpp)
-                .w = 1};
+        (float4){.x = (float)(((double)+rand() / (double)RAND_MAX) * (double)room_dims.x), // NOLINT(cert-msc50-cpp)
+                 .y = (float)(((double)+rand() / (double)RAND_MAX) * (double)room_dims.y), // NOLINT(cert-msc50-cpp)
+                 .z = (float)(((double)+rand() / (double)RAND_MAX) * (double)room_dims.z), // NOLINT(cert-msc50-cpp)
+                 .w = 1};
   }
 }
 
@@ -84,7 +84,7 @@ static void free_geometry(Geometry const geometry) { free(geometry.triangles); }
 
 static void print_triangles(Geometry const geometry) {
   for (u32 i = 0; i < geometry.count; ++i) {
-    const Triangle triangle = geometry.triangles[i];
+    Triangle const triangle = geometry.triangles[i];
     printf("(%.1f, %.1f, %.1f) (%.1f, %.1f, %.1f) (%.1f, %.1f, %.1f)\n", (double)triangle.points[0].x,
            (double)triangle.points[0].y, (double)triangle.points[0].z, (double)triangle.points[1].x,
            (double)triangle.points[1].y, (double)triangle.points[1].z, (double)triangle.points[2].x,
@@ -112,12 +112,12 @@ int main(int const argc, char const *const *const argv) {
          info.cores_per_multiprocessor);
   printf("seed %u\n", seed);
 
-  Point *const cpu_points = (Point *)malloc(sizeof(Point) * length);
+  float4 *const cpu_points = (float4 *)malloc(sizeof(float4) * length);
   generate_random_points(cpu_points, length, 549951);
 
-  Point *gpu_points;
-  handle_cuda_result(cudaMalloc((void **)&gpu_points, sizeof(Point) * length), "Main: Allocate points");
-  handle_cuda_result(cudaMemcpy(gpu_points, cpu_points, sizeof(Point) * length, cudaMemcpyHostToDevice),
+  float4 *gpu_points;
+  handle_cuda_result(cudaMalloc((void **)&gpu_points, sizeof(float4) * length), "Main: Allocate points");
+  handle_cuda_result(cudaMemcpy(gpu_points, cpu_points, sizeof(float4) * length, cudaMemcpyHostToDevice),
                      "Main: Load points");
   printf("points loaded\n");
 
@@ -137,8 +137,8 @@ int main(int const argc, char const *const *const argv) {
 
     if (fc % 60 == 0) {
       char titleBuffer[256];
-      snprintf(titleBuffer, sizeof(titleBuffer), "CUDA Dynamic Triangle Renderer | Triangles: %u | FPS: %d",
-               gpu_geometry.count, GetFPS());
+      snprintf(titleBuffer, sizeof(titleBuffer), "CUDA Marching Cubes | Triangles: %u | FPS: %d", gpu_geometry.count,
+               GetFPS());
       SetWindowTitle(titleBuffer);
     }
   }
@@ -150,7 +150,7 @@ int main(int const argc, char const *const *const argv) {
   return 0;
 }
 
-[[maybe_unused]] static void test(const u32 length) {
+[[maybe_unused]] static void test(u32 const length) {
   u32 const seed = 0;
   GPUInfo const info = fetch_gpu_info();
 
@@ -158,7 +158,7 @@ int main(int const argc, char const *const *const argv) {
          info.cores_per_multiprocessor);
   printf("seed %u\n", seed);
 
-  Point *const cpu_points = (Point *)malloc(sizeof(Point) * length);
+  float4 *const cpu_points = (float4 *)malloc(sizeof(float4) * length);
   generate_random_points(cpu_points, length, 549951);
 
   if (length <= 4096) {
@@ -169,9 +169,9 @@ int main(int const argc, char const *const *const argv) {
     }
   }
 
-  Point *gpu_points;
-  handle_cuda_result(cudaMalloc((void **)&gpu_points, sizeof(Point) * length), "Main: Allocate points");
-  handle_cuda_result(cudaMemcpy(gpu_points, cpu_points, sizeof(Point) * length, cudaMemcpyHostToDevice),
+  float4 *gpu_points;
+  handle_cuda_result(cudaMalloc((void **)&gpu_points, sizeof(float4) * length), "Main: Allocate points");
+  handle_cuda_result(cudaMemcpy(gpu_points, cpu_points, sizeof(float4) * length, cudaMemcpyHostToDevice),
                      "Main: Load points");
   printf("points loaded\n");
 
@@ -180,7 +180,7 @@ int main(int const argc, char const *const *const argv) {
   printf("done\n");
 
   // Copy result back and clean up
-  handle_cuda_result(cudaMemcpy(cpu_points, gpu_points, sizeof(Point) * length, cudaMemcpyDeviceToHost),
+  handle_cuda_result(cudaMemcpy(cpu_points, gpu_points, sizeof(float4) * length, cudaMemcpyDeviceToHost),
                      "Main: Unload points");
 
   if (length <= 4096) {
@@ -222,7 +222,7 @@ int main(int const argc, char const *const *const argv) {
   handle_cuda_error("collect `verify_hashtable` errors");
   printf("hashtable verified\n");
 
-  launch_exclusive_scan(((const u32 *)table), ((u32 *)table), length);
+  launch_exclusive_scan(((u32 const *)table), ((u32 *)table), length);
   handle_cuda_result(cudaFree(table), "Main: Free table");
   printf("scan done\n");
 
@@ -231,7 +231,7 @@ int main(int const argc, char const *const *const argv) {
     Triangle *const triangles = (Triangle *)malloc(sizeof(Triangle) * geometry.count);
     cudaMemcpy(triangles, geometry.triangles, sizeof(Triangle) * geometry.count, cudaMemcpyDeviceToHost);
     for (u32 i = 0; i < geometry.count - 1; ++i) {
-      const Triangle triangle = triangles[i];
+      Triangle const triangle = triangles[i];
       printf("(%.1f, %.1f, %.1f) (%.1f, %.1f, %.1f) (%.1f, %.1f, %.1f)\n", (double)triangle.points[0].x,
              (double)triangle.points[0].y, (double)triangle.points[0].z, (double)triangle.points[1].x,
              (double)triangle.points[1].y, (double)triangle.points[1].z, (double)triangle.points[2].x,

@@ -29,7 +29,7 @@ extern "C" void launch_exclusive_scan(u32 const *const src, u32 *const dst, u32 
   scan(src, dst, length);
 }
 
-extern "C" void launch_sort_points(GPUInfo const *const info, Point *const points, u32 const length) {
+extern "C" void launch_sort_points(GPUInfo const *const info, float4 *const points, u32 const length) {
 
   auto const hasher = get_hasher(length, PARTICLE_DIAMETER);
 
@@ -37,7 +37,7 @@ extern "C" void launch_sort_points(GPUInfo const *const info, Point *const point
 }
 
 extern "C" HashTable *
-new_hashtable(GPUInfo const *const info, Point *const points, u32 const length, u32 const buckets) {
+new_hashtable(GPUInfo const *const info, float4 *const points, u32 const length, u32 const buckets) {
 
   auto const hasher = get_hasher(buckets, PARTICLE_DIAMETER);
 
@@ -45,7 +45,7 @@ new_hashtable(GPUInfo const *const info, Point *const points, u32 const length, 
 }
 
 extern "C" void launch_verify_hashtable(GPUInfo const *const info,
-                                        Point const *const data,
+                                        float4 const *const data,
                                         u32 const length,
                                         HashTable const *const table) {
 
@@ -57,7 +57,7 @@ extern "C" void launch_verify_hashtable(GPUInfo const *const info,
 }
 
 extern "C" Geometry triangulate(GPUInfo const *const info,
-                                Point *const data,
+                                float4 *const data,
                                 u32 const length,
                                 float3 const room_dim,
                                 float const particle_diameter,

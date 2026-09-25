@@ -2,6 +2,7 @@
 #include <cuda/std/limits>
 #include <cuda/std/mdspan>
 #include <cuda_runtime.h>
+#include <vector_types.h>
 #include "gpu-common.cuh"
 #include "tables.cuh"
 
@@ -14,32 +15,37 @@ constexpr dim3 threads_per_block = {4, 4, 4};
 
 struct Params {
   u32 points;
-  float3 room_dim{};
+  float3 room{};
   float particle_diameter;
   float particle_diameter_sq;
-  uint3 cells{};
-  uint3 fields{};
+  u323 cells{};
+  u323 outer_cells{};
+  u323 fields{};
   float isolevel;
 
   Params(u32 const points, float3 const room_dim, float const particle_diameter, float const isolevel) {
     this->points = points;
-    this->room_dim = room_dim;
+    this->room = room_dim;
     this->particle_diameter = particle_diameter;
     this->particle_diameter_sq = particle_diameter * particle_diameter;
     this->isolevel = isolevel;
     this->cells = {static_cast<u32>(ceil(room_dim.x / particle_diameter)),
                    static_cast<u32>(ceil(room_dim.y / particle_diameter)),
                    static_cast<u32>(ceil(room_dim.z / particle_diameter))};
+    // outer cells include an extra cell to the left and one to the right in every dimension
+    this->outer_cells = {this->cells.x + 2, this->cells.y + 2, this->cells.z + 2};
     this->fields = {this->cells.x + 1, this->cells.y + 1, this->cells.z + 1};
   }
   GPU HOST constexpr u32 cell_count() const { return this->cells.x * this->cells.y * this->cells.z; }
+  GPU HOST constexpr u32 outer_cell_count() const {
+    return this->outer_cells.x * this->outer_cells.y * this->outer_cells.z;
+  }
   GPU HOST constexpr u32 field_count() const { return this->fields.x * this->fields.y * this->fields.z; }
 };
 
-// Estimate *unnormalised* Wendland C2 density
-GPU float calculate_density(Point const node_pos, Point const point_pos, Params const params) {
-  // NOTE: unnormalised C2 is fine for graphics but not for physics
-
+// estimate *unnormalised* Wendland C2 density
+// fine for graphics but not for physics
+GPU float calculate_density(float4 const node_pos, float4 const point_pos, Params const params) {
   float const dist_sq = sq_dist(node_pos, point_pos);
 
   if (dist_sq >= params.particle_diameter_sq) {
@@ -47,7 +53,7 @@ GPU float calculate_density(Point const node_pos, Point const point_pos, Params 
   }
 
   // fast sqrt: sqrt(x) == x * rsqrt(x). +epsilon guards against
-  // rsqrtf(0) -> inf -> 0*inf -> NaN when node_pos == point_pos exactly.
+  // rsqrtf(0) -> inf -> 0*inf -> NaN when node_pos == point_pos exactly
   float const distance = dist_sq * rsqrtf(dist_sq + cuda::std::numeric_limits<float>::min());
 
   // Wendland C2 kernel
@@ -57,18 +63,18 @@ GPU float calculate_density(Point const node_pos, Point const point_pos, Params 
   return w;
 }
 
-GPU Point
-interpolate_vertex(float const isolevel, Point const p1, Point const p2, float const field1, float const field2) {
+GPU float4
+interpolate_vertex(float const isolevel, float4 const p1, float4 const p2, float const field1, float const field2) {
   if (fabs(field1 - field2) <= 0.00001)
     return (p1 + p2) * 0.5f;
   return p1 + (p2 - p1) * (isolevel - field1) / (field2 - field1);
 }
 
-GPU Point inline get_cell_corner(uint3 const cell, u8 const corner, float const particle_diameter) {
+GPU inline float4 get_cell_corner(s323 const cell, u8 const corner, float const particle_diameter) {
   Offsets const offsets = get_cell_corner_offsets(corner);
-  return {static_cast<float>(static_cast<double>(cell.x + offsets.x) * particle_diameter),
-          static_cast<float>(static_cast<double>(cell.y + offsets.y) * particle_diameter),
-          static_cast<float>(static_cast<double>(cell.z + offsets.z) * particle_diameter), 1};
+  return {dtof(static_cast<double>(cell.x + offsets.x) * particle_diameter),
+          dtof(static_cast<double>(cell.y + offsets.y) * particle_diameter),
+          dtof(static_cast<double>(cell.z + offsets.z) * particle_diameter), 1};
 }
 
 GPU inline float select_field(u8 const corner, float const *const fields) {
@@ -95,17 +101,20 @@ GPU inline float select_field(u8 const corner, float const *const fields) {
   }
 }
 
-GPU Point inline get_edge_vertex(
-    u8 const edge, float const isolevel, uint3 const cell, float const particle_diameter, float const *const fields) {
+GPU float4 inline get_edge_vertex(
+    u8 const edge, float const isolevel, s323 const cell, float const particle_diameter, float const *const fields) {
   EdgeVertexes const vertexes = get_edge_vertexes(edge);
 
-  Point const corner0 = get_cell_corner(cell, vertexes.c0, particle_diameter);
-  Point const corner1 = get_cell_corner(cell, vertexes.c1, particle_diameter);
+  float4 const corner0 = get_cell_corner(cell, vertexes.c0, particle_diameter);
+  float4 const corner1 = get_cell_corner(cell, vertexes.c1, particle_diameter);
 
   float field0 = select_field(vertexes.c0, fields);
-
   float field1 = select_field(vertexes.c1, fields);
 
   return interpolate_vertex(isolevel, corner0, corner1, field0, field1);
+}
+
+GPU float3 inline clamp_point(float3 const point, float3 const room) {
+  return {fmin(fmax(point.x, 0.f), room.x), fmin(fmax(point.y, 0.f), room.y), fmin(fmax(point.z, 0.f), room.z)};
 }
 } // namespace marching_cubes

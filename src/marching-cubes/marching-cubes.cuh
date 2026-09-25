@@ -1,24 +1,23 @@
 #pragma once
 
-#include <algorithm>
 #include "hashtable/hashtable.cuh"
 #include "kernels.cuh"
 #include "scan/scan.cuh"
 
 Geometry compute_marching_cubes(GPUInfo const *const info,
-                                Point *const points,
+                                float4 *const points,
                                 u32 const length,
-                                float3 const room_dim,
+                                float3 const room,
                                 float const particle_diameter,
                                 float const isolevel) {
-  auto const params = marching_cubes::Params(length, room_dim, particle_diameter, isolevel);
+  auto const params = marching_cubes::Params(length, room, particle_diameter, isolevel);
   u32 const buckets = std::min(params.cell_count(), length);
   dim3 const field_block_count = {ceil_div<uint, uint, uint>(params.fields.x, marching_cubes::threads_per_block.x),
                                   ceil_div<uint, uint, uint>(params.fields.y, marching_cubes::threads_per_block.y),
                                   ceil_div<uint, uint, uint>(params.fields.z, marching_cubes::threads_per_block.z)};
-  dim3 const cell_block_count = {ceil_div<uint, uint, uint>(params.cells.x, marching_cubes::threads_per_block.x),
-                                 ceil_div<uint, uint, uint>(params.cells.y, marching_cubes::threads_per_block.y),
-                                 ceil_div<uint, uint, uint>(params.cells.z, marching_cubes::threads_per_block.z)};
+  dim3 const cell_block_count = {ceil_div<uint, uint, uint>(params.outer_cells.x, marching_cubes::threads_per_block.x),
+                                 ceil_div<uint, uint, uint>(params.outer_cells.y, marching_cubes::threads_per_block.y),
+                                 ceil_div<uint, uint, uint>(params.outer_cells.z, marching_cubes::threads_per_block.z)};
 
   // compute hashtable
   auto const hasher = get_hasher(buckets, particle_diameter);
@@ -38,8 +37,9 @@ Geometry compute_marching_cubes(GPUInfo const *const info,
   // we allocate an extra cell that will be set to 0 by the counting kernel
   // after the prefix_sum it will hold the total number of triangles
   // this allows to store the prefixes on the same buffer as the counts
-  handle_cuda_result(cudaMallocAsync(&triangle_counts, sizeof(u32) * (params.cell_count() + 1), cudaStreamPerThread),
-                     "Marching_cubes: allocate triangle counts");
+  handle_cuda_result(
+      cudaMallocAsync(&triangle_counts, sizeof(u32) * (params.outer_cell_count() + 1), cudaStreamPerThread),
+      "Marching_cubes: allocate triangle counts");
   handle_cuda_error_debug("Marching_cubes: allocate triangle counts");
   marching_cubes::count_triangles<<<cell_block_count, marching_cubes::threads_per_block>>>(params, fields,
                                                                                            triangle_counts);
@@ -48,12 +48,12 @@ Geometry compute_marching_cubes(GPUInfo const *const info,
   handle_cuda_error_debug("Marching_cubes: free hash table");
 
   // calculate prefix sum
-  scan(triangle_counts, triangle_counts, params.cell_count() + 1);
+  scan(triangle_counts, triangle_counts, params.outer_cell_count() + 1);
 
   // get total triangles
   u32 total_triangles;
   handle_cuda_result(
-      cudaMemcpy(&total_triangles, &triangle_counts[params.cell_count()], sizeof(u32), cudaMemcpyDeviceToHost),
+      cudaMemcpy(&total_triangles, &triangle_counts[params.outer_cell_count()], sizeof(u32), cudaMemcpyDeviceToHost),
       "Marching_cubes: fetch triangle total count");
   handle_cuda_error_debug("Marching_cubes: fetch triangle total count");
 

@@ -1,5 +1,5 @@
 If:
-  PathMatch: .*\.(c|h)
+  PathMatch: .*\.(c|h)$
 CompileFlags:
   Add:
     # windows MSVC support
@@ -10,8 +10,7 @@ CompileFlags:
     - -Wno-c++-compat
 ---
 If:
-  # PathMatch: .*(/common\.h|\.(cu|cuh))
-  PathMatch: .*\.(cu|cuh)
+  PathMatch: .*(params\.h|common\.h|\.(cu|cuh))$
 # Compiler: clang++
 CompileFlags:
   Remove:
