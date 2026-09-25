@@ -15,13 +15,13 @@ namespace marching_cubes {
 // };
 
 struct Offsets {
-  u8 x, y, z;
+  u8 const x, y, z;
 };
 
-constexpr INLINE GPU Offsets get_cell_corner_offsets(const u8 corner) {
-  const u8 o1 = (corner & 0x2u) >> 1;
-  const u8 o0 = (corner & 0x1u) ^ o1;
-  const u8 o2 = (corner & 0x4u) >> 2;
+constexpr inline GPU Offsets get_cell_corner_offsets(u8 const corner) {
+  u8 const o1 = (corner & 0x2u) >> 1;
+  u8 const o0 = (corner & 0x1u) ^ o1;
+  u8 const o2 = (corner & 0x4u) >> 2;
   return {o0, o1, o2};
 }
 
@@ -44,19 +44,19 @@ struct EdgeVertexes {
   u8 c0, c1;
 };
 
-constexpr INLINE GPU EdgeVertexes get_edge_vertexes(const u8 edge) {
-  const u8 c0 = edge % 8u;
+constexpr inline GPU EdgeVertexes get_edge_vertexes(u8 const edge) {
+  u8 const c0 = edge % 8u;
 
-  const u8 add_four = (edge | (edge >> 1)) & 0x4u;
-  const u8 inc = ((edge & 0x8u) >> 1) ^ 0x1u;
-  const u8 c1 = ((edge + inc) % 4u) + add_four;
+  u8 const upper = (edge | (edge >> 1)) & 0x4u;
+  u8 const inc = 0x1u - (edge >> 3);
+  u8 const c1 = ((edge + inc) & 0x3u) | upper;
 
   return {c0, c1};
 }
 
 struct TriangleCases {
   u8 counts[256];
-  i16 edges[256];
+  s16 edges[256];
   i8 triangles[256][5][3];
 };
 

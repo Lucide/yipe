@@ -6,6 +6,7 @@ ColumnLimit: 120
 # PackConstructorInitializers: CurrentLine
 BinPackParameters: OnePerLine
 # PackParameters: OnePerLine
+QualifierAlignment: Right
 IncludeCategories:
   - Regex: "^<.*>"
     Priority: 1

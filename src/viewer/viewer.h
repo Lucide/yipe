@@ -8,6 +8,7 @@ typedef struct Viewer {
   Mesh mesh;
   Model model;
   u32 mesh_capacity;
+  u32 : 32;
 } Viewer;
 
 typedef enum Ownership {

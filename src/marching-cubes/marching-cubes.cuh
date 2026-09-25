@@ -7,24 +7,22 @@
 
 Geometry compute_marching_cubes(GPUInfo const *const info,
                                 Point *const points,
-                                const u32 length,
-                                const float3 room_dim,
-                                const float particle_diameter,
-                                const float isolevel) {
-  const auto params = marching_cubes::Params(length, room_dim, particle_diameter, isolevel);
-  const u32 buckets = std::min(params.cell_count(), length);
-  const dim3 field_block_count = {
-      ceil_div<unsigned int, unsigned int, unsigned int>(params.fields.x, marching_cubes::threads_per_block.x),
-      ceil_div<unsigned int, unsigned int, unsigned int>(params.fields.y, marching_cubes::threads_per_block.y),
-      ceil_div<unsigned int, unsigned int, unsigned int>(params.fields.z, marching_cubes::threads_per_block.z)};
-  const dim3 cell_block_count = {
-      ceil_div<unsigned int, unsigned int, unsigned int>(params.fields.x, marching_cubes::threads_per_block.x),
-      ceil_div<unsigned int, unsigned int, unsigned int>(params.fields.y, marching_cubes::threads_per_block.y),
-      ceil_div<unsigned int, unsigned int, unsigned int>(params.fields.z, marching_cubes::threads_per_block.z)};
+                                u32 const length,
+                                float3 const room_dim,
+                                float const particle_diameter,
+                                float const isolevel) {
+  auto const params = marching_cubes::Params(length, room_dim, particle_diameter, isolevel);
+  u32 const buckets = std::min(params.cell_count(), length);
+  dim3 const field_block_count = {ceil_div<uint, uint, uint>(params.fields.x, marching_cubes::threads_per_block.x),
+                                  ceil_div<uint, uint, uint>(params.fields.y, marching_cubes::threads_per_block.y),
+                                  ceil_div<uint, uint, uint>(params.fields.z, marching_cubes::threads_per_block.z)};
+  dim3 const cell_block_count = {ceil_div<uint, uint, uint>(params.cells.x, marching_cubes::threads_per_block.x),
+                                 ceil_div<uint, uint, uint>(params.cells.y, marching_cubes::threads_per_block.y),
+                                 ceil_div<uint, uint, uint>(params.cells.z, marching_cubes::threads_per_block.z)};
 
   // compute hashtable
-  const auto hasher = get_hasher(buckets, particle_diameter);
-  const auto table = build_hashtable(info, points, length, buckets, hasher);
+  auto const hasher = get_hasher(buckets, particle_diameter);
+  auto const table = build_hashtable(info, points, length, buckets, hasher);
 
   // compute scalar fields
   float *fields;

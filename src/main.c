@@ -7,7 +7,7 @@
 
 #define ARR_LENGTH 10
 
-static u32 get_cores_per_SM(int major, int minor) {
+static u32 get_cores_per_sm(int major, int minor) {
   switch (major) {
   case 2: // Fermi
     return (minor == 1) ? 48 : 32;
@@ -48,7 +48,7 @@ static GPUInfo fetch_gpu_info(void) {
   cudaGetDeviceProperties(&props, deviceID);
 
   int const multiprocessors = props.multiProcessorCount;
-  u32 const cores_per_multiprocessor = get_cores_per_SM(props.major, props.minor);
+  u32 const cores_per_multiprocessor = get_cores_per_sm(props.major, props.minor);
 
   return (GPUInfo){(u32)multiprocessors, cores_per_multiprocessor};
 }
@@ -66,9 +66,9 @@ static void generate_random_points(Point *const points, const u32 length, u32 se
   }
 }
 
-static void free_gpu_geometry(Geometry const geometry) {
-  handle_cuda_result(cudaFree(geometry.triangles), "Main: Free triangles");
-}
+// static void free_gpu_geometry(Geometry const geometry) {
+//   handle_cuda_result(cudaFree(geometry.triangles), "Main: Free triangles");
+// }
 
 static Geometry download_geometry(Geometry const gpu_geometry) {
   Geometry cpu_geometry =
@@ -81,6 +81,16 @@ static Geometry download_geometry(Geometry const gpu_geometry) {
 }
 
 static void free_geometry(Geometry const geometry) { free(geometry.triangles); }
+
+static void print_triangles(Geometry const geometry) {
+  for (u32 i = 0; i < geometry.count; ++i) {
+    const Triangle triangle = geometry.triangles[i];
+    printf("(%.1f, %.1f, %.1f) (%.1f, %.1f, %.1f) (%.1f, %.1f, %.1f)\n", (double)triangle.points[0].x,
+           (double)triangle.points[0].y, (double)triangle.points[0].z, (double)triangle.points[1].x,
+           (double)triangle.points[1].y, (double)triangle.points[1].z, (double)triangle.points[2].x,
+           (double)triangle.points[2].y, (double)triangle.points[2].z);
+  }
+}
 
 int main(int const argc, char const *const *const argv) {
   u32 const seed = 0;
@@ -113,21 +123,17 @@ int main(int const argc, char const *const *const argv) {
 
   Viewer viewer = new_viewer();
 
-  for (u8 fc = 0; !WindowShouldClose(); ++fc) {
+  for (u16 fc = 0; !WindowShouldClose(); ++fc) {
     Geometry gpu_geometry = triangulate(&info, gpu_points, length, room_dims, PARTICLE_DIAMETER, ISOLEVEL);
     Geometry geometry = download_geometry(gpu_geometry);
-    // if (gpu_geometry.count) {
-    //   Geometry geometry = download_geometry(gpu_geometry);
-    //   free_geometry(geometry);
+
+    // if (fc == 0) {
+    //   print_triangles(geometry);
     // }
-    // BeginDrawing();
-    // EndDrawing();
 
     if (OWNERSHIP_BORROWED == render(&viewer, &geometry)) {
       free_geometry(geometry);
     }
-    // Draw horizon / ground plane
-    // DrawGrid(40, 20.0f);
 
     if (fc % 60 == 0) {
       char titleBuffer[256];

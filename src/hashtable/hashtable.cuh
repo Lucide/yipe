@@ -1,16 +1,15 @@
 #pragma once
 
-#include "hashtable/kernels.cuh"
 #include "kernels.cuh"
 
 template <typename Data, typename Hasher>
   requires is_hasher<Hasher, Data>
 HashTable *
-build_hashtable(GPUInfo const *const info, Data *const data, u32 const length, u32 const buckets, const Hasher hasher) {
+build_hashtable(GPUInfo const *const info, Data *const data, u32 const length, u32 const buckets, Hasher const hasher) {
   sort(info, data, length, hasher);
 
   // HashTable - u32 + ((length + 1) * u32)
-  const u32 full_table_size = sizeof(HashTable) + sizeof(u32) * buckets;
+  u32 const full_table_size = sizeof(HashTable) + sizeof(u32) * buckets;
 
   HashTable *table;
   handle_cuda_result(cudaMallocAsync(&table, full_table_size, cudaStreamPerThread), "Hashtable: Allocate table");
@@ -29,10 +28,10 @@ build_hashtable(GPUInfo const *const info, Data *const data, u32 const length, u
 template <typename Data, typename Hasher>
   requires is_hasher<Hasher, Data>
 void verify_hashtable(GPUInfo const *const info,
-                      const Data *const data,
+                      Data const *const data,
                       u32 const length,
-                      const HashTable *const table,
-                      const Hasher hasher) {
+                      HashTable const *const table,
+                      Hasher const hasher) {
   u32 const blocks_per_grid = min(info->multiprocessors * hash_table::blocks_per_sm,
                                   (length + hash_table::slice_length - 1) / hash_table::slice_length);
   hash_table::verify<<<blocks_per_grid, hash_table::threads_per_block>>>(data, length, table, hasher);

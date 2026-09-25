@@ -7,10 +7,11 @@ CompileFlags:
     - -Wno-unused-macros
     - -Wno-unsafe-buffer-usage
     - -Wno-declaration-after-statement
-
+    - -Wno-c++-compat
 ---
 If:
-  PathMatch: .*(/common\.h|\.(cu|cuh))
+  # PathMatch: .*(/common\.h|\.(cu|cuh))
+  PathMatch: .*\.(cu|cuh)
 # Compiler: clang++
 CompileFlags:
   Remove:
@@ -27,6 +28,7 @@ CompileFlags:
     - -rdc=*
     - --options-file*
     - --extended-lambda
+    - --default-stream*
     - --display_error_number
     - -arch=*
   Add:

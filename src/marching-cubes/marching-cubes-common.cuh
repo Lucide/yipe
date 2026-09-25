@@ -21,7 +21,7 @@ struct Params {
   uint3 fields{};
   float isolevel;
 
-  Params(const u32 points, const float3 room_dim, const float particle_diameter, const float isolevel) {
+  Params(u32 const points, float3 const room_dim, float const particle_diameter, float const isolevel) {
     this->points = points;
     this->room_dim = room_dim;
     this->particle_diameter = particle_diameter;
@@ -37,10 +37,10 @@ struct Params {
 };
 
 // Estimate *unnormalised* Wendland C2 density
-GPU float calculate_density(const Point node_pos, const Point point_pos, const Params params) {
+GPU float calculate_density(Point const node_pos, Point const point_pos, Params const params) {
   // NOTE: unnormalised C2 is fine for graphics but not for physics
 
-  const float dist_sq = sq_dist(node_pos, point_pos);
+  float const dist_sq = sq_dist(node_pos, point_pos);
 
   if (dist_sq >= params.particle_diameter_sq) {
     return 0.0f;
@@ -48,36 +48,30 @@ GPU float calculate_density(const Point node_pos, const Point point_pos, const P
 
   // fast sqrt: sqrt(x) == x * rsqrt(x). +epsilon guards against
   // rsqrtf(0) -> inf -> 0*inf -> NaN when node_pos == point_pos exactly.
-  const float distance = dist_sq * rsqrtf(dist_sq + cuda::std::numeric_limits<float>::min());
+  float const distance = dist_sq * rsqrtf(dist_sq + cuda::std::numeric_limits<float>::min());
 
   // Wendland C2 kernel
-  const float u = distance / params.particle_diameter;
-  const float term = 1.0f - u;
-  const float w = (term * term * term * term) * (4.0f * u + 1.0f);
+  float const u = distance / params.particle_diameter;
+  float const term = 1.0f - u;
+  float const w = (term * term * term * term) * (4.0f * u + 1.0f);
   return w;
 }
 
-GPU Point interpolate_vertex(const float isolevel, Point p1, Point p2, const float field1, const float field2) {
-  if (p2 < p1) {
-    cuda::std::swap(p1, p2);
-  }
-
-  Point p;
-  if (fabs(field1 - field2) > 0.00001)
-    p = p1 + (p2 - p1) / (field2 - field1) * (isolevel - field1);
-  else
-    p = p1;
-  return p;
+GPU Point
+interpolate_vertex(float const isolevel, Point const p1, Point const p2, float const field1, float const field2) {
+  if (fabs(field1 - field2) <= 0.00001)
+    return (p1 + p2) * 0.5f;
+  return p1 + (p2 - p1) * (isolevel - field1) / (field2 - field1);
 }
 
-GPU Point INLINE get_cell_corner(const uint3 cell, const u8 corner, const float particle_diameter) {
-  const Offsets offsets = get_cell_corner_offsets(corner);
+GPU Point inline get_cell_corner(uint3 const cell, u8 const corner, float const particle_diameter) {
+  Offsets const offsets = get_cell_corner_offsets(corner);
   return {static_cast<float>(static_cast<double>(cell.x + offsets.x) * particle_diameter),
           static_cast<float>(static_cast<double>(cell.y + offsets.y) * particle_diameter),
           static_cast<float>(static_cast<double>(cell.z + offsets.z) * particle_diameter), 1};
 }
 
-GPU INLINE float select_field(const u8 corner, const float *const fields) {
+GPU inline float select_field(u8 const corner, float const *const fields) {
   switch (corner) {
   case 0:
     return fields[0];
@@ -101,12 +95,12 @@ GPU INLINE float select_field(const u8 corner, const float *const fields) {
   }
 }
 
-GPU Point INLINE get_edge_vertex(
-    const u8 edge, const float isolevel, const uint3 cell, const float particle_diameter, const float *const fields) {
-  const EdgeVertexes vertexes = get_edge_vertexes(edge);
+GPU Point inline get_edge_vertex(
+    u8 const edge, float const isolevel, uint3 const cell, float const particle_diameter, float const *const fields) {
+  EdgeVertexes const vertexes = get_edge_vertexes(edge);
 
-  const Point corner0 = get_cell_corner(cell, vertexes.c0, particle_diameter);
-  const Point corner1 = get_cell_corner(cell, vertexes.c1, particle_diameter);
+  Point const corner0 = get_cell_corner(cell, vertexes.c0, particle_diameter);
+  Point const corner1 = get_cell_corner(cell, vertexes.c1, particle_diameter);
 
   float field0 = select_field(vertexes.c0, fields);
 

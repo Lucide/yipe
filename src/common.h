@@ -27,24 +27,23 @@ extern "C" {
 #define KERNEL __global__
 #define SHARED __shared__
 #define CONSTANT __constant__
-#define INLINE __forceinline__
 
 typedef unsigned int uint;
 typedef int8_t i8;
 typedef uint8_t u8;
-typedef int16_t i16;
+typedef int16_t s16;
 typedef uint16_t u16;
 typedef uint32_t u32;
-typedef int32_t i32;
+typedef int32_t s32;
 typedef uint64_t u64;
 
 #define ROOM_WIDTH 600
 #define ROOM_DEPTH 400
 #define ROOM_HEIGHT 300
-#define PARTICLE_DIAMETER 4.0f
-#define ISOLEVEL 0.5f
+#define PARTICLE_DIAMETER 12.0f
+#define ISOLEVEL 0.1f
 
-[[maybe_unused]] static const float3 room_dims = {ROOM_WIDTH, ROOM_DEPTH, ROOM_HEIGHT};
+static float3 const room_dims = {ROOM_WIDTH, ROOM_DEPTH, ROOM_HEIGHT};
 
 static_assert(PARTICLE_DIAMETER > 0.0f, "PARTICLE_DIAMETER must be greater than 0");
 
@@ -84,14 +83,14 @@ typedef struct Geometry {
 
 typedef struct HashTable HashTable;
 
-void handle_cuda_error(const char *message);
-void handle_cuda_result(cudaError_t err, const char *message);
-void handle_cuda_error_debug(const char *message);
+void handle_cuda_error(char const *message);
+void handle_cuda_result(cudaError_t err, char const *message);
+void handle_cuda_error_debug(char const *message);
 
-void launch_exclusive_scan(const u32 *src, u32 *dst, u32 length);
+void launch_exclusive_scan(u32 const *src, u32 *dst, u32 length);
 void launch_sort_points(GPUInfo const *info, Point *points, u32 length);
 struct HashTable *new_hashtable(GPUInfo const *info, Point *points, u32 length, u32 buckets);
-void launch_verify_hashtable(GPUInfo const *info, const Point *data, u32 length, const HashTable *table);
+void launch_verify_hashtable(GPUInfo const *info, Point const *data, u32 length, HashTable const *table);
 Geometry
 triangulate(GPUInfo const *info, Point *data, u32 length, float3 room_dim, float particle_diameter, float isolevel);
 

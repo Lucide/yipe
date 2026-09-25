@@ -1,6 +1,7 @@
 #include "viewer.h"
 #include <math.h>
 #include <rcamera.h>
+#include <rlgl.h>
 
 Viewer new_viewer(void) {
   SetConfigFlags(FLAG_VSYNC_HINT);
@@ -27,9 +28,9 @@ static Ownership update_model(Model const *const model, u32 *const triangle_capa
   Mesh *const mesh = model->meshes;
   if (*triangle_capacity > 0) {
     if (geometry.count <= *triangle_capacity) {
-      mesh->vertexCount = geometry.count * 3;
-      mesh->triangleCount = geometry.count;
-      UpdateMeshBuffer(*mesh, 0, geometry.triangles, mesh->triangleCount * sizeof(Triangle), 0);
+      mesh->vertexCount = (int)geometry.count * 3;
+      mesh->triangleCount = (int)geometry.count;
+      UpdateMeshBuffer(*mesh, 0, geometry.triangles, (int)mesh->triangleCount * (int)sizeof(Triangle), 0);
       return OWNERSHIP_BORROWED;
     }
     UnloadMesh(*mesh);
@@ -38,8 +39,8 @@ static Ownership update_model(Model const *const model, u32 *const triangle_capa
   }
   *triangle_capacity = geometry.count;
   *mesh = (Mesh){
-      .vertexCount = *triangle_capacity * 3,
-      .triangleCount = *triangle_capacity,
+      .vertexCount = (int)*triangle_capacity * 3,
+      .triangleCount = (int)*triangle_capacity,
       .vertices = (float *)geometry.triangles,
   };
   UploadMesh(mesh, true);
@@ -75,6 +76,8 @@ Ownership render(Viewer *const viewer, Geometry const *const geometry) {
 
   BeginDrawing();
   BeginMode3D(viewer->camera);
+
+  // rlDisableBackfaceCulling();
 
   DrawCubeWires(viewer->origin, ROOM_WIDTH, ROOM_DEPTH, ROOM_HEIGHT, DARKGRAY);
 

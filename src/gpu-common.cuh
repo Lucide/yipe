@@ -5,6 +5,8 @@
 #include <cuda/std/span>
 #include "common.h"
 
+constexpr u32 SYNC_WARP = 0xffffffff;
+
 template <typename T, template <typename...> class TargetTemplate> struct is_instance_of : std::false_type {};
 
 template <template <typename...> class TargetTemplate, typename... Args>
@@ -13,24 +15,36 @@ struct is_instance_of<TargetTemplate<Args...>, TargetTemplate> : std::true_type 
 template <typename T, template <typename...> class TargetTemplate>
 concept IsInstanceOf = is_instance_of<T, TargetTemplate>::value;
 
-constexpr u32 SYNC_WARP = 0xffffffff;
+template <std::integral T> GPU HOST constexpr auto utos(T value) noexcept {
+  return static_cast<std::make_signed_t<T>>(value);
+}
 
-template <std::integral T, std::integral U, std::integral V> GPU HOST constexpr V ceil_div(const T lhs, const U rhs) {
-  const V h_lhs = static_cast<V>(lhs);
-  const V h_rhs = static_cast<V>(rhs);
+template <typename T = double> GPU HOST constexpr float dtof(double value) noexcept {
+  return static_cast<float>(value);
+}
+
+template <std::integral T> GPU HOST constexpr float itof(T value) noexcept {
+  static_assert(sizeof(T) <= 4, "itof restricted up to 4B integer");
+  return static_cast<float>(value);
+}
+
+template <std::integral T, std::integral U, std::integral V>
+GPU HOST constexpr V ceil_div(T const lhs, U const rhs) noexcept {
+  V const h_lhs = static_cast<V>(lhs);
+  V const h_rhs = static_cast<V>(rhs);
   return (h_lhs + (h_rhs - 1)) / h_rhs;
 }
 
-template <typename T, size_t N1, size_t N2> GPU constexpr auto flatten(T (&arr)[N1][N2]) {
+template <typename T, size_t N1, size_t N2> GPU constexpr auto flatten(T (&arr)[N1][N2]) noexcept {
   return cuda::std::span<T, N1 * N2>(&arr[0][0], N1 * N2);
 }
 
-GPU HOST int3 point_discretize(Point const point, const float particle_diameter) {
+GPU HOST int3 point_discretize(Point const point, float const particle_diameter) {
   return {static_cast<int>(floorf(point.x / particle_diameter)), static_cast<int>(floorf(point.y / particle_diameter)),
           static_cast<int>(floorf(point.z / particle_diameter))};
 }
 
-GPU HOST u32 point_hash(Point const point, u32 const particle_count, const float particle_diameter) {
+GPU HOST u32 point_hash(Point const point, u32 const particle_count, float const particle_diameter) {
   static u32 const primes[3] = {73856093, 19349663, 83492791};
   int3 discrete = point_discretize(point, particle_diameter);
   return ((static_cast<u32>(discrete.x) * primes[0]) ^ (static_cast<u32>(discrete.y) * primes[1]) ^
@@ -42,10 +56,10 @@ struct PointHasher {
   u32 length;
   float particle_diameter;
 
-  GPU HOST u32 operator()(const Point p) const { return point_hash(p, length, particle_diameter); }
+  GPU HOST u32 operator()(Point const p) const { return point_hash(p, length, particle_diameter); }
 };
 
-GPU HOST PointHasher get_hasher(const u32 length, const float particle_diameter) {
+GPU HOST PointHasher get_hasher(u32 const length, float const particle_diameter) {
   return PointHasher{length, particle_diameter};
 }
 
@@ -66,7 +80,7 @@ template <u8 size> GPU u32 match_any_polyfill(u16 const key, u32 const thread_ma
 #endif
 }
 
-GPU void nanosleep_polyfill(const unsigned int ns) {
+GPU void nanosleep_polyfill(uint const ns) {
 // in pascal there is no nanosleep
 // it is mostly needed on post-volta gpus
 #if __CUDA_ARCH__ >= 700
@@ -76,17 +90,17 @@ GPU void nanosleep_polyfill(const unsigned int ns) {
 #endif
 }
 
-GPU HOST constexpr u8 pow2_ceiling(const u8 val) {
+GPU HOST constexpr u8 pow2_ceiling(u8 const val) noexcept {
   // (32 - count_leading_zeroes(n-1)) calculates the smallest power of two >=n
   // undefined behaviour for clz(0)
   return (val == 1) ? 1u : static_cast<u8>(1u << (32 - cuda::std::countl_zero(val - 1u)));
 }
 
-GPU HOST INLINE float sq_prod3(const Point lhs, const Point rhs) {
+GPU HOST inline float sq_prod3(Point const lhs, Point const rhs) {
   return fmaf(lhs.x, rhs.x, fmaf(lhs.y, rhs.y, lhs.z * rhs.z));
 }
 
-GPU HOST INLINE constexpr mat4x4 transpose(const mat4x4 op) {
+GPU HOST inline constexpr mat4x4 transpose(mat4x4 const op) noexcept {
   return {
       .rows = {
                {op.comp.m00, op.comp.m10, op.comp.m20, op.comp.m30},
@@ -97,26 +111,26 @@ GPU HOST INLINE constexpr mat4x4 transpose(const mat4x4 op) {
   };
 }
 
-GPU HOST INLINE constexpr Point operator+(const Point lhs, const Point rhs) {
+GPU HOST inline constexpr Point operator+(Point const lhs, Point const rhs) noexcept {
   return {lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, 1};
 }
 
-GPU HOST INLINE constexpr Point operator-(const Point lhs, const Point rhs) {
+GPU HOST inline constexpr Point operator-(Point const lhs, Point const rhs) noexcept {
   return {lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z, 1};
 }
 
-GPU HOST INLINE constexpr Point operator*(const Point lhs, const float rhs) {
+GPU HOST inline constexpr Point operator*(Point const lhs, float const rhs) noexcept {
   return {lhs.x * rhs, lhs.y * rhs, lhs.z * rhs, 1};
 }
-GPU HOST INLINE constexpr Point operator/(const Point lhs, const float rhs) {
+GPU HOST inline constexpr Point operator/(Point const lhs, float const rhs) noexcept {
   return {lhs.x / rhs, lhs.y / rhs, lhs.z / rhs, 1};
 }
 
-GPU HOST INLINE float operator*(const float4 lhs, const float4 rhs) {
+GPU HOST inline float operator*(float4 const lhs, float4 const rhs) {
   return fmaf(lhs.x, rhs.x, fmaf(lhs.y, rhs.y, fmaf(lhs.z, rhs.z, lhs.w * rhs.w)));
 }
 
-GPU HOST INLINE constexpr bool operator<(const Point lhs, const Point rhs) {
+GPU HOST inline constexpr bool operator<(Point const lhs, Point const rhs) noexcept {
   if (lhs.x < rhs.x)
     return true;
   else if (lhs.x > rhs.x)
@@ -135,20 +149,20 @@ GPU HOST INLINE constexpr bool operator<(const Point lhs, const Point rhs) {
   return false;
 }
 
-GPU HOST INLINE float norm(const float4 v) { return sqrtf(v * v); }
+GPU HOST inline float norm(float4 const v) { return sqrtf(v * v); }
 
-GPU HOST INLINE float sq_dist(const Point lhs, const Point rhs) {
-  const Point diff = lhs - rhs;
+GPU HOST inline float sq_dist(Point const lhs, Point const rhs) {
+  Point const diff = lhs - rhs;
   return sq_prod3(diff, diff);
 }
 
-GPU HOST INLINE float dist(const float4 lhs, const float4 rhs) { return sqrt(sq_dist(lhs, rhs)); }
+GPU HOST inline float dist(float4 const lhs, float4 const rhs) { return sqrt(sq_dist(lhs, rhs)); }
 
-GPU HOST INLINE float4 operator*(const mat4x4 lhs, const float4 rhs) {
+GPU HOST inline float4 operator*(mat4x4 const lhs, float4 const rhs) {
   return {lhs.rows.r0 * rhs, lhs.rows.r1 * rhs, lhs.rows.r2 * rhs, lhs.rows.r3 * rhs};
 }
 
-GPU HOST INLINE mat4x4 operator*(const mat4x4 lhs, const mat4x4 rhs) {
+GPU HOST inline mat4x4 operator*(mat4x4 const lhs, mat4x4 const rhs) {
   mat4x4 rhs_t = transpose(rhs);
   return {
       .rows = {{lhs.rows.r0 * rhs_t.rows.r0, lhs.rows.r0 * rhs_t.rows.r1, lhs.rows.r0 * rhs_t.rows.r2,
@@ -162,4 +176,4 @@ GPU HOST INLINE mat4x4 operator*(const mat4x4 lhs, const mat4x4 rhs) {
   };
 }
 
-GPU HOST constexpr float3 project4to3(const Point point) { return {point.x, point.y, point.z}; }
+GPU HOST constexpr float3 project4to3(Point const point) noexcept { return {point.x, point.y, point.z}; }
