@@ -9,6 +9,8 @@ typedef struct Viewer {
   float3 const room;
   Mesh mesh;
   Model model;
+  Shader shader;
+  int view_position_location;
   Camera3D camera;
   u32 mesh_capacity;
 } Viewer;
@@ -20,9 +22,11 @@ typedef enum Ownership {
 
 Viewer new_viewer(float3 room, float *particle_diameter, float *isolevel);
 
+void unload_viewer(Viewer *viewer);
+
 // Ownership render(Viewer *viewer, Geometry const *geometry);
 
-void present(Viewer *viewer, Geometry gpu_geometry);
+void present(Viewer *viewer, Geometry gpu_geometry, cudaStream_t stream);
 
 #if defined(__GNUC__) || defined(__clang__)
 #define PRINTF_LIKE(format_index, argument_index) __attribute__((format(printf, format_index, argument_index)))

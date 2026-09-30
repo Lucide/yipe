@@ -23,7 +23,6 @@ __all__ = ["main"]
 # pysplishsplash pain in the ass
 
 console = Console(highlight=False)
-# console = rich.get_console()
 
 total_progress = Progress(
   TimeElapsedColumn(table_column=Column(justify="right", min_width=7)),
@@ -59,7 +58,7 @@ def load_boundary_cloud(scene_dir: Path, config) -> NDArray[np.float32]:
     raise RuntimeError(f"could not load boundary particles: {particle_file}")
 
   points: Final = np.asarray([[point[0], point[1], point[2]] for point in positions], dtype=np.float32).reshape((-1, 3))
-  scale: Final = np.asarray(cast(tuple[float, float, float], config.scale), dtype=np.float32)
+  scale: Final = np.asarray(config.scale, dtype=np.float32)
   return np.ascontiguousarray(points * scale)
 
 
@@ -77,11 +76,10 @@ def export_fluid_and_obstacles(
     base.initSimulation()
     sim: Final = sph.Simulation.getCurrent()
     time_manager: Final = sph.TimeManager.getCurrent()
-    # assume single phase simulation
-    fluid: Final = sim.getFluidModel(0)
+    fluid_models: Final = [sim.getFluidModel(index) for index in range(sim.numberOfFluidModels())]
 
     base.setValueFloat(base.STOP_AT, total_frames * frame_dt)
-    frame = 0
+    fc = 1
     total_particles = 0
     boundary_bindings: list[tuple[NDArray[np.float32], Any]] = []
 
@@ -109,14 +107,19 @@ def export_fluid_and_obstacles(
       dump_frames()
 
     def dump_frames():
-      nonlocal frame, total_particles
+      nonlocal fc, total_particles
       # one timestep can span multiple frames
-      while frame < total_frames and (frame + 1) * frame_dt <= time_manager.getTime():
+      # capture starts at frame_dt, there is no t=0 frame.
+      while fc <= total_frames and fc * frame_dt <= time_manager.getTime():
         particle_blocks = []
 
-        num_fluid = fluid.numActiveParticles()
-        fluid_positions = np.asarray(fluid.getFieldBuffer("position"), dtype=np.float32)[:num_fluid]
-        particle_blocks.append(fluid_positions)
+        for fluid_model in fluid_models:
+          particle_blocks.append(
+            np.asarray(
+              fluid_model.getFieldBuffer("position"),
+              dtype=np.float32,
+            )[: fluid_model.numActiveParticles()]
+          )
 
         for points, body in boundary_bindings:
           rotation = np.asarray(body.getWorldSpaceRotation(), dtype=np.float32)
@@ -125,7 +128,7 @@ def export_fluid_and_obstacles(
 
         merged_frame = np.vstack(particle_blocks).astype(np.float32)
 
-        if frame == 0:
+        if fc == 1:
           total_particles = merged_frame.shape[0]
           output_stream.write(
             np.asarray(
@@ -135,20 +138,20 @@ def export_fluid_and_obstacles(
           )
           console.print(f"particle count: {total_particles}")
 
-        assert frame == 0 or merged_frame.shape[0] == total_particles, (
+        assert fc == 1 or merged_frame.shape[0] == total_particles, (
           "particle count changed; raw fixed-size frame output is invalid"
         )
         output_stream.write(merged_frame.tobytes())
-        frame += 1
         total_progress.update(
-          total_task, visible=True, completed=frame, total=total_frames, description=f"frame {frame}/{total_frames}"
+          total_task, visible=True, completed=fc, total=total_frames, description=f"frame {fc}/{total_frames}"
         )
+        fc += 1
 
     base.setTimeStepCB(bind_boundaries)
     with total_progress:
       base.runSimulation()
 
-    assert frame == total_frames, "simulation ended before all frames were captured"
+    assert fc == total_frames + 1, "simulation ended before all frames were captured"
   finally:
     base.cleanup()
 

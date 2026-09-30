@@ -18,47 +18,55 @@ extern "C" void handle_cuda_error(char const *message) {
 }
 
 extern "C" void handle_cuda_error_debug([[maybe_unused]] char const *message) {
-#ifndef NDEBUG
+#ifdef SYNC_ALL
   CPRINT("Debug synchronous error handling enabed")
   handle_cuda_result(cudaDeviceSynchronize(), message);
   handle_cuda_result(cudaGetLastError(), message);
 #endif
 }
 
-extern "C" void launch_exclusive_scan(u32 const *const src, u32 *const dst, u32 const length) {
-  scan(src, dst, length);
+extern "C" void
+launch_exclusive_scan(u32 const *const src, u32 *const dst, u32 const length, cudaStream_t const stream) {
+  scan(src, dst, length, stream);
 }
 
-extern "C" void
-launch_sort_points(GPUInfo const *const info, float4 *const points, u32 const length, float const particle_diameter) {
+extern "C" void launch_sort_points(GPUInfo const *const info,
+                                   float4 *const points,
+                                   u32 const length,
+                                   float const particle_diameter,
+                                   cudaStream_t const stream) {
 
   auto const hasher = get_hasher(length, particle_diameter);
 
-  sort(info, points, length, hasher);
+  sort(info, points, length, hasher, stream);
 }
 
 extern "C" HashTable *new_hashtable(GPUInfo const *const info,
                                     float4 *const points,
                                     u32 const length,
                                     u32 const buckets,
-                                    float const particle_diameter) {
+                                    float const particle_diameter,
+                                    cudaStream_t const stream) {
 
   auto const hasher = get_hasher(buckets, particle_diameter);
 
-  return build_hashtable(info, points, length, buckets, hasher);
+  return build_hashtable(info, points, length, buckets, hasher, stream);
 }
 
 extern "C" void launch_verify_hashtable(GPUInfo const *const info,
                                         float4 const *const data,
                                         u32 const length,
                                         HashTable const *const table,
-                                        float const particle_diameter) {
+                                        float const particle_diameter,
+                                        cudaStream_t const stream) {
 
   u32 table_length;
-  cudaMemcpy(&table_length, table, sizeof(u32), cudaMemcpyDeviceToHost);
+  handle_cuda_result(cudaMemcpyAsync(&table_length, table, sizeof(u32), cudaMemcpyDeviceToHost, stream),
+                     "Hashtable: Download table length");
+  handle_cuda_result(cudaStreamSynchronize(stream), "Hashtable: Download table length");
   auto const hasher = get_hasher(table_length - 1, particle_diameter);
 
-  verify_hashtable(info, data, length, table, hasher);
+  verify_hashtable(info, data, length, table, hasher, stream);
 }
 
 extern "C" Geometry triangulate(GPUInfo const *const info,
@@ -66,7 +74,8 @@ extern "C" Geometry triangulate(GPUInfo const *const info,
                                 u32 const length,
                                 float3 const room_dim,
                                 float const particle_diameter,
-                                float const isolevel) {
+                                float const isolevel,
+                                cudaStream_t const stream) {
 
-  return compute_marching_cubes(info, data, length, room_dim, particle_diameter, isolevel);
+  return compute_marching_cubes(info, data, length, room_dim, particle_diameter, isolevel, stream);
 }

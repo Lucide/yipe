@@ -18,11 +18,23 @@ static int worker_loop(void *arg) {
       break;
 
     // 1. file seek & read directly into pinned memory
-    long offset = (long)(streamer->data_offset + current_frame * streamer->frame_bytes);
+    long offset = (long)(streamer->data_offset + current_frame * streamer->file_frame_bytes);
     if (fseek(streamer->file_stream, offset, SEEK_SET) != 0 ||
-        fread(streamer->h_pinned[buf_idx], 1, streamer->frame_bytes, streamer->file_stream) != streamer->frame_bytes) {
+        fread(streamer->h_file_buffers[buf_idx], 1, streamer->file_frame_bytes, streamer->file_stream) !=
+            streamer->file_frame_bytes) {
       atomic_store(&streamer->stop_requested, true);
       break;
+    }
+
+    for (size_t i = 0; i < streamer->num_particles; ++i) {
+      streamer->h_pinned[buf_idx][i].x = streamer->h_file_buffers[buf_idx][i].x;
+      streamer->h_pinned[buf_idx][i].y = streamer->h_file_buffers[buf_idx][i].y;
+      streamer->h_pinned[buf_idx][i].z = streamer->h_file_buffers[buf_idx][i].z;
+      streamer->h_pinned[buf_idx][i].w = 0.0f;
+    }
+
+    if (streamer->frame_done_recorded[buf_idx]) {
+      cudaStreamWaitEvent(streamer->transfer_stream, streamer->frame_done_events[buf_idx], 0);
     }
 
     // 2. asynchronous H2D Transfer on transfer stream
@@ -67,18 +79,21 @@ AsyncFluidStreamer *streamer_create(char const *filepath) {
 
   streamer->total_frames = header[0];
   streamer->num_particles = header[1];
-  streamer->frame_bytes = streamer->num_particles * sizeof(float3);
+  streamer->file_frame_bytes = streamer->num_particles * sizeof(float3);
+  streamer->frame_bytes = streamer->num_particles * sizeof(float4);
   streamer->data_offset = sizeof(header);
 
   // CUDA streams & events
   cudaStreamCreate(&streamer->transfer_stream);
-  cudaStreamCreate(&streamer->compute_stream);
 
   for (int i = 0; i < 2; ++i) {
     cudaMallocHost((void **)&streamer->h_pinned[i], streamer->frame_bytes);
     cudaMalloc((void **)&streamer->d_buffers[i], streamer->frame_bytes);
     cudaEventCreate(&streamer->frame_ready_events[i]);
+    cudaEventCreate(&streamer->frame_done_events[i]);
+    streamer->h_file_buffers[i] = (float3 *)malloc(streamer->file_frame_bytes);
     streamer->buffer_ready[i] = false;
+    streamer->frame_done_recorded[i] = false;
     streamer->frame_loaded[i] = 0;
   }
 
@@ -97,7 +112,7 @@ AsyncFluidStreamer *streamer_create(char const *filepath) {
   return streamer;
 }
 
-float4 *streamer_acquire_next_frame(AsyncFluidStreamer *streamer, int buf_idx, cudaStream_t *out_compute_stream) {
+float4 *streamer_acquire_next_frame(AsyncFluidStreamer *streamer, int buf_idx, cudaStream_t compute_stream) {
   mtx_lock(&streamer->mutex);
   while (!streamer->buffer_ready[buf_idx]) {
     cnd_wait(&streamer->cv_consume, &streamer->mutex);
@@ -105,15 +120,17 @@ float4 *streamer_acquire_next_frame(AsyncFluidStreamer *streamer, int buf_idx, c
   mtx_unlock(&streamer->mutex);
 
   // hardware-level stream dependency: compute stream waits for transfer stream
-  cudaStreamWaitEvent(streamer->compute_stream, streamer->frame_ready_events[buf_idx], 0);
+  cudaStreamWaitEvent(compute_stream, streamer->frame_ready_events[buf_idx], 0);
 
-  *out_compute_stream = streamer->compute_stream;
   return streamer->d_buffers[buf_idx];
 }
 
-void streamer_release_frame(AsyncFluidStreamer *streamer, int buf_idx) {
+void streamer_release_frame(AsyncFluidStreamer *streamer, int buf_idx, cudaStream_t compute_stream) {
+  cudaEventRecord(streamer->frame_done_events[buf_idx], compute_stream);
+
   mtx_lock(&streamer->mutex);
   streamer->buffer_ready[buf_idx] = false;
+  streamer->frame_done_recorded[buf_idx] = true;
   mtx_unlock(&streamer->mutex);
 
   cnd_signal(&streamer->cv_produce);
@@ -131,15 +148,17 @@ void streamer_destroy(AsyncFluidStreamer *streamer) {
 
   int res;
   thrd_join(streamer->worker_thread, &res);
+  cudaStreamSynchronize(streamer->transfer_stream);
 
   for (int i = 0; i < 2; ++i) {
+    free(streamer->h_file_buffers[i]);
     cudaFreeHost(streamer->h_pinned[i]);
     cudaFree(streamer->d_buffers[i]);
     cudaEventDestroy(streamer->frame_ready_events[i]);
+    cudaEventDestroy(streamer->frame_done_events[i]);
   }
 
   cudaStreamDestroy(streamer->transfer_stream);
-  cudaStreamDestroy(streamer->compute_stream);
 
   mtx_destroy(&streamer->mutex);
   cnd_destroy(&streamer->cv_produce);

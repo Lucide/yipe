@@ -12,7 +12,7 @@ Viewer new_viewer(float3 const room, float *const particle_diameter, float *cons
   InitWindow(1024, 768, "");
   SetTargetFPS(60);
   Vector3 const center = (Vector3){room.x / 2.0f, room.y / 2.0f, room.z / 2.0f};
-  return (Viewer){
+  Viewer viewer = (Viewer){
       .particle_diameter = particle_diameter,
       .isolevel = isolevel,
       .center = center,
@@ -27,8 +27,20 @@ Viewer new_viewer(float3 const room, float *const particle_diameter, float *cons
                      .projection = CAMERA_PERSPECTIVE,
                      },
       .model = LoadModelFromMesh((Mesh){0}
-          )
+          ),
+      .shader = LoadShader("src/viewer/plastic.vs", "src/viewer/plastic.fs"),
   };
+
+  viewer.view_position_location = GetShaderLocation(viewer.shader, "viewPos");
+  if (viewer.shader.id > 0 && viewer.model.materialCount > 0) {
+    viewer.model.materials[0].shader = viewer.shader;
+  }
+  return viewer;
+}
+
+void unload_viewer(Viewer *const viewer) {
+  UnloadModel(viewer->model);
+  UnloadShader(viewer->shader);
 }
 
 static Ownership update_model(Model const *const model, u32 *const triangle_capacity, Geometry const geometry) {
@@ -106,13 +118,13 @@ static void update_camera(Viewer *const viewer) {
     CameraMoveForward(&viewer->camera, room_scale * 0.002f, true);
   }
   if (IsKeyDown(KEY_A)) {
-    CameraMoveRight(&viewer->camera, room_scale * 0.002f, true);
+    CameraMoveRight(&viewer->camera, -room_scale * 0.002f, true);
   }
   if (IsKeyDown(KEY_S)) {
     CameraMoveForward(&viewer->camera, -room_scale * 0.002f, true);
   }
   if (IsKeyDown(KEY_D)) {
-    CameraMoveRight(&viewer->camera, -room_scale * 0.002f, true);
+    CameraMoveRight(&viewer->camera, room_scale * 0.002f, true);
   }
 }
 
@@ -163,8 +175,11 @@ static Ownership render(Viewer *const viewer, Geometry const *const geometry) {
 
   DrawCubeWires(viewer->center, viewer->room.x, viewer->room.y, viewer->room.z, DARKGRAY);
 
+  if (viewer->shader.id > 0) {
+    SetShaderValue(viewer->shader, viewer->view_position_location, &viewer->camera.position, SHADER_UNIFORM_VEC3);
+  }
   DrawModel(viewer->model, (Vector3){0}, 1.0f, RED);
-  DrawModelWires(viewer->model, (Vector3){0}, 1.0f, BLACK);
+  // DrawModelWires(viewer->model, (Vector3){0}, 1.0f, BLACK);
   EndMode3D();
 
   draw_room_dimensions(viewer);
@@ -174,8 +189,8 @@ static Ownership render(Viewer *const viewer, Geometry const *const geometry) {
   return ownership;
 }
 
-void present(Viewer *const viewer, Geometry const gpu_geometry) {
-  Geometry geometry = download_geometry(gpu_geometry);
+void present(Viewer *const viewer, Geometry const gpu_geometry, cudaStream_t const stream) {
+  Geometry geometry = download_geometry(gpu_geometry, stream);
 
   if (OWNERSHIP_BORROWED == render(viewer, &geometry)) {
     free_geometry(geometry);

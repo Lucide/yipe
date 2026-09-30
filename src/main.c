@@ -10,8 +10,6 @@
 #include "utils/utils.h"
 #include "viewer/viewer.h"
 
-#define ARR_LENGTH 10
-
 static char const doc[] = "yipe -- A onesweep/spatial-hashing/marching-cubes demo.";
 static char const args_doc[] = "";
 
@@ -124,7 +122,7 @@ static int test(Arguments args, GPUInfo info);
 int main(int const argc, char **const argv) {
   Arguments args = (Arguments){
       .seed = 549951,
-      .particle_count = ARR_LENGTH,
+      .particle_count = 200,
       .particle_diameter = .06f,
       .room = {6.f, 3.f, 4.f},
       .isolevel = 0.1f,
@@ -158,18 +156,17 @@ static int player(Arguments args, GPUInfo const info) {
   Viewer viewer = new_viewer(args.room, &args.particle_diameter, &args.isolevel);
 
   while (!WindowShouldClose()) {
-    cudaStream_t compute_stream;
-    float4 *gpu_points = streamer_acquire_next_frame(streamer, active_buf, &compute_stream);
-    handle_cuda_result(cudaStreamSynchronize(compute_stream), "Player: Wait for frame transfer");
+    float4 *gpu_points = streamer_acquire_next_frame(streamer, active_buf, cudaStreamPerThread);
 
-    Geometry gpu_geometry =
-        triangulate(&info, gpu_points, (u32)streamer->num_particles, args.room, args.particle_diameter, args.isolevel);
-    present(&viewer, gpu_geometry);
-    streamer_release_frame(streamer, active_buf);
+    Geometry gpu_geometry = triangulate(&info, gpu_points, (u32)streamer->num_particles, args.room,
+                                        args.particle_diameter, args.isolevel, cudaStreamPerThread);
+    present(&viewer, gpu_geometry, cudaStreamPerThread);
+    streamer_release_frame(streamer, active_buf, cudaStreamPerThread);
     active_buf = 1 - active_buf;
     set_window_title("CUDA Marching Cubes | Triangles: %u | FPS: %d", gpu_geometry.count, GetFPS());
   }
 
+  unload_viewer(&viewer);
   CloseWindow();
   streamer_destroy(streamer);
   return 0;
@@ -190,12 +187,13 @@ static void random_points(Arguments args, GPUInfo const info) {
   Viewer viewer = new_viewer(args.room, &args.particle_diameter, &args.isolevel);
 
   while (!WindowShouldClose()) {
-    Geometry gpu_geometry =
-        triangulate(&info, gpu_points, args.particle_count, args.room, args.particle_diameter, args.isolevel);
-    present(&viewer, gpu_geometry);
+    Geometry gpu_geometry = triangulate(&info, gpu_points, args.particle_count, args.room, args.particle_diameter,
+                                        args.isolevel, cudaStreamPerThread);
+    present(&viewer, gpu_geometry, cudaStreamPerThread);
     set_window_title("CUDA Marching Cubes | Triangles: %u | FPS: %d", gpu_geometry.count, GetFPS());
   }
 
+  unload_viewer(&viewer);
   CloseWindow();
 
   handle_cuda_result(cudaFree(gpu_points), "Main: Free points");
@@ -225,7 +223,7 @@ static int test(Arguments const args, GPUInfo const info) {
   printf("\n");
 
   printf("sort points\n");
-  launch_sort_points(&info, gpu_points, args.particle_count, args.particle_diameter);
+  launch_sort_points(&info, gpu_points, args.particle_count, args.particle_diameter, cudaStreamPerThread);
   printf("done\n");
 
   // Copy result back and clean up
@@ -256,7 +254,8 @@ static int test(Arguments const args, GPUInfo const info) {
   printf("\n");
 
   printf("build hashtable\n");
-  HashTable *table = new_hashtable(&info, gpu_points, args.particle_count, args.particle_count, args.particle_diameter);
+  HashTable *table = new_hashtable(&info, gpu_points, args.particle_count, args.particle_count, args.particle_diameter,
+                                   cudaStreamPerThread);
   u32 *cpu_table = (u32 *)malloc(sizeof(u32) * args.particle_count + 1 + sizeof(u32));
   cudaMemcpy(cpu_table, table, sizeof(float) * args.particle_count + 1 + sizeof(u32), cudaMemcpyDeviceToHost);
   if (args.particle_count <= 4096) {
@@ -269,7 +268,7 @@ static int test(Arguments const args, GPUInfo const info) {
     }
   }
   printf("hashtable done\n");
-  launch_verify_hashtable(&info, gpu_points, args.particle_count, table, args.particle_diameter);
+  launch_verify_hashtable(&info, gpu_points, args.particle_count, table, args.particle_diameter, cudaStreamPerThread);
   handle_cuda_error("collect `verify_hashtable` errors");
   printf("hashtable verified, errors have been printed\n");
 
@@ -280,7 +279,7 @@ static int test(Arguments const args, GPUInfo const info) {
   u32 *const gpu_array = (u32 *)table;
   u32 *const cpu_array = malloc(sizeof(u32) * arr_len);
   cudaMemcpy(cpu_array, gpu_array, sizeof(u32) * arr_len, cudaMemcpyDeviceToHost);
-  launch_exclusive_scan(gpu_array, gpu_array, arr_len);
+  launch_exclusive_scan(gpu_array, gpu_array, arr_len, cudaStreamPerThread);
   printf("prefix sum done\n");
   u32 *const cpu_scanned = malloc(sizeof(u32) * arr_len);
   cudaMemcpy(cpu_scanned, gpu_array, sizeof(u32) * arr_len, cudaMemcpyDeviceToHost);
@@ -297,11 +296,11 @@ static int test(Arguments const args, GPUInfo const info) {
 
   printf("\n");
 
-  Geometry geometry =
-      triangulate(&info, gpu_points, args.particle_count, args.room, args.particle_diameter, args.isolevel);
+  Geometry geometry = triangulate(&info, gpu_points, args.particle_count, args.room, args.particle_diameter,
+                                  args.isolevel, cudaStreamPerThread);
   if (geometry.count <= 1024) {
     printf("\n printint triangles\n");
-    Geometry const cpu_geometry = download_geometry(geometry);
+    Geometry const cpu_geometry = download_geometry(geometry, cudaStreamPerThread);
     print_triangles(cpu_geometry);
     free_geometry(cpu_geometry);
   } else {

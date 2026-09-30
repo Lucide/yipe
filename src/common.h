@@ -15,7 +15,7 @@ extern "C" {
 #define STR_HELPER(str) #str
 #define XSTR(x) STR_HELPER(x)
 #define CPRINT_HELPER(str) _Pragma(#str)
-#define CPRINT(msg) CPRINT_HELPER(message(msg))
+#define CPRINT(msg) CPRINT_HELPER(message("CPRINT: " msg))
 
 #define ARRAY_LENGTH(arr) (sizeof(arr) / sizeof(*(arr)))
 #define ARRAY_LENGTH_2D(arr) (sizeof(arr) / sizeof(**(arr)))
@@ -81,13 +81,23 @@ void handle_cuda_error(char const *message);
 void handle_cuda_result(cudaError_t err, char const *message);
 void handle_cuda_error_debug(char const *message);
 
-void launch_exclusive_scan(u32 const *src, u32 *dst, u32 length);
-void launch_sort_points(GPUInfo const *info, float4 *points, u32 length, float particle_diameter);
-struct HashTable *new_hashtable(GPUInfo const *info, float4 *points, u32 length, u32 buckets, float particle_diameter);
-void launch_verify_hashtable(
-    GPUInfo const *info, float4 const *data, u32 length, HashTable const *table, float particle_diameter);
-Geometry
-triangulate(GPUInfo const *info, float4 *data, u32 length, float3 room_dim, float particle_diameter, float isolevel);
+void launch_exclusive_scan(u32 const *src, u32 *dst, u32 length, cudaStream_t stream);
+void launch_sort_points(GPUInfo const *info, float4 *points, u32 length, float particle_diameter, cudaStream_t stream);
+struct HashTable *new_hashtable(
+    GPUInfo const *info, float4 *points, u32 length, u32 buckets, float particle_diameter, cudaStream_t stream);
+void launch_verify_hashtable(GPUInfo const *info,
+                             float4 const *data,
+                             u32 length,
+                             HashTable const *table,
+                             float particle_diameter,
+                             cudaStream_t stream);
+Geometry triangulate(GPUInfo const *info,
+                     float4 *data,
+                     u32 length,
+                     float3 room_dim,
+                     float particle_diameter,
+                     float isolevel,
+                     cudaStream_t stream);
 
 GPU HOST u32 point_hash(float4 point, u32 particle_count, float particle_diameter);
 
