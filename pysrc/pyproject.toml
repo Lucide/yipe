@@ -1,0 +1,26 @@
+[project]
+name = "yipe"
+version = "0.1.0"
+description = "YIPE companion tools"
+readme = "README.md"
+authors = [{ name = "Lucide", email = "artemiscode@hotmail.it" }]
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "numpy>=2.5.3",
+    "pysplishsplash>=2.18.1",
+    "rich>=15.0.0",
+]
+
+[project.scripts]
+fluid = "yipe.fluid:main"
+
+[build-system]
+requires = ["uv_build>=0.12.19,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = ["pybind11-stubgen>=3.0.0"]
+
+[tool.ruff]
+line-length = 125
+indent-width = 2

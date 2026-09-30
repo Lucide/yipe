@@ -29,17 +29,21 @@ extern "C" void launch_exclusive_scan(u32 const *const src, u32 *const dst, u32 
   scan(src, dst, length);
 }
 
-extern "C" void launch_sort_points(GPUInfo const *const info, float4 *const points, u32 const length) {
+extern "C" void
+launch_sort_points(GPUInfo const *const info, float4 *const points, u32 const length, float const particle_diameter) {
 
-  auto const hasher = get_hasher(length, PARTICLE_DIAMETER);
+  auto const hasher = get_hasher(length, particle_diameter);
 
   sort(info, points, length, hasher);
 }
 
-extern "C" HashTable *
-new_hashtable(GPUInfo const *const info, float4 *const points, u32 const length, u32 const buckets) {
+extern "C" HashTable *new_hashtable(GPUInfo const *const info,
+                                    float4 *const points,
+                                    u32 const length,
+                                    u32 const buckets,
+                                    float const particle_diameter) {
 
-  auto const hasher = get_hasher(buckets, PARTICLE_DIAMETER);
+  auto const hasher = get_hasher(buckets, particle_diameter);
 
   return build_hashtable(info, points, length, buckets, hasher);
 }
@@ -47,11 +51,12 @@ new_hashtable(GPUInfo const *const info, float4 *const points, u32 const length,
 extern "C" void launch_verify_hashtable(GPUInfo const *const info,
                                         float4 const *const data,
                                         u32 const length,
-                                        HashTable const *const table) {
+                                        HashTable const *const table,
+                                        float const particle_diameter) {
 
   u32 table_length;
   cudaMemcpy(&table_length, table, sizeof(u32), cudaMemcpyDeviceToHost);
-  auto const hasher = get_hasher(table_length - 1, PARTICLE_DIAMETER);
+  auto const hasher = get_hasher(table_length - 1, particle_diameter);
 
   verify_hashtable(info, data, length, table, hasher);
 }

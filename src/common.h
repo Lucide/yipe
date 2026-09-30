@@ -11,7 +11,6 @@ extern "C" {
 #else
 #include <stdint.h>
 #endif
-#include "params.h"
 
 #define STR_HELPER(str) #str
 #define XSTR(x) STR_HELPER(x)
@@ -71,10 +70,6 @@ typedef struct Geometry {
   Triangle *triangles;
 } Geometry;
 
-static float3 const room_dims = {ROOM_WIDTH, ROOM_DEPTH, ROOM_HEIGHT};
-
-static_assert(PARTICLE_DIAMETER > 0.0f, "PARTICLE_DIAMETER must be greater than 0");
-
 typedef struct {
   u32 multiprocessors;
   u32 cores_per_multiprocessor;
@@ -87,9 +82,10 @@ void handle_cuda_result(cudaError_t err, char const *message);
 void handle_cuda_error_debug(char const *message);
 
 void launch_exclusive_scan(u32 const *src, u32 *dst, u32 length);
-void launch_sort_points(GPUInfo const *info, float4 *points, u32 length);
-struct HashTable *new_hashtable(GPUInfo const *info, float4 *points, u32 length, u32 buckets);
-void launch_verify_hashtable(GPUInfo const *info, float4 const *data, u32 length, HashTable const *table);
+void launch_sort_points(GPUInfo const *info, float4 *points, u32 length, float particle_diameter);
+struct HashTable *new_hashtable(GPUInfo const *info, float4 *points, u32 length, u32 buckets, float particle_diameter);
+void launch_verify_hashtable(
+    GPUInfo const *info, float4 const *data, u32 length, HashTable const *table, float particle_diameter);
 Geometry
 triangulate(GPUInfo const *info, float4 *data, u32 length, float3 room_dim, float particle_diameter, float isolevel);
 

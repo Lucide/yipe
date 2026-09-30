@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 4.4)
 project(yipe LANGUAGES C CXX CUDA)
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
-set(CMAKE_C_STANDARD 23)
+set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
@@ -25,8 +25,8 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
         set(YIPE_CUDA_ESTIMATED_ARCH "sm_61")
     endif()
     configure_file(
-        "${PROJECT_SOURCE_DIR}/.clangd.in"
-        "${PROJECT_SOURCE_DIR}/.clangd"
+        ".clangd.in"
+        ".clangd"
         @ONLY
     )
 endif()
@@ -37,6 +37,7 @@ set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES
 )
 
 include(raylib)
+include(argp-standalone)
 
 add_executable(yipe)
 
@@ -44,12 +45,16 @@ target_sources(yipe
     PRIVATE
     src/main.c
     src/entrypoints.cu
-    src/viewer/viewer.c)
+    src/viewer/viewer.c
+    src/streamer/streamer.c
+    src/utils/utils.c)
 
 target_include_directories(yipe
     PRIVATE
     ${PROJECT_SOURCE_DIR}/src
 )
+
+target_compile_definitions(yipe PRIVATE _CRT_SECURE_NO_WARNINGS)
 
 set_target_properties(yipe PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
@@ -60,8 +65,9 @@ list(JOIN MSVC_OPTIONS "," MSVC_OPTIONS_COMMA)
 
 target_compile_options(yipe PRIVATE
     $<$<AND:$<COMPILE_LANGUAGE:C,CXX>,$<CXX_COMPILER_ID:MSVC>>:${MSVC_OPTIONS}>
-    # $<$<COMPILE_LANGUAGE:CUDA>:-Wall;-Wextra;-Wpedantic;-Wconversion;-Wsign-conversion;--default-stream per-thread>
     $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CXX_COMPILER_ID:MSVC>>:-Xcompiler=${MSVC_OPTIONS_COMMA}>
+    $<$<AND:$<COMPILE_LANGUAGE:C>,$<C_COMPILER_ID:MSVC>>:/experimental:c11atomics>
+    # $<$<COMPILE_LANGUAGE:CUDA>:-Wall;-Wextra;-Wpedantic;-Wconversion;-Wsign-conversion;--default-stream per-thread>
     $<$<COMPILE_LANG_AND_ID:CUDA,NVIDIA>:--default-stream=per-thread;--extended-lambda;-Xptxas=-v,--warn-on-spills,--warn-on-local-memory-usage;-Xcudafe;--display_error_number>)
 
 
@@ -69,4 +75,4 @@ target_include_directories(yipe SYSTEM PRIVATE
     "${CUDAToolkit_INCLUDE_DIRS}"
 )
 
-target_link_libraries(yipe PRIVATE CUDA::cudart raylib)
+target_link_libraries(yipe PRIVATE CUDA::cudart raylib argp-standalone)

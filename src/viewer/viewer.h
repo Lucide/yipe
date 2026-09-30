@@ -3,12 +3,14 @@
 #include "common.h"
 
 typedef struct Viewer {
-  Vector3 const origin;
-  Camera3D camera;
+  float *const particle_diameter;
+  float *const isolevel;
+  Vector3 const center;
+  float3 const room;
   Mesh mesh;
   Model model;
+  Camera3D camera;
   u32 mesh_capacity;
-  u32 : 32;
 } Viewer;
 
 typedef enum Ownership {
@@ -16,6 +18,16 @@ typedef enum Ownership {
   OWNERSHIP_BORROWED,
 } Ownership;
 
-Viewer new_viewer(void);
+Viewer new_viewer(float3 room, float *particle_diameter, float *isolevel);
 
-Ownership render(Viewer *viewer, Geometry const *geometry);
+// Ownership render(Viewer *viewer, Geometry const *geometry);
+
+void present(Viewer *viewer, Geometry gpu_geometry);
+
+#if defined(__GNUC__) || defined(__clang__)
+#define PRINTF_LIKE(format_index, argument_index) __attribute__((format(printf, format_index, argument_index)))
+#else
+#define PRINTF_LIKE(format_index, argument_index)
+#endif
+
+void set_window_title(char const *format, ...) PRINTF_LIKE(1, 2);

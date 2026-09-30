@@ -1,0 +1,76 @@
+{
+	"Configuration": 
+	{
+		"timeStepSize": 0.001,
+		"numberOfStepsPerRenderUpdate": 2,
+		"particleRadius": 0.025,
+		"simulationMethod": 4,		
+		"gravitation": [0,-9.81,0], 
+		"cflMethod": 1, 
+		"cflFactor": 1,
+		"cflMaxTimeStepSize": 0.005,
+		"boundaryHandlingMethod": 2,
+		"DFSPH": 
+		{
+			"minIterations": 2,
+			"maxIterations": 100,
+			"maxError": 0.1,
+			"maxIterationsV": 100,
+			"maxErrorV": 0.1,
+			"enableDivergenceSolver": true
+		}
+	},
+	"Materials": [
+		{
+			"id": "Fluid",
+			"density0": 1000, 
+			"viscosityMethod": 6,
+			"Weiler et al. 2018": 
+			{
+				"viscosity": 1,
+				"viscosityBoundary": 1,
+				"viscoMaxIter": 200, 
+				"viscoMaxError": 0.05
+			}
+		}
+	],
+	"RigidBodies": [
+		{
+			"geometryFile": "../models/UnitBox.obj",
+			"translation": [0,-0.25,0],
+			"rotationAxis": [1, 0, 0],
+			"rotationAngle": 0,
+			"scale": [5, 0.5, 5],
+			"color": [0.1, 0.4, 0.6, 1.0], 
+			"isDynamic": false,
+			"isWall": false,
+			"mapInvert": false, 
+			"mapThickness": 0.0,
+			"mapResolution": [30,20,30]
+		},
+		{
+			"geometryFile": "../models/Dragon_50k.obj",
+			"translation": [0,0.05,0],
+			"rotationAxis": [0, 1, 0],
+			"rotationAngle": 0,
+			"scale": [2, 2, 2], 
+			"color": [0.1, 0.4, 0.6, 1.0], 
+			"isDynamic": false,
+			"isWall": false,
+			"mapInvert": false, 
+			"mapThickness": 0.0,
+			"mapResolution": [20,20,20]
+		}
+	],
+	"FluidModels": [
+		{
+			"particleFile": "../models/bunny.bgeo",
+			"translation": [0.0, 1.8, -0.2],
+			"rotationAxis": [0, 1, 0],
+			"rotationAngle": 1.57
+		}
+	]
+}
+
+
+

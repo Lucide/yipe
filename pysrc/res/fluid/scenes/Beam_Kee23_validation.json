@@ -1,0 +1,95 @@
+{
+	"Configuration":
+	{
+		"timeStepSize": 0.002,
+		"particleRadius": 0.025,
+		"numberOfStepsPerRenderUpdate": 1,
+		"simulationMethod": 0,
+		"gravitation": [0,-9.81,0],
+		"cflMethod": 0,
+		"cflFactor": 1,
+		"cflMaxTimeStepSize": 0.005,
+		"enableZSort": true,
+		"boundaryHandlingMethod": 2,
+		"enablePartioExport": false,
+		"WCSPH":
+		{
+			"stiffness": 0,
+			"exponent": 1
+		},
+		"DFSPH":
+		{
+			"minIterations": 2,
+			"maxIterations": 100,
+			"maxError": 0.1,
+			"maxIterationsV": 100,
+			"maxErrorV": 0.1,
+			"enableDivergenceSolver": true
+		}
+	},
+	"Materials": [
+		{
+			"id": "Fluid",
+			"density0": 1000,
+			"elasticityMethod": 4,
+			"viscosityMethod": 1,
+			"Standard viscosity":
+            {
+                "viscosity": 0.01
+            },
+			"Kee et al. 2023":
+			{
+				"youngsModulus": 5000000.0,
+				"poissonsRatio": 0.45,
+				"alpha": 1.0,
+				"maxNeighbors": 15,
+				"fixedBoxMin" : [-10,-10,-10],
+				"fixedBoxMax" : [-1.9,10,10],
+				"fixedBox2Min" : [1.9,-10,-10],
+				"fixedBox2Max" : [10,10,10],
+				"solverType": 0,
+				"materialType": 0,
+				"maxError": 0.0001,
+				"maxIterationsCG": 100,
+				"tolCG": 0.0001,
+				"useLineSearch": false,
+				"lbfgsWindowSize": 5
+			}
+		}
+	],
+	"FluidModels": [
+		{
+			"particleFile": "../models/beam_r_0.025.bgeo",
+			"translation": [0,0.5,0],
+			"scale": [1, 1, 1]
+		}
+	],
+	"AnimationFields": [
+		{
+			"particleField": "velocity",
+			"translation": [-5.95, 0, 0],
+			"rotationAxis": [1, 0, 0],
+			"rotationAngle": 0,
+			"scale": [8.1, 20, 20],
+			"shapeType": 0,
+			"startTime": 0,
+			"endTime": 3.2,
+			"expression_x": "0",
+			"expression_y": "5.0*z",
+			"expression_z": "-5.0*(y-0.5)"
+		},
+		{
+			"particleField": "velocity",
+			"translation": [-5.95, 0, 0],
+			"rotationAxis": [1, 0, 0],
+			"rotationAngle": 0,
+			"scale": [8.1, 20, 20],
+			"shapeType": 0,
+			"startTime": 3.2,
+			"endTime": 1000.0,
+			"expression_x": "0",
+			"expression_y": "0",
+			"expression_z": "0"
+		}
+	]
+}

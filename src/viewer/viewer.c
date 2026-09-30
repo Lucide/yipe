@@ -2,20 +2,27 @@
 #include <math.h>
 #include <rcamera.h>
 #include <rlgl.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <time.h>
+#include "utils/utils.h"
 
-Viewer new_viewer(void) {
+Viewer new_viewer(float3 const room, float *const particle_diameter, float *const isolevel) {
   SetConfigFlags(FLAG_VSYNC_HINT);
   InitWindow(1024, 768, "");
   SetTargetFPS(60);
-  Vector3 const origin = (Vector3){ROOM_WIDTH / 2.0f, ROOM_DEPTH / 2.0f, ROOM_HEIGHT / 2.0f};
+  Vector3 const center = (Vector3){room.x / 2.0f, room.y / 2.0f, room.z / 2.0f};
   return (Viewer){
-      .origin = origin,
+      .particle_diameter = particle_diameter,
+      .isolevel = isolevel,
+      .center = center,
+      .room = room,
       .camera =
           (Camera3D){
-                     .target = origin,
+                     .target = center,
                      // Position the camera to fit the room in view
-              .position = (Vector3){ROOM_WIDTH * -1.f, ROOM_DEPTH * -1.f, ROOM_HEIGHT * 1.5f},
-                     .up = (Vector3){0.0f, 0.0f, 1.0f}, // Z is up
+              .position = (Vector3){room.x * -1.f, room.y * -1.f, room.z * 1.5f},
+                     .up = (Vector3){0.0f, 1.0f, .0f}, // Z is up
               .fovy = 45.0f,
                      .projection = CAMERA_PERSPECTIVE,
                      },
@@ -47,65 +54,105 @@ static Ownership update_model(Model const *const model, u32 *const triangle_capa
   return OWNERSHIP_OWNED;
 }
 
-static void update_camera(Camera3D *const camera) {
-  Vector2 const delta = GetMouseDelta();
-  if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-    CameraYaw(camera, -delta.x * 0.003f, true);
-    CameraPitch(camera, -delta.y * 0.003f, true, true, false);
+static void update_parameters(Viewer *const viewer) {
+  // make particles bigger (B)
+  if (IsKeyPressed(KEY_LEFT)) {
+    *viewer->particle_diameter += 0.01f;
+  } else if (IsKeyDown(KEY_LEFT)) {
+    *viewer->particle_diameter += 0.001f;
   }
-  float const room_scale = sqrtf(ROOM_WIDTH * ROOM_WIDTH + ROOM_DEPTH * ROOM_DEPTH + ROOM_HEIGHT * ROOM_HEIGHT);
+  // make particles smaller (S)
+  if (IsKeyPressed(KEY_RIGHT)) {
+    *viewer->particle_diameter -= 0.01f;
+  } else if (IsKeyDown(KEY_RIGHT)) {
+    *viewer->particle_diameter -= 0.001f;
+  }
+
+  // make isolevel higher (H)
+  if (IsKeyPressed(KEY_UP)) {
+    *viewer->isolevel *= 1.1f;
+  } else if (IsKeyDown(KEY_UP)) {
+    *viewer->isolevel *= 1.01f;
+  }
+  // make isolevel lower (L)
+  if (IsKeyPressed(KEY_DOWN)) {
+    *viewer->isolevel /= 1.1f;
+  } else if (IsKeyDown(KEY_DOWN)) {
+    *viewer->isolevel /= 1.01f;
+  }
+}
+
+static void update_camera(Viewer *const viewer) {
+  Vector2 const delta = GetMouseDelta();
+  float const room_scale =
+      sqrtf(viewer->room.x * viewer->room.x + viewer->room.y * viewer->room.y + viewer->room.z * viewer->room.z);
 
   if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
     float const pan_scale = room_scale * 0.002f;
 
-    CameraMoveRight(camera, -delta.x * pan_scale, false);
-    CameraMoveUp(camera, delta.y * pan_scale);
+    CameraMoveRight(&viewer->camera, -delta.x * pan_scale, false);
+    CameraMoveUp(&viewer->camera, delta.y * pan_scale);
+  }
+
+  if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+    CameraYaw(&viewer->camera, -delta.x * 0.003f, true);
+    CameraPitch(&viewer->camera, -delta.y * 0.003f, true, true, false);
   }
 
   float const zoom_step = room_scale * 0.04f;
-  CameraMoveToTarget(camera, -GetMouseWheelMove() * zoom_step);
+  CameraMoveToTarget(&viewer->camera, -GetMouseWheelMove() * zoom_step);
+
+  if (IsKeyDown(KEY_W)) {
+    CameraMoveForward(&viewer->camera, room_scale * 0.002f, true);
+  }
+  if (IsKeyDown(KEY_A)) {
+    CameraMoveRight(&viewer->camera, room_scale * 0.002f, true);
+  }
+  if (IsKeyDown(KEY_S)) {
+    CameraMoveForward(&viewer->camera, -room_scale * 0.002f, true);
+  }
+  if (IsKeyDown(KEY_D)) {
+    CameraMoveRight(&viewer->camera, -room_scale * 0.002f, true);
+  }
 }
 
 static void draw_room_dimensions(Viewer const *const viewer) {
-  // float const half_width = ROOM_WIDTH * 0.5f;
-  // float const half_depth = ROOM_DEPTH * 0.5f;
-  // float const half_height = ROOM_HEIGHT * 0.5f;
-
   Vector3 const width_point = {
-      ROOM_WIDTH,
+      viewer->room.x,
       0,
-      0,
-  };
-
-  Vector3 const depth_point = {
-      0,
-      ROOM_DEPTH,
       0,
   };
 
   Vector3 const height_point = {
       0,
+      viewer->room.y,
       0,
-      ROOM_HEIGHT,
+  };
+
+  Vector3 const depth_point = {
+      0,
+      0,
+      viewer->room.z,
   };
 
   Vector2 const origin_screen = GetWorldToScreen((Vector3){0}, viewer->camera);
   Vector2 const width_screen = GetWorldToScreen(width_point, viewer->camera);
-  Vector2 const depth_screen = GetWorldToScreen(depth_point, viewer->camera);
   Vector2 const height_screen = GetWorldToScreen(height_point, viewer->camera);
+  Vector2 const depth_screen = GetWorldToScreen(depth_point, viewer->camera);
 
   DrawText("0", (int)origin_screen.x, (int)origin_screen.y, 15, DARKGRAY);
 
-  DrawText(TextFormat("%d", ROOM_WIDTH), (int)width_screen.x, (int)width_screen.y, 15, DARKGRAY);
-  DrawText(TextFormat("%d", ROOM_HEIGHT), (int)height_screen.x, (int)height_screen.y, 15, DARKGRAY);
-  DrawText(TextFormat("%d", ROOM_DEPTH), (int)depth_screen.x, (int)depth_screen.y, 15, DARKGRAY);
+  DrawText(TextFormat("%g", (double)viewer->room.x), (int)width_screen.x, (int)width_screen.y, 15, DARKGRAY);
+  DrawText(TextFormat("%g", (double)viewer->room.y), (int)height_screen.x, (int)height_screen.y, 15, DARKGRAY);
+  DrawText(TextFormat("%g", (double)viewer->room.z), (int)depth_screen.x, (int)depth_screen.y, 15, DARKGRAY);
 }
 
-Ownership render(Viewer *const viewer, Geometry const *const geometry) {
+static Ownership render(Viewer *const viewer, Geometry const *const geometry) {
   Ownership const ownership = update_model(&viewer->model, &viewer->mesh_capacity, *geometry);
   // bool const owned = false;
 
-  update_camera(&viewer->camera);
+  update_parameters(viewer);
+  update_camera(viewer);
 
   ClearBackground(RAYWHITE);
 
@@ -114,7 +161,7 @@ Ownership render(Viewer *const viewer, Geometry const *const geometry) {
   BeginMode3D(viewer->camera);
   // rlDisableBackfaceCulling();
 
-  DrawCubeWires(viewer->origin, ROOM_WIDTH, ROOM_DEPTH, ROOM_HEIGHT, DARKGRAY);
+  DrawCubeWires(viewer->center, viewer->room.x, viewer->room.y, viewer->room.z, DARKGRAY);
 
   DrawModel(viewer->model, (Vector3){0}, 1.0f, RED);
   DrawModelWires(viewer->model, (Vector3){0}, 1.0f, BLACK);
@@ -125,4 +172,30 @@ Ownership render(Viewer *const viewer, Geometry const *const geometry) {
   EndDrawing();
 
   return ownership;
+}
+
+void present(Viewer *const viewer, Geometry const gpu_geometry) {
+  Geometry geometry = download_geometry(gpu_geometry);
+
+  if (OWNERSHIP_BORROWED == render(viewer, &geometry)) {
+    free_geometry(geometry);
+  }
+}
+
+void set_window_title(char const *format, ...) {
+  static time_t last_update;
+  time_t const now = time(NULL);
+
+  if (difftime(now, last_update) < 1.0) {
+    return;
+  }
+
+  char title[256];
+  va_list args;
+  va_start(args, format);
+  vsnprintf(title, sizeof(title), format, args);
+  va_end(args);
+
+  SetWindowTitle(title);
+  last_update = now;
 }

@@ -10,7 +10,7 @@ CompileFlags:
     - -Wno-c++-compat
 ---
 If:
-  PathMatch: .*(params\.h|common\.h|\.(cu|cuh))$
+  PathMatch: .*(common\.h|\.(cu|cuh))$
 # Compiler: clang++
 CompileFlags:
   Remove:
