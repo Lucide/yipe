@@ -9,6 +9,8 @@ FetchContent_Declare(
     EXCLUDE_FROM_ALL
 )
 
-set(argp_standalone_BUILD_TESTING OFF)
+# off by default
+# set(argp_standalone_BUILD_TESTING OFF)
+# set(argp_standalone_ENABLE_WARNINGS OFF)
 
 FetchContent_MakeAvailable(argp_standalone)

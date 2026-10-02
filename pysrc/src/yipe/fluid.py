@@ -35,10 +35,13 @@ total_progress = Progress(
 total_task = total_progress.add_task("description", start=False, visible=False)
 
 
-def iter_non_wall_boundary_configs():
-  return (
-    item for item in enumerate(sph.Exec.SceneConfiguration.getCurrent().getScene().boundaryModels) if not item[1].isWall
-  )
+def infer_room_size(scene):
+  room_config = next(config for config in scene.boundaryModels if config.isWall)
+  return np.asarray(room_config.scale, dtype=np.float32)
+
+
+def iter_non_wall_boundary_configs(scene):
+  return (item for item in enumerate(scene.boundaryModels) if not item[1].isWall)
 
 
 def load_boundary_cloud(scene_dir: Path, config) -> NDArray[np.float32]:
@@ -74,11 +77,13 @@ def export_fluid_and_obstacles(
     # initialize SPlisHSPlasH simulator
     base.init(sceneFile=str(scene_path), useGui=False)
     base.initSimulation()
+    scene: Final = sph.Exec.SceneConfiguration.getCurrent().getScene()
     sim: Final = sph.Simulation.getCurrent()
     time_manager: Final = sph.TimeManager.getCurrent()
     fluid_models: Final = [sim.getFluidModel(index) for index in range(sim.numberOfFluidModels())]
 
     base.setValueFloat(base.STOP_AT, total_frames * frame_dt)
+
     fc = 1
     total_particles = 0
     boundary_bindings: list[tuple[NDArray[np.float32], Any]] = []
@@ -87,7 +92,7 @@ def export_fluid_and_obstacles(
     def bind_boundaries():
       nonlocal boundary_bindings
       boundary_clouds = [
-        (index, load_boundary_cloud(scene_path.parent, config)) for index, config in iter_non_wall_boundary_configs()
+        (index, load_boundary_cloud(scene_path.parent, config)) for index, config in iter_non_wall_boundary_configs(scene)
       ]
       boundary_count = sim.numberOfBoundaryModels()
       for index, points in boundary_clouds:
@@ -130,12 +135,15 @@ def export_fluid_and_obstacles(
 
         if fc == 1:
           total_particles = merged_frame.shape[0]
+          room_dimensions = infer_room_size(scene)
+          output_stream.write(room_dimensions)
           output_stream.write(
             np.asarray(
               [total_frames, total_particles],
               dtype=np.dtype("=u4"),
             )
           )
+          console.print("room size: " + "x".join(str(dimension) for dimension in room_dimensions))
           console.print(f"particle count: {total_particles}")
 
         assert fc == 1 or merged_frame.shape[0] == total_particles, (

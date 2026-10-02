@@ -68,7 +68,7 @@ KERNEL void compute_scalar_fields(float4 const *const points,
         }
 
         if (auto const bucket = table->lookup(hash); bucket) {
-          for (u32 i = bucket->begin; i < bucket->end; i++) {
+          for (u32 i = bucket->begin; i < bucket->end; ++i) {
             float4 const point = points[i];
             // currently calculated using Wendland C2
             scalar_value += calculate_density(vertex_pos, point, params);
@@ -104,7 +104,7 @@ count_triangles(Params const params, float const *const linearized_fields, u32 *
 
   s323 const cell = {utos(thread_id.x) - 1, utos(thread_id.y) - 1, utos(thread_id.z) - 1};
 
-  u8 cube_index = 0;
+  u8 case_index = 0;
   for (u8 i = 0; i < 8; ++i) {
     // read the corner of the voxel
     Offsets const offsets = get_cell_corner_offsets(i);
@@ -114,10 +114,10 @@ count_triangles(Params const params, float const *const linearized_fields, u32 *
     float const corner_field = out_of_bounds ? 0 : fields(corner.x, corner.y, corner.z);
 
     // build the corner bitmask (1 means outside the object)
-    cube_index |= static_cast<u8>(corner_field < params.isolevel) * (1 << i);
+    case_index |= static_cast<u8>(corner_field < params.isolevel) << i;
   }
 
-  triangle_counts(thread_id.x, thread_id.y, thread_id.z) = triangle_table.counts[cube_index];
+  triangle_counts(thread_id.x, thread_id.y, thread_id.z) = triangle_table.counts[case_index];
 }
 
 KERNEL void make_triangles(Params const params,
@@ -141,7 +141,7 @@ KERNEL void make_triangles(Params const params,
 
   // read the 8 corners of the voxel
   float corner_fields[8];
-  u8 cube_index = 0;
+  u8 case_index = 0;
   for (u8 i = 0; i < 8; ++i) {
     // read the 8 corners of the voxel
     Offsets const offsets = get_cell_corner_offsets(i);
@@ -151,21 +151,20 @@ KERNEL void make_triangles(Params const params,
     corner_fields[i] = out_of_bounds ? 0 : fields(corner.x, corner.y, corner.z);
 
     // build the corner bitmask (1 means outside the object)
-    cube_index |= static_cast<u8>(corner_fields[i] < params.isolevel) * (1 << i);
+    case_index |= static_cast<u8>(corner_fields[i] < params.isolevel) << i;
   }
 
   u32 const start = triangle_prefixes(thread_id.x, thread_id.y, thread_id.z);
-  for (u8 i = 0; i < triangle_table.counts[cube_index]; ++i) {
-    u8 e0 = triangle_table.triangles[cube_index][i][0];
-    u8 e1 = triangle_table.triangles[cube_index][i][1];
-    u8 e2 = triangle_table.triangles[cube_index][i][2];
+  for (u8 i = 0; i < triangle_table.counts[case_index]; ++i) {
+    u8 const e0 = triangle_table.triangles[case_index][i][0];
+    u8 const e1 = triangle_table.triangles[case_index][i][1];
+    u8 const e2 = triangle_table.triangles[case_index][i][2];
 
-    triangles[start + i].points[0] = clamp_point(
-        project4to3(get_edge_vertex(e0, params.isolevel, cell, params.particle_diameter, corner_fields)), params.room);
-    triangles[start + i].points[1] = clamp_point(
-        project4to3(get_edge_vertex(e1, params.isolevel, cell, params.particle_diameter, corner_fields)), params.room);
-    triangles[start + i].points[2] = clamp_point(
-        project4to3(get_edge_vertex(e2, params.isolevel, cell, params.particle_diameter, corner_fields)), params.room);
+    triangles[start + i] = {
+        {project4to3(get_edge_vertex(params, e0, cell, corner_fields)),
+         project4to3(get_edge_vertex(params, e1, cell, corner_fields)),
+         project4to3(get_edge_vertex(params, e2, cell, corner_fields))}
+    };
   }
 }
 } // namespace marching_cubes

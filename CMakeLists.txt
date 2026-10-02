@@ -25,8 +25,8 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
         set(YIPE_CUDA_ESTIMATED_ARCH "sm_61")
     endif()
     configure_file(
-        ".clangd.in"
-        ".clangd"
+        "${PROJECT_SOURCE_DIR}/.clangd.in"
+        "${PROJECT_SOURCE_DIR}/.clangd"
         @ONLY
     )
 endif()
@@ -47,7 +47,8 @@ target_sources(yipe
     src/entrypoints.cu
     src/viewer/viewer.c
     src/streamer/streamer.c
-    src/utils/utils.c)
+    src/utils/utils.c
+    src/args/args.c)
 
 target_include_directories(yipe
     PRIVATE

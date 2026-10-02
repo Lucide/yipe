@@ -18,7 +18,7 @@ build(Data const *const data, u32 const length, HashTable *const hash_table, u32
   for (u32 i = blockIdx.x * slice_length; i < length; i += gridDim.x * slice_length) {
     // iterate over the data slice in strides of block size
     // if first element[0], add manually.
-    u32 loop_start = i + threadIdx.x;
+    u32 const loop_start = i + threadIdx.x;
     if (loop_start == 0) {
       Data const item = data[0];
       typename Key::KeyType const hash = hasher(item);

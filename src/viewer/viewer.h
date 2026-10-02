@@ -20,7 +20,7 @@ typedef enum Ownership {
   OWNERSHIP_BORROWED,
 } Ownership;
 
-Viewer new_viewer(float3 room, float *particle_diameter, float *isolevel);
+Viewer new_viewer(float3 room, float *particle_diameter, float *isolevel, u32 framerate);
 
 void unload_viewer(Viewer *viewer);
 

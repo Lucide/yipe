@@ -1,4 +1,17 @@
 ---
+ImplementationFileExtensions:
+  - c
+  - cpp
+  - cu
+HeaderFileExtensions:
+  - h
+  - hpp
+  - cuh
+HeaderFilterRegex: ".*"
+ExcludeHeaderFilterRegex: ""
+SystemHeaders: false
+FormatStyle: none
+WarningsAsErrors: ""
 Checks: >-
   -*,
   clang-diagnostic-*,
@@ -42,6 +55,7 @@ Checks: >-
   bugprone-suspicious-memory-comparison,
   bugprone-suspicious-realloc-usage,
   bugprone-swapped-arguments,
+  bugprone-switch-missing-default-case,
   bugprone-terminating-continue,
   bugprone-throw-keyword-missing,
   bugprone-too-small-loop-variable,
@@ -70,7 +84,7 @@ Checks: >-
   google-runtime-operator,
   hicpp-exception-baseclass,
   hicpp-multiway-paths-covered,
-  misc-misplaced-const,
+  misc-const-correctness,
   misc-new-delete-overloads,
   misc-non-copyable-objects,
   misc-throw-by-value-catch-by-reference,
@@ -147,22 +161,6 @@ Checks: >-
   bugprone-narrowing-conversions,
   cppcoreguidelines-narrowing-conversions,
   readability-implicit-bool-conversion
-WarningsAsErrors: ""
-HeaderFileExtensions:
-  - h
-  - hh
-  - hpp
-  - hxx
-  - cuh
-ImplementationFileExtensions:
-  - c
-  - cc
-  - cpp
-  - cxx
-  - cu
-HeaderFilterRegex: ".*"
-ExcludeHeaderFilterRegex: ""
-FormatStyle: none
 CheckOptions:
   bugprone-argument-comment.CommentBoolLiterals: "0"
   bugprone-argument-comment.CommentCharacterLiterals: "0"
@@ -304,5 +302,4 @@ CheckOptions:
   readability-static-accessed-through-instance.NameSpecifierNestingThreshold: "3"
   readability-string-compare.StringLikeClasses: "::std::basic_string;::std::basic_string_view"
   readability-uniqueptr-delete-release.PreferResetCall: "false"
-SystemHeaders: false
 ...

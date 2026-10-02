@@ -28,13 +28,13 @@ inline constexpr u16 subwarps = warp_slices * subwarps_per_warp;
 template <typename Data, typename Hasher>
   requires is_hasher<Hasher, Data>
 KERNEL void onesweep(u32 *const atomic_id,
-                     const Data *const data,
+                     Data const *const data,
                      Data *const sorted,
                      u32 const length,
                      u8 const place,
                      StateCounter *const linearized_global_state_counters,
-                     u32 (&global_totals)[RADIX],
-                     const Hasher hasher) {
+                     u32 const (&global_totals)[RADIX],
+                     Hasher const hasher) {
   using Key = Key<Hasher, Data>;
   SHARED u32 block_id; // NOLINT(bugprone-dynamic-static-initializers)
   if (threadIdx.x == 0) {
@@ -44,7 +44,7 @@ KERNEL void onesweep(u32 *const atomic_id,
   // RADIX is multiple of 32, thus row reads are guaranteed to conflict
   // RADIX + subwarps_per_warp offsets the rows by subwarp slice
   SHARED u16 slice_prefixes[warp_slices][RADIX + subwarps_per_warp]; // NOLINT(bugprone-dynamic-static-initializers)
-  auto linearized_slice_prefixes = flatten(slice_prefixes);
+  auto const linearized_slice_prefixes = flatten(slice_prefixes);
   for (u16 i = static_cast<u16>(threadIdx.x); i < static_cast<u16>(cuda::std::size(linearized_slice_prefixes));
        i += blockDim.x) {
     linearized_slice_prefixes[i] = 0;
@@ -115,7 +115,8 @@ KERNEL void onesweep(u32 *const atomic_id,
     // slice containing the slice totals
     // the paper explicitly specifies "RADIX arrays of slices counters"
     using global_state_counters_extents = cuda::std::extents<u32, RADIX, cuda::std::dynamic_extent>;
-    cuda::std::mdspan global_state_counters(linearized_global_state_counters, global_state_counters_extents{gridDim.x});
+    cuda::std::mdspan const global_state_counters(linearized_global_state_counters,
+                                                  global_state_counters_extents{gridDim.x});
     // fenced global memory state_counter
     cuda::atomic_ref<StateCounter, cuda::thread_scope_device> const global_state_counter(
         global_state_counters(threadIdx.x, block_id));

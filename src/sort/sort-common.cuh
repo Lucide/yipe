@@ -30,7 +30,7 @@ struct Key {
   static constexpr u16 total_bits = std::numeric_limits<KeyType>::digits;
 
   // mask generation safe for bit counts up to total_bits
-  GPU HOST static constexpr KeyType mask(u16 num_bits) {
+  GPU HOST static constexpr KeyType mask(u16 const num_bits) {
     if (num_bits >= total_bits)
       return ~KeyType(0);
     return (KeyType(1) << num_bits) - KeyType(1);
@@ -40,7 +40,7 @@ struct Key {
   static constexpr KeyType radix_mask = mask(RADIX_SIZE);
 
   GPU HOST static constexpr u16 extract_digit(KeyType key, u8 place) {
-    const auto shift = static_cast<KeyType>(place * RADIX_SIZE);
+    auto const shift = static_cast<KeyType>(place * RADIX_SIZE);
     return (key >> shift) & radix_mask;
   }
 };

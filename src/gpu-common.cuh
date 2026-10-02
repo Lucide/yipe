@@ -15,15 +15,15 @@ struct is_instance_of<TargetTemplate<Args...>, TargetTemplate> : std::true_type 
 template <typename T, template <typename...> class TargetTemplate>
 concept IsInstanceOf = is_instance_of<T, TargetTemplate>::value;
 
-template <std::integral T> GPU HOST constexpr auto utos(T value) noexcept {
+template <std::integral T> GPU HOST constexpr auto utos(T const value) noexcept {
   return static_cast<std::make_signed_t<T>>(value);
 }
 
-template <typename T = double> GPU HOST constexpr float dtof(double value) noexcept {
+template <typename T = double> GPU HOST constexpr float dtof(double const value) noexcept {
   return static_cast<float>(value);
 }
 
-template <std::integral T> GPU HOST constexpr float itof(T value) noexcept {
+template <std::integral T> GPU HOST constexpr float itof(T const value) noexcept {
   static_assert(sizeof(T) <= 4, "itof restricted up to 4B integer");
   return static_cast<float>(value);
 }
@@ -46,7 +46,7 @@ GPU HOST int3 point_discretize(float4 const point, float const particle_diameter
 
 GPU HOST u32 point_hash(float4 const point, u32 const particle_count, float const particle_diameter) {
   static u32 const primes[3] = {73856093, 19349663, 83492791};
-  int3 discrete = point_discretize(point, particle_diameter);
+  int3 const discrete = point_discretize(point, particle_diameter);
   return ((static_cast<u32>(discrete.x) * primes[0]) ^ (static_cast<u32>(discrete.y) * primes[1]) ^
           (static_cast<u32>(discrete.z) * primes[2])) %
          particle_count;

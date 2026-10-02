@@ -35,13 +35,13 @@ typedef uint32_t u32;
 typedef int32_t s32;
 typedef uint64_t u64;
 
-struct u323 {
+typedef struct u323 {
   u32 x, y, z;
-};
+} u323;
 
-struct s323 {
+typedef struct s323 {
   s32 x, y, z;
-};
+} s323;
 
 typedef struct rows4x4 {
   float4 r0, r1, r2, r3;

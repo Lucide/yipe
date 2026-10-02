@@ -8,6 +8,7 @@ FetchContent_Declare(
     URL https://github.com/raysan5/raylib/archive/fc03d77be9f8b1141ac0f9b6b9c8ba892a5f2eb6.zip
     DOWNLOAD_EXTRACT_TIMESTAMP OFF
     SYSTEM
+    EXCLUDE_FROM_ALL
     FIND_PACKAGE_ARGS
     ${RAYLIB_VERSION}
     CONFIG

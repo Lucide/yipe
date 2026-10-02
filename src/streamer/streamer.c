@@ -1,10 +1,10 @@
 #include "streamer.h"
 #include <stdlib.h>
 
-static int worker_loop(void *arg) {
+static u32 worker_loop(void *arg) {
   AsyncFluidStreamer *streamer = (AsyncFluidStreamer *)arg;
-  size_t current_frame = 0;
-  int buf_idx = 0;
+  u32 current_frame = 0;
+  u32 buf_idx = 0;
 
   while (!atomic_load(&streamer->stop_requested)) {
     // wait until target buffer is free to receive new frame
@@ -18,15 +18,15 @@ static int worker_loop(void *arg) {
       break;
 
     // 1. file seek & read directly into pinned memory
-    long offset = (long)(streamer->data_offset + current_frame * streamer->file_frame_bytes);
-    if (fseek(streamer->file_stream, offset, SEEK_SET) != 0 ||
+    u32 const offset = streamer->data_offset + current_frame * streamer->file_frame_bytes;
+    if (fseek(streamer->file_stream, (s32)offset, SEEK_SET) != 0 ||
         fread(streamer->h_file_buffers[buf_idx], 1, streamer->file_frame_bytes, streamer->file_stream) !=
             streamer->file_frame_bytes) {
       atomic_store(&streamer->stop_requested, true);
       break;
     }
 
-    for (size_t i = 0; i < streamer->num_particles; ++i) {
+    for (u32 i = 0; i < streamer->header.num_particles; ++i) {
       streamer->h_pinned[buf_idx][i].x = streamer->h_file_buffers[buf_idx][i].x;
       streamer->h_pinned[buf_idx][i].y = streamer->h_file_buffers[buf_idx][i].y;
       streamer->h_pinned[buf_idx][i].z = streamer->h_file_buffers[buf_idx][i].z;
@@ -53,7 +53,7 @@ static int worker_loop(void *arg) {
     cnd_signal(&streamer->cv_consume);
 
     // advance indices
-    current_frame = (current_frame + 1) % streamer->total_frames;
+    current_frame = (current_frame + 1) % streamer->header.total_frames;
     buf_idx = 1 - buf_idx;
   }
   return 0;
@@ -70,23 +70,22 @@ AsyncFluidStreamer *streamer_create(char const *filepath) {
     return NULL;
   }
 
-  uint32_t header[2];
-  if (fread(header, sizeof(header[0]), 2, streamer->file_stream) != 2 || header[0] == 0 || header[1] == 0) {
+  StreamHeader header;
+  if (fread(&header, sizeof(header), 1, streamer->file_stream) != 1) {
     fclose(streamer->file_stream);
     free(streamer);
     return NULL;
   }
 
-  streamer->total_frames = header[0];
-  streamer->num_particles = header[1];
-  streamer->file_frame_bytes = streamer->num_particles * sizeof(float3);
-  streamer->frame_bytes = streamer->num_particles * sizeof(float4);
+  streamer->header = header;
+  streamer->file_frame_bytes = header.num_particles * sizeof(float3);
+  streamer->frame_bytes = header.num_particles * sizeof(float4);
   streamer->data_offset = sizeof(header);
 
   // CUDA streams & events
   cudaStreamCreate(&streamer->transfer_stream);
 
-  for (int i = 0; i < 2; ++i) {
+  for (u32 i = 0; i < 2; ++i) {
     cudaMallocHost((void **)&streamer->h_pinned[i], streamer->frame_bytes);
     cudaMalloc((void **)&streamer->d_buffers[i], streamer->frame_bytes);
     cudaEventCreate(&streamer->frame_ready_events[i]);
@@ -112,7 +111,7 @@ AsyncFluidStreamer *streamer_create(char const *filepath) {
   return streamer;
 }
 
-float4 *streamer_acquire_next_frame(AsyncFluidStreamer *streamer, int buf_idx, cudaStream_t compute_stream) {
+float4 *streamer_acquire_next_frame(AsyncFluidStreamer *streamer, u32 buf_idx, cudaStream_t compute_stream) {
   mtx_lock(&streamer->mutex);
   while (!streamer->buffer_ready[buf_idx]) {
     cnd_wait(&streamer->cv_consume, &streamer->mutex);
@@ -125,7 +124,7 @@ float4 *streamer_acquire_next_frame(AsyncFluidStreamer *streamer, int buf_idx, c
   return streamer->d_buffers[buf_idx];
 }
 
-void streamer_release_frame(AsyncFluidStreamer *streamer, int buf_idx, cudaStream_t compute_stream) {
+void streamer_release_frame(AsyncFluidStreamer *streamer, u32 buf_idx, cudaStream_t compute_stream) {
   cudaEventRecord(streamer->frame_done_events[buf_idx], compute_stream);
 
   mtx_lock(&streamer->mutex);
@@ -146,11 +145,11 @@ void streamer_destroy(AsyncFluidStreamer *streamer) {
   cnd_broadcast(&streamer->cv_produce);
   mtx_unlock(&streamer->mutex);
 
-  int res;
+  u32 res;
   thrd_join(streamer->worker_thread, &res);
   cudaStreamSynchronize(streamer->transfer_stream);
 
-  for (int i = 0; i < 2; ++i) {
+  for (u32 i = 0; i < 2; ++i) {
     free(streamer->h_file_buffers[i]);
     cudaFreeHost(streamer->h_pinned[i]);
     cudaFree(streamer->d_buffers[i]);

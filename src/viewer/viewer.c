@@ -7,10 +7,10 @@
 #include <time.h>
 #include "utils/utils.h"
 
-Viewer new_viewer(float3 const room, float *const particle_diameter, float *const isolevel) {
+Viewer new_viewer(float3 const room, float *const particle_diameter, float *const isolevel, u32 const framerate) {
   SetConfigFlags(FLAG_VSYNC_HINT);
   InitWindow(1024, 768, "");
-  SetTargetFPS(60);
+  SetTargetFPS((int)framerate);
   Vector3 const center = (Vector3){room.x / 2.0f, room.y / 2.0f, room.z / 2.0f};
   Viewer viewer = (Viewer){
       .particle_diameter = particle_diameter,

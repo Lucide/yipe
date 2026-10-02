@@ -7,7 +7,7 @@
 
 extern "C" void handle_cuda_result(cudaError_t const err, char const *message) {
   if (err != cudaSuccess) {
-    printf("[%s] CUDA Error: %s\n", message, cudaGetErrorString(err));
+    printf("[%s] CUDA error: %s\n", message, cudaGetErrorString(err));
     exit(-1);
   }
 }
@@ -38,7 +38,7 @@ extern "C" void launch_sort_points(GPUInfo const *const info,
 
   auto const hasher = get_hasher(length, particle_diameter);
 
-  sort(info, points, length, hasher, stream);
+  sort(*info, points, length, hasher, stream);
 }
 
 extern "C" HashTable *new_hashtable(GPUInfo const *const info,
@@ -50,7 +50,7 @@ extern "C" HashTable *new_hashtable(GPUInfo const *const info,
 
   auto const hasher = get_hasher(buckets, particle_diameter);
 
-  return build_hashtable(info, points, length, buckets, hasher, stream);
+  return build_hashtable(*info, points, length, buckets, hasher, stream);
 }
 
 extern "C" void launch_verify_hashtable(GPUInfo const *const info,
@@ -62,11 +62,11 @@ extern "C" void launch_verify_hashtable(GPUInfo const *const info,
 
   u32 table_length;
   handle_cuda_result(cudaMemcpyAsync(&table_length, table, sizeof(u32), cudaMemcpyDeviceToHost, stream),
-                     "Hashtable: Download table length");
-  handle_cuda_result(cudaStreamSynchronize(stream), "Hashtable: Download table length");
+                     "hashtable: download table length");
+  handle_cuda_result(cudaStreamSynchronize(stream), "hashtable: download table length");
   auto const hasher = get_hasher(table_length - 1, particle_diameter);
 
-  verify_hashtable(info, data, length, table, hasher, stream);
+  verify_hashtable(*info, data, length, table, hasher, stream);
 }
 
 extern "C" Geometry triangulate(GPUInfo const *const info,
@@ -77,5 +77,5 @@ extern "C" Geometry triangulate(GPUInfo const *const info,
                                 float const isolevel,
                                 cudaStream_t const stream) {
 
-  return compute_marching_cubes(info, data, length, room_dim, particle_diameter, isolevel, stream);
+  return compute_marching_cubes(*info, data, length, room_dim, particle_diameter, isolevel, stream);
 }

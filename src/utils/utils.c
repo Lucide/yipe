@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-static u32 get_cores_per_sm(int major, int minor) {
+static u32 get_cores_per_sm(int const major, int const minor) {
   switch (major) {
   case 2: // Fermi
     return (minor == 1) ? 48 : 32;
@@ -49,7 +49,7 @@ GPUInfo fetch_gpu_info(void) {
 }
 
 // function to fill an array with random numbers within a specific range
-void generate_random_points(float4 *const points, u32 const length, u32 seed, float3 const room) {
+void generate_random_points(float4 *const points, u32 const length, u32 const seed, float3 const room) {
   srand(seed);
   for (u32 i = 0; i < length; ++i) {
     // (double)+ is the "unary plus sign operator" for double, it avoids a bad cast from u32 to double
@@ -71,7 +71,7 @@ void print_triangles(Geometry const geometry) {
 }
 
 void free_gpu_geometry(Geometry const geometry) {
-  handle_cuda_result(cudaFree(geometry.triangles), "Main: Free triangles");
+  handle_cuda_result(cudaFree(geometry.triangles), "main: free triangles");
 }
 
 Geometry download_geometry(Geometry const gpu_geometry, cudaStream_t const stream) {
@@ -79,9 +79,9 @@ Geometry download_geometry(Geometry const gpu_geometry, cudaStream_t const strea
       (Geometry){.count = gpu_geometry.count, .triangles = malloc(gpu_geometry.count * sizeof(Triangle))};
   handle_cuda_result(cudaMemcpyAsync(cpu_geometry.triangles, gpu_geometry.triangles,
                                      gpu_geometry.count * sizeof(Triangle), cudaMemcpyDeviceToHost, stream),
-                     "Main: download triangles");
-  handle_cuda_result(cudaStreamSynchronize(stream), "Main: download triangles");
-  handle_cuda_result(cudaFree(gpu_geometry.triangles), "Main: Free triangles");
+                     "main: download triangles");
+  handle_cuda_result(cudaStreamSynchronize(stream), "main: download triangles");
+  handle_cuda_result(cudaFree(gpu_geometry.triangles), "main: free triangles");
   return cpu_geometry;
 }
 
