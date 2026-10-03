@@ -16,9 +16,9 @@ Geometry compute_marching_cubes(GPUInfo const &info,
   dim3 const field_block_count = {ceil_div<uint, uint, uint>(params.fields.x, marching_cubes::threads_per_block.x),
                                   ceil_div<uint, uint, uint>(params.fields.y, marching_cubes::threads_per_block.y),
                                   ceil_div<uint, uint, uint>(params.fields.z, marching_cubes::threads_per_block.z)};
-  dim3 const cell_block_count = {ceil_div<uint, uint, uint>(params.outer_cells.x, marching_cubes::threads_per_block.x),
-                                 ceil_div<uint, uint, uint>(params.outer_cells.y, marching_cubes::threads_per_block.y),
-                                 ceil_div<uint, uint, uint>(params.outer_cells.z, marching_cubes::threads_per_block.z)};
+  dim3 const cell_block_count = {ceil_div<uint, uint, uint>(params.cells.x, marching_cubes::threads_per_block.x),
+                                 ceil_div<uint, uint, uint>(params.cells.y, marching_cubes::threads_per_block.y),
+                                 ceil_div<uint, uint, uint>(params.cells.z, marching_cubes::threads_per_block.z)};
 
   // compute hashtable
   auto const hasher = get_hasher(buckets, particle_diameter);
@@ -38,7 +38,7 @@ Geometry compute_marching_cubes(GPUInfo const &info,
   // we allocate an extra cell that will be set to 0 by the counting kernel
   // after the prefix_sum it will hold the total number of triangles
   // this allows to store the prefixes on the same buffer as the counts
-  handle_cuda_result(cudaMallocAsync(&triangle_counts, sizeof(u32) * (params.outer_cell_count() + 1), stream),
+  handle_cuda_result(cudaMallocAsync(&triangle_counts, sizeof(u32) * (params.cell_count() + 1), stream),
                      "marching_cubes: allocate triangle counts");
   handle_cuda_error_debug("marching_cubes: allocate triangle counts");
   marching_cubes::count_triangles<<<cell_block_count, marching_cubes::threads_per_block, 0, stream>>>(params, fields,
@@ -48,11 +48,11 @@ Geometry compute_marching_cubes(GPUInfo const &info,
   handle_cuda_error_debug("marching_cubes: free hash table");
 
   // calculate prefix sum
-  scan(triangle_counts, triangle_counts, params.outer_cell_count() + 1, stream);
+  scan(triangle_counts, triangle_counts, params.cell_count() + 1, stream);
 
   // get total triangles
   u32 total_triangles;
-  handle_cuda_result(cudaMemcpyAsync(&total_triangles, &triangle_counts[params.outer_cell_count()], sizeof(u32),
+  handle_cuda_result(cudaMemcpyAsync(&total_triangles, &triangle_counts[params.cell_count()], sizeof(u32),
                                      cudaMemcpyDeviceToHost, stream),
                      "marching_cubes: fetch triangle total count");
   handle_cuda_result(cudaStreamSynchronize(stream), "marching_cubes: fetch triangle total count");

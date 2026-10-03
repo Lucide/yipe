@@ -19,7 +19,6 @@ struct Params {
   float particle_diameter;
   float particle_diameter_sq;
   u323 cells{};
-  u323 outer_cells{};
   u323 fields{};
   float isolevel;
 
@@ -32,20 +31,66 @@ struct Params {
     this->cells = {static_cast<u32>(ceil(room_dim.x / particle_diameter)),
                    static_cast<u32>(ceil(room_dim.y / particle_diameter)),
                    static_cast<u32>(ceil(room_dim.z / particle_diameter))};
-    // outer cells include an extra cell to the left and one to the right in every dimension
-    this->outer_cells = {this->cells.x + 2, this->cells.y + 2, this->cells.z + 2};
     this->fields = {this->cells.x + 1, this->cells.y + 1, this->cells.z + 1};
   }
   GPU HOST constexpr u32 cell_count() const { return this->cells.x * this->cells.y * this->cells.z; }
-  GPU HOST constexpr u32 outer_cell_count() const {
-    return this->outer_cells.x * this->outer_cells.y * this->outer_cells.z;
-  }
   GPU HOST constexpr u32 field_count() const { return this->fields.x * this->fields.y * this->fields.z; }
 };
 
+GPU bool is_out_of_bounds(u323 const coords, u323 const fields) {
+  return coords.x >= fields.x || coords.y >= fields.y || coords.z >= fields.z;
+}
+
+GPU bool is_out_of_bounds(float3 const point, float3 const room) {
+  return point.x <= 0 || point.y <= 0 || point.z <= 0 || point.x >= room.x || point.y >= room.y || point.z >= room.z;
+}
+
+GPU float3 clamp_point(float3 const point, float3 const room) {
+  // assume positive coordinates
+  return {fmin(point.x, room.x), fmin(point.y, room.y), fmin(point.z, room.z)};
+}
+
+GPU pair<s83, s83> get_neighbourhood_offsets(u323 const coords, u323 const fields) {
+  s8 sx, ex, sy, ey, sz, ez;
+  if (coords.x == 0) {
+    sx = 0;
+    ex = 0;
+  } else if (coords.x == fields.x - 1) {
+    sx = -2;
+    ex = -1;
+  } else {
+    sx = -1;
+    ex = 0;
+  }
+  if (coords.y == 0) {
+    sy = 0;
+    ey = 0;
+  } else if (coords.y == fields.y - 1) {
+    sy = -2;
+    ey = -1;
+  } else {
+    sy = -1;
+    ey = 0;
+  }
+  if (coords.z == 0) {
+    sz = 0;
+    ez = 0;
+  } else if (coords.z == fields.z - 1) {
+    sz = -2;
+    ez = -1;
+  } else {
+    sz = -1;
+    ez = 0;
+  }
+  return {
+      {sx, sy, sz},
+      {ex, ey, ez}
+  };
+}
+
 // estimate *unnormalised* Wendland C2 density
 // fine for graphics but not for physics
-GPU float calculate_density(float4 const node_pos, float4 const point_pos, Params const params) {
+GPU float calculate_density(float3 const node_pos, float3 const point_pos, Params const params) {
   float const dist_sq = sq_dist(node_pos, point_pos);
 
   if (dist_sq >= params.particle_diameter_sq) {
@@ -63,23 +108,9 @@ GPU float calculate_density(float4 const node_pos, float4 const point_pos, Param
   return w;
 }
 
-GPU bool is_out_of_bounds(float4 const point, float3 const room) {
-  return point.x <= 0 || point.y <= 0 || point.z <= 0 || point.x >= room.x || point.y >= room.y || point.z >= room.z;
-}
-
-GPU float4
-interpolate_vertex(float const isolevel, float4 const p1, float4 const p2, float const field1, float const field2) {
-  if (field1 != isolevel && field2 != isolevel && fabsf(field1 - field2) <= 0.00001)
-    // numerical stability
-    return (p1 + p2) * 0.5f;
-  return p1 + (p2 - p1) * (isolevel - field1) / (field2 - field1);
-}
-
-GPU float4 get_cell_corner(s323 const cell, u8 const corner, float const particle_diameter) {
-  Offsets const offsets = get_cell_corner_offsets(corner);
-  return {dtof(static_cast<double>(cell.x + offsets.x) * particle_diameter),
-          dtof(static_cast<double>(cell.y + offsets.y) * particle_diameter),
-          dtof(static_cast<double>(cell.z + offsets.z) * particle_diameter), 1};
+GPU float3 get_cell_corner(u323 const cell, u8 const index, float const particle_diameter) {
+  u83 const offsets = get_cell_corner_offsets(index);
+  return vec_cast<float3>(vec_cast<double3>(cell + offsets) * particle_diameter);
 }
 
 GPU inline float select_field(u8 const corner, float const (&fields)[8]) {
@@ -106,26 +137,27 @@ GPU inline float select_field(u8 const corner, float const (&fields)[8]) {
   }
 }
 
-GPU float4 get_edge_vertex(Params const &params, u8 const edge, s323 const cell, float const (&fields)[8]) {
+GPU float3
+interpolate_vertex(float const isolevel, float3 const p1, float3 const p2, float const field1, float const field2) {
+  float const scale = fmaxf(fabsf(field1), fmaxf(fabsf(field2), fabsf(isolevel)));
+  float const tolerance = 8.f * cuda::std::numeric_limits<float>::epsilon() * fmaxf(scale, 1.0f);
+
+  if (fabsf(field1 - field2) <= tolerance)
+    // numerical stability
+    return (p1 + p2) * 0.5f;
+  return p1 + (p2 - p1) * (isolevel - field1) / (field2 - field1);
+}
+
+GPU float3 get_edge_vertex(Params const &params, u8 const edge, u323 const cell, float const (&fields)[8]) {
   EdgeVertexes const vertexes = get_edge_vertexes(edge);
 
-  float4 const corner0 = get_cell_corner(cell, vertexes.c0, params.particle_diameter);
-  float4 const corner1 = get_cell_corner(cell, vertexes.c1, params.particle_diameter);
+  float3 const corner0 = clamp_point(get_cell_corner(cell, vertexes.c0, params.particle_diameter), params.room);
+  float3 const corner1 = clamp_point(get_cell_corner(cell, vertexes.c1, params.particle_diameter), params.room);
 
   float field0 = select_field(vertexes.c0, fields);
   float field1 = select_field(vertexes.c1, fields);
 
-  if (is_out_of_bounds(corner0, params.room) || is_out_of_bounds(corner1, params.room)) {
-    // branchless with selp instruction
-    // 0.f is hardcoded value
-    field0 = field0 > 0.f ? params.isolevel : 0.0f;
-    field1 = field1 > 0.f ? params.isolevel : 0.0f;
-  }
-
   return interpolate_vertex(params.isolevel, corner0, corner1, field0, field1);
 }
 
-GPU float3 clamp_point(float3 const point, float3 const room) {
-  return {fmin(fmax(point.x, 0.f), room.x), fmin(fmax(point.y, 0.f), room.y), fmin(fmax(point.z, 0.f), room.z)};
-}
 } // namespace marching_cubes

@@ -35,6 +35,14 @@ typedef uint32_t u32;
 typedef int32_t s32;
 typedef uint64_t u64;
 
+typedef struct u83 {
+  u8 x, y, z;
+} u83;
+
+typedef struct s83 {
+  s8 x, y, z;
+} s83;
+
 typedef struct u323 {
   u32 x, y, z;
 } u323;

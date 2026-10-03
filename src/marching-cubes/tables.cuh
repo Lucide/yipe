@@ -14,11 +14,7 @@ namespace marching_cubes {
 //     {0, 1, 1}  // 0111     |  (idx & 1) ^ second_value  |  (idx & 2) >> 1  |  (idx & 4) >> 2
 // };
 
-struct Offsets {
-  u8 const x, y, z;
-};
-
-constexpr inline GPU Offsets get_cell_corner_offsets(u8 const corner) {
+constexpr inline GPU u83 get_cell_corner_offsets(u8 const corner) {
   u8 const o1 = (corner & 0x2u) >> 1;
   u8 const o0 = (corner & 0x1u) ^ o1;
   u8 const o2 = (corner & 0x4u) >> 2;
