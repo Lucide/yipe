@@ -11,7 +11,7 @@ namespace marching_cubes {
 using extents_3d =
     cuda::std::extents<u32, cuda::std::dynamic_extent, cuda::std::dynamic_extent, cuda::std::dynamic_extent>;
 
-constexpr dim3 threads_per_block = {4, 4, 4};
+inline constexpr dim3 threads_per_block = {4, 4, 4};
 
 struct Params {
   u32 points;
@@ -37,8 +37,8 @@ struct Params {
   GPU HOST constexpr u32 field_count() const { return this->fields.x * this->fields.y * this->fields.z; }
 };
 
-GPU bool is_out_of_bounds(u323 const coords, u323 const fields) {
-  return coords.x >= fields.x || coords.y >= fields.y || coords.z >= fields.z;
+GPU bool is_out_of_bounds(u323 const coords, u323 const bounds) {
+  return coords.x >= bounds.x || coords.y >= bounds.y || coords.z >= bounds.z;
 }
 
 GPU bool is_out_of_bounds(float3 const point, float3 const room) {
@@ -50,42 +50,76 @@ GPU float3 clamp_point(float3 const point, float3 const room) {
   return {fmin(point.x, room.x), fmin(point.y, room.y), fmin(point.z, room.z)};
 }
 
-GPU pair<s83, s83> get_neighbourhood_offsets(u323 const coords, u323 const fields) {
-  s8 sx, ex, sy, ey, sz, ez;
+GPU pair<s83, u83> get_neighbourhood_bounds(u323 const coords, u323 const fields) {
+  s8 sx, sy, sz;
+  u8 dx, dy, dz;
   if (coords.x == 0) {
     sx = 0;
-    ex = 0;
+    dx = 1;
   } else if (coords.x == fields.x - 1) {
     sx = -2;
-    ex = -1;
+    dx = 2;
   } else {
     sx = -1;
-    ex = 0;
+    dx = 2;
   }
   if (coords.y == 0) {
     sy = 0;
-    ey = 0;
+    dy = 1;
   } else if (coords.y == fields.y - 1) {
     sy = -2;
-    ey = -1;
+    dy = 2;
   } else {
     sy = -1;
-    ey = 0;
+    dy = 2;
   }
   if (coords.z == 0) {
     sz = 0;
-    ez = 0;
+    dz = 1;
   } else if (coords.z == fields.z - 1) {
     sz = -2;
-    ez = -1;
+    dz = 2;
   } else {
     sz = -1;
-    ez = 0;
+    dz = 2;
   }
   return {
       {sx, sy, sz},
-      {ex, ey, ez}
+      {dx, dy, dz}
   };
+}
+
+template <typename T> GPU void add_checked_hash(T (&seen)[8], u8 &checked_count, T const hash) {
+  switch (checked_count) {
+  case 0:
+    seen[0] = hash;
+    break;
+  case 1:
+    seen[1] = hash;
+    break;
+  case 2:
+    seen[2] = hash;
+    break;
+  case 3:
+    seen[3] = hash;
+    break;
+  case 4:
+    seen[4] = hash;
+    break;
+  case 5:
+    seen[5] = hash;
+    break;
+  case 6:
+    seen[6] = hash;
+    break;
+  case 7:
+    seen[7] = hash;
+    break;
+  default:
+    assert(checked_count < 8);
+    return;
+  }
+  ++checked_count;
 }
 
 // estimate *unnormalised* Wendland C2 density
@@ -108,9 +142,8 @@ GPU float calculate_density(float3 const node_pos, float3 const point_pos, Param
   return w;
 }
 
-GPU float3 get_cell_corner(u323 const cell, u8 const index, float const particle_diameter) {
-  u83 const offsets = get_cell_corner_offsets(index);
-  return vec_cast<float3>(vec_cast<double3>(cell + offsets) * particle_diameter);
+GPU float3 get_grid_point(u323 const coords, float const particle_diameter) {
+  return vec_cast<float3>(vec_cast<double3>(coords) * particle_diameter);
 }
 
 GPU inline float select_field(u8 const corner, float const (&fields)[8]) {
@@ -151,13 +184,13 @@ interpolate_vertex(float const isolevel, float3 const p1, float3 const p2, float
 GPU float3 get_edge_vertex(Params const &params, u8 const edge, u323 const cell, float const (&fields)[8]) {
   EdgeVertexes const vertexes = get_edge_vertexes(edge);
 
-  float3 const corner0 = clamp_point(get_cell_corner(cell, vertexes.c0, params.particle_diameter), params.room);
-  float3 const corner1 = clamp_point(get_cell_corner(cell, vertexes.c1, params.particle_diameter), params.room);
-
   float field0 = select_field(vertexes.c0, fields);
   float field1 = select_field(vertexes.c1, fields);
+  float3 const corner0 = get_grid_point(cell + get_cell_corner_offsets(vertexes.c0), params.particle_diameter);
+  float3 const corner1 = get_grid_point(cell + get_cell_corner_offsets(vertexes.c1), params.particle_diameter);
 
-  return interpolate_vertex(params.isolevel, corner0, corner1, field0, field1);
+  return interpolate_vertex(params.isolevel, clamp_point(corner0, params.room), clamp_point(corner1, params.room),
+                            field0, field1);
 }
 
 } // namespace marching_cubes

@@ -5,7 +5,7 @@
 #include <cuda/std/span>
 #include "common.h"
 
-constexpr u32 SYNC_WARP = 0xffffffff;
+inline constexpr u32 SYNC_WARP = 0xffffffff;
 
 template <typename T, template <typename...> class TargetTemplate> struct is_instance_of : std::false_type {};
 
@@ -17,24 +17,13 @@ concept IsInstanceOf = is_instance_of<T, TargetTemplate>::value;
 
 // CASTERS
 
-template <typename T = double> GPU HOST constexpr float dtof(double const value) noexcept {
-  return static_cast<float>(value);
-}
-template <std::integral T> GPU HOST constexpr float itof(T const value) noexcept {
-  static_assert(sizeof(T) <= 4, "itof restricted up to 4B integer");
-  return static_cast<float>(value);
-}
-template <std::integral T> GPU HOST constexpr auto utos(T const value) noexcept {
-  return static_cast<std::make_signed_t<T>>(value);
-}
-template <typename T_OUT, typename T_IN> GPU HOST inline T_OUT vec_cast(T_IN const &src) noexcept {
+template <typename T_OUT, typename T_IN> GPU HOST inline constexpr T_OUT vec_cast(T_IN const &src) noexcept {
   return {
       static_cast<decltype(T_OUT{}.x)>(src.x),
       static_cast<decltype(T_OUT{}.y)>(src.y),
       static_cast<decltype(T_OUT{}.z)>(src.z),
   };
 }
-GPU HOST constexpr u323 vec_cast(dim3 const &src) noexcept { return {src.x, src.y, src.z}; }
 template <std::integral T, std::integral U, std::integral V>
 GPU HOST constexpr V ceil_div(T const lhs, U const rhs) noexcept {
   V const h_lhs = static_cast<V>(lhs);
@@ -54,6 +43,9 @@ GPU HOST inline constexpr float4 operator+(float4 const lhs, float4 const rhs) n
 GPU HOST inline constexpr u323 operator+(u323 const lhs, u323 const rhs) noexcept {
   return {lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z};
 }
+GPU HOST inline constexpr u323 operator+(u323 const lhs, s83 const rhs) noexcept {
+  return {lhs.x + static_cast<u32>(rhs.x), lhs.y + static_cast<u32>(rhs.y), lhs.z + static_cast<u32>(rhs.z)};
+}
 GPU HOST inline constexpr u323 operator+(u323 const lhs, u83 const rhs) noexcept {
   return {lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z};
 }
@@ -64,6 +56,9 @@ GPU HOST inline constexpr s323 operator+(s323 const lhs, s83 const rhs) noexcept
   return {lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z};
 }
 GPU HOST inline constexpr s83 operator+(s83 const lhs, s83 const rhs) noexcept {
+  return {static_cast<s8>(lhs.x + rhs.x), static_cast<s8>(lhs.y + rhs.y), static_cast<s8>(lhs.z + rhs.z)};
+}
+GPU HOST inline constexpr s83 operator+(s83 const lhs, u83 const rhs) noexcept {
   return {static_cast<s8>(lhs.x + rhs.x), static_cast<s8>(lhs.y + rhs.y), static_cast<s8>(lhs.z + rhs.z)};
 }
 
@@ -186,8 +181,8 @@ GPU HOST inline constexpr bool operator<(float4 const lhs, float4 const rhs) noe
 GPU HOST inline constexpr bool operator==(u323 const lhs, u323 const rhs) noexcept {
   return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
 }
-GPU HOST inline constexpr bool operator<=(s83 const lhs, s83 const rhs) noexcept {
-  return lhs.x <= rhs.x && lhs.y <= rhs.y && lhs.z <= rhs.z;
+GPU HOST inline constexpr bool operator<(u83 const lhs, u83 const rhs) noexcept {
+  return lhs.x < rhs.x && lhs.y < rhs.y && lhs.z < rhs.z;
 }
 
 GPU HOST constexpr float3 project4to3(float4 const point) noexcept { return {point.x, point.y, point.z}; }
@@ -236,17 +231,23 @@ template <typename T, size_t N1, size_t N2> GPU constexpr auto flatten(T (&arr)[
   return cuda::std::span<T, N1 * N2>(&arr[0][0], N1 * N2);
 }
 
-GPU HOST int3 point_discretize(float4 const point, float const particle_diameter) {
-  return {static_cast<int>(floorf(point.x / particle_diameter)), static_cast<int>(floorf(point.y / particle_diameter)),
-          static_cast<int>(floorf(point.z / particle_diameter))};
+template <typename T> GPU inline u32 find(T const *const data, u32 const length, T const item) {
+  u32 i = 0;
+  for (; i < length && data[i] != item; ++i)
+    ;
+  return i;
+}
+
+GPU HOST u32 point_hash(u323 const discrete, u32 const particle_count) {
+  static u32 const primes[3] = {73856093, 19349663, 83492791};
+  return ((discrete.x * primes[0]) ^ (discrete.y * primes[1]) ^ (discrete.z * primes[2])) % particle_count;
 }
 
 GPU HOST u32 point_hash(float4 const point, u32 const particle_count, float const particle_diameter) {
-  static u32 const primes[3] = {73856093, 19349663, 83492791};
-  int3 const discrete = point_discretize(point, particle_diameter);
-  return ((static_cast<u32>(discrete.x) * primes[0]) ^ (static_cast<u32>(discrete.y) * primes[1]) ^
-          (static_cast<u32>(discrete.z) * primes[2])) %
-         particle_count;
+  // int3 const discrete = point_discretize(point, particle_diameter);
+  return point_hash({static_cast<u32>(point.x / particle_diameter), static_cast<u32>(point.y / particle_diameter),
+                     static_cast<u32>(point.z / particle_diameter)},
+                    particle_count);
 }
 
 struct PointHasher {
@@ -254,6 +255,7 @@ struct PointHasher {
   float particle_diameter;
 
   GPU HOST u32 operator()(float4 const p) const { return point_hash(p, length, particle_diameter); }
+  GPU HOST u32 operator()(u323 const cell) const { return point_hash(cell, length); }
 };
 
 GPU HOST PointHasher get_hasher(u32 const length, float const particle_diameter) {

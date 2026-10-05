@@ -4,16 +4,16 @@
 #include "scan/scan-common.cuh"
 
 // size of the radix in bits
-constexpr u8 RADIX_SIZE = 8;
+inline constexpr u8 RADIX_SIZE = 8;
 static_assert(RADIX_SIZE > 0, "RADIX_SIZE must be greater than 0");
 
 // number of radix values
-constexpr u16 RADIX = 1u << RADIX_SIZE;
+inline constexpr u16 RADIX = 1u << RADIX_SIZE;
 static_assert(RADIX % 32 == 0, "RADIX must be a multiple of 32");
 static_assert(RADIX <= 1024, "RADIX can't be higher than 1024");
 
 template <typename Func, typename T>
-concept is_hasher = requires(Func f, T const val) {
+concept is_hasher = requires(Func const f, T const val) {
   // enforces that f(val) is valid and returns an unsigned integer
   { f(val) } -> std::unsigned_integral;
 };

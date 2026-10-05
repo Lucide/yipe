@@ -8,7 +8,7 @@
 namespace marching_cubes {
 
 template <typename Hasher>
-  requires is_hasher<Hasher, float4>
+  requires is_hasher<Hasher, u323>
 KERNEL void compute_scalar_fields(float4 const *const points,
                                   HashTable const *const table,
                                   Params const params,
@@ -16,51 +16,36 @@ KERNEL void compute_scalar_fields(float4 const *const points,
                                   Hasher const hasher) {
   using Key = Key<Hasher, float4>;
   cuda::std::mdspan const fields(linearized_fields, extents_3d{params.fields.x, params.fields.y, params.fields.z});
-  u323 const coords = (vec_cast(blockIdx) ^ vec_cast(blockDim)) + vec_cast(threadIdx);
+  u323 const coords = (vec_cast<u323>(blockIdx) ^ vec_cast<u323>(blockDim)) + vec_cast<u323>(threadIdx);
 
   if (is_out_of_bounds(coords, params.fields))
     return;
 
   // convert index to float at maximum precision
-  auto const grid_point = vec_cast<float3>(vec_cast<double3>(coords) * params.particle_diameter);
+  auto const grid_point = get_grid_point(coords, params.particle_diameter);
   float3 const sample_point = clamp_point(grid_point, params.room);
 
   float scalar_value = 0.0f;
-  u32 checked[8];
-  u8 checked_count = 0;
+  typename Key::KeyType seen_hashes[8];
+  u8 seen_count = 0;
 
-  auto const [starts, ends] = get_neighbourhood_offsets(coords, params.fields);
-  for (s83 ind = {}; ind.z < 2; ++ind.z) {
+  auto const [starts, bounds] = get_neighbourhood_bounds(coords, params.fields);
+  for (u83 ind = {}; ind.z < 2; ++ind.z) {
     for (ind.y = 0; ind.y < 2; ++ind.y) {
       for (ind.x = 0; ind.x < 2; ++ind.x) {
-        // this style of iterations keeps checked[] in the registries
+        // this style of iterations keeps seen_hashes[] in the registers
+        if (!(ind < bounds)) {
+          continue;
+        }
+
         s83 const offsets = starts + ind;
-        if (!(offsets <= ends)) {
-          continue;
-        }
-
-        // calculate cell position and hash
-        float4 const neighbour_cell = project3to4(grid_point + (vec_cast<float3>(offsets) * params.particle_diameter));
-        typename Key::KeyType const hash = hasher(neighbour_cell);
-
+        typename Key::KeyType const hash = hasher(coords + offsets);
         // check for clashes in previous hashes
-        if (checked_count > 0 &&
-            (checked[0] == hash ||
-             (checked_count > 1 &&
-              (checked[1] == hash ||
-               (checked_count > 2 &&
-                (checked[2] == hash ||
-                 (checked_count > 3 &&
-                  (checked[3] == hash ||
-                   (checked_count > 4 &&
-                    (checked[4] == hash ||
-                     (checked_count > 5 &&
-                      (checked[5] == hash ||
-                       (checked_count > 6 &&
-                        (checked[6] == hash || (checked_count > 7 && checked[7] == hash))))))))))))))) {
+        if (find(seen_hashes, seen_count, hash) < seen_count) {
           continue;
         }
-        checked[checked_count++] = hash; // SPILL
+        // keep seen_hashes[] in the registers
+        add_checked_hash(seen_hashes, seen_count, hash);
 
         if (auto const bucket = table->lookup(hash); bucket) {
           for (u32 i = bucket->begin; i < bucket->end; ++i) {
@@ -73,8 +58,7 @@ KERNEL void compute_scalar_fields(float4 const *const points,
     }
   }
 
-  scalar_value = is_out_of_bounds(grid_point, params.room) ? fminf(scalar_value, nextafterf(params.isolevel, -INFINITY))
-                                                           : scalar_value;
+  scalar_value = is_out_of_bounds(grid_point, params.room) ? fminf(scalar_value, params.isolevel) : scalar_value;
   fields(coords.x, coords.y, coords.z) = scalar_value;
 }
 
@@ -83,7 +67,7 @@ count_triangles(Params const params, float const *const linearized_fields, u32 *
   cuda::std::mdspan const fields(linearized_fields, extents_3d{params.fields.x, params.fields.y, params.fields.z});
   cuda::std::mdspan const triangle_counts(linearized_triangle_counts,
                                           extents_3d{params.cells.x, params.cells.y, params.cells.z});
-  u323 const coords = (vec_cast(blockIdx) ^ vec_cast(blockDim)) + vec_cast(threadIdx);
+  u323 const coords = (vec_cast<u323>(blockIdx) ^ vec_cast<u323>(blockDim)) + vec_cast<u323>(threadIdx);
 
   if (is_out_of_bounds(coords, params.cells))
     return;
@@ -101,7 +85,7 @@ count_triangles(Params const params, float const *const linearized_fields, u32 *
     u323 const corner = coords + get_cell_corner_offsets(i);
     float const corner_field = fields(corner.x, corner.y, corner.z);
     // build the corner bitmask (1 means outside the object)
-    case_index |= static_cast<u8>(corner_field < params.isolevel) << i;
+    case_index |= static_cast<u8>(corner_field <= params.isolevel) << i;
   }
 
   triangle_counts(coords.x, coords.y, coords.z) = triangle_table.counts[case_index];
@@ -115,7 +99,7 @@ KERNEL void make_triangles(Params const params,
   cuda::std::mdspan const fields(linearized_fields, extents_3d{params.fields.x, params.fields.y, params.fields.z});
   cuda::std::mdspan const triangle_prefixes(linearized_triangle_prefixes,
                                             extents_3d{params.cells.x, params.cells.y, params.cells.z});
-  u323 const coords = (vec_cast(blockIdx) ^ vec_cast(blockDim)) + vec_cast(threadIdx);
+  u323 const coords = (vec_cast<u323>(blockIdx) ^ vec_cast<u323>(blockDim)) + vec_cast<u323>(threadIdx);
 
   if (is_out_of_bounds(coords, params.cells))
     return;
@@ -128,7 +112,7 @@ KERNEL void make_triangles(Params const params,
     u323 const corner = coords + get_cell_corner_offsets(i);
     corner_fields[i] = fields(corner.x, corner.y, corner.z);
     // build the corner bitmask (1 means outside the object)
-    case_index |= static_cast<u8>(corner_fields[i] < params.isolevel) << i;
+    case_index |= static_cast<u8>(corner_fields[i] <= params.isolevel) << i;
   }
 
   u32 const start = triangle_prefixes(coords.x, coords.y, coords.z);

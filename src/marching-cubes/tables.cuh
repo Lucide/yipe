@@ -14,7 +14,7 @@ namespace marching_cubes {
 //     {0, 1, 1}  // 0111     |  (idx & 1) ^ second_value  |  (idx & 2) >> 1  |  (idx & 4) >> 2
 // };
 
-constexpr inline GPU u83 get_cell_corner_offsets(u8 const corner) {
+inline constexpr GPU u83 get_cell_corner_offsets(u8 const corner) {
   u8 const o1 = (corner & 0x2u) >> 1;
   u8 const o0 = (corner & 0x1u) ^ o1;
   u8 const o2 = (corner & 0x4u) >> 2;
@@ -40,7 +40,7 @@ struct EdgeVertexes {
   u8 c0, c1;
 };
 
-constexpr inline GPU EdgeVertexes get_edge_vertexes(u8 const edge) {
+inline constexpr GPU EdgeVertexes get_edge_vertexes(u8 const edge) {
   u8 const c0 = edge % 8u;
 
   u8 const upper = (edge | (edge >> 1)) & 0x4u;

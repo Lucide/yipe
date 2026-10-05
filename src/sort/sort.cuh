@@ -51,7 +51,7 @@ void sort(GPUInfo const &info, Data *const data, u32 const length, Hasher const 
     onesweep::onesweep<<<slices, onesweep::threads_per_block, 0, stream>>>(
         atomic_counter, src, dst, length, place, state_counters, counters->counters[place], hasher);
     handle_cuda_error_debug("sort: `onesweep` kernel");
-    std::swap(src, dst);
+    cuda::std::swap(src, dst);
   }
 
   if (dst == data) {
