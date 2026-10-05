@@ -1,5 +1,5 @@
 #pragma once
-#include "common.h"
+#include "gpu-common.cuh"
 
 namespace marching_cubes {
 
@@ -36,11 +36,7 @@ inline constexpr GPU u83 get_cell_corner_offsets(u8 const corner) {
 //     {3, 7}  //    1011   |         |  11  +  100
 // };
 
-struct EdgeVertexes {
-  u8 c0, c1;
-};
-
-inline constexpr GPU EdgeVertexes get_edge_vertexes(u8 const edge) {
+inline constexpr GPU pair<u8, u8> get_edge_indices(u8 const edge) {
   u8 const c0 = edge % 8u;
 
   u8 const upper = (edge | (edge >> 1)) & 0x4u;

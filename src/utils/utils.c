@@ -62,7 +62,7 @@ void generate_random_points(float4 *const points, u32 const length, u32 const se
 
 void print_triangles(Geometry const geometry) {
   for (u32 i = 0; i < geometry.count; ++i) {
-    Triangle const triangle = geometry.triangles[i];
+    float33 const triangle = geometry.triangles[i];
     printf("(%.1f, %.1f, %.1f) (%.1f, %.1f, %.1f) (%.1f, %.1f, %.1f)\n", (double)triangle.points[0].x,
            (double)triangle.points[0].y, (double)triangle.points[0].z, (double)triangle.points[1].x,
            (double)triangle.points[1].y, (double)triangle.points[1].z, (double)triangle.points[2].x,
@@ -76,12 +76,13 @@ void free_gpu_geometry(Geometry const geometry) {
 
 Geometry download_geometry(Geometry const gpu_geometry, cudaStream_t const stream) {
   Geometry cpu_geometry =
-      (Geometry){.count = gpu_geometry.count, .triangles = malloc(gpu_geometry.count * sizeof(Triangle))};
+      (Geometry){.count = gpu_geometry.count, .triangles = malloc(2 * gpu_geometry.count * sizeof(float33))};
   handle_cuda_result(cudaMemcpyAsync(cpu_geometry.triangles, gpu_geometry.triangles,
-                                     gpu_geometry.count * sizeof(Triangle), cudaMemcpyDeviceToHost, stream),
+                                     2 * gpu_geometry.count * sizeof(float33), cudaMemcpyDeviceToHost, stream),
                      "main: download triangles");
   handle_cuda_result(cudaStreamSynchronize(stream), "main: download triangles");
   handle_cuda_result(cudaFree(gpu_geometry.triangles), "main: free triangles");
+  cpu_geometry.normals = cpu_geometry.triangles + cpu_geometry.count;
   return cpu_geometry;
 }
 

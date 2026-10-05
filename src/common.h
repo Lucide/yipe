@@ -19,6 +19,7 @@ extern "C" {
 
 #define ARRAY_LENGTH(arr) (sizeof(arr) / sizeof(*(arr)))
 #define ARRAY_LENGTH_2D(arr) (sizeof(arr) / sizeof(**(arr)))
+#define ARRAY_SIZE(ptr, length) ((length) * sizeof(*(ptr)))
 
 #define GPU __device__
 #define HOST __host__
@@ -68,14 +69,15 @@ typedef union mat4x4 {
   float arr[16];
 } mat4x4;
 
-typedef struct Triangle {
+typedef struct float33 {
   float3 points[3];
-} Triangle;
+} float33;
 
 typedef struct Geometry {
   u32 count;
   u32 : 32;
-  Triangle *triangles;
+  float33 *triangles;
+  float33 *normals;
 } Geometry;
 
 typedef struct {

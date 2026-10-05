@@ -13,23 +13,27 @@ KERNEL void compute_scalar_fields(float4 const *const points,
                                   HashTable const *const table,
                                   Params const params,
                                   float *const linearized_fields,
+                                  float3 *const linearized_gradients,
                                   Hasher const hasher) {
   using Key = Key<Hasher, float4>;
-  cuda::std::mdspan const fields(linearized_fields, extents_3d{params.fields.x, params.fields.y, params.fields.z});
+  cuda::std::mdspan const fields(linearized_fields, extents_3d{params.samples.x, params.samples.y, params.samples.z});
+  cuda::std::mdspan const gradients(linearized_gradients,
+                                    extents_3d{params.samples.x, params.samples.y, params.samples.z});
   u323 const coords = (vec_cast<u323>(blockIdx) ^ vec_cast<u323>(blockDim)) + vec_cast<u323>(threadIdx);
 
-  if (is_out_of_bounds(coords, params.fields))
+  if (is_out_of_bounds(coords, params.samples))
     return;
 
   // convert index to float at maximum precision
   auto const grid_point = get_grid_point(coords, params.particle_diameter);
   float3 const sample_point = clamp_point(grid_point, params.room);
 
-  float scalar_value = 0.0f;
+  float field = 0.0f;
+  float3 gradient = {};
   typename Key::KeyType seen_hashes[8];
   u8 seen_count = 0;
 
-  auto const [starts, bounds] = get_neighbourhood_bounds(coords, params.fields);
+  auto const [starts, bounds] = get_neighbourhood_bounds(coords, params.samples);
   for (u83 ind = {}; ind.z < 2; ++ind.z) {
     for (ind.y = 0; ind.y < 2; ++ind.y) {
       for (ind.x = 0; ind.x < 2; ++ind.x) {
@@ -51,20 +55,22 @@ KERNEL void compute_scalar_fields(float4 const *const points,
           for (u32 i = bucket->begin; i < bucket->end; ++i) {
             float3 const point = project4to3(points[i]);
             // currently calculated using Wendland C2
-            scalar_value += calculate_density(sample_point, point, params);
+            field += calculate_density(params, sample_point, point);
+            gradient = gradient + calculate_density_gradient(params, sample_point, point);
           }
         }
       }
     }
   }
 
-  scalar_value = is_out_of_bounds(grid_point, params.room) ? fminf(scalar_value, params.isolevel) : scalar_value;
-  fields(coords.x, coords.y, coords.z) = scalar_value;
+  field = is_out_of_bounds(grid_point, params.room) ? fminf(field, params.isolevel) : field;
+  fields(coords.x, coords.y, coords.z) = field;
+  gradients(coords.x, coords.y, coords.z) = gradient;
 }
 
 KERNEL void
 count_triangles(Params const params, float const *const linearized_fields, u32 *const linearized_triangle_counts) {
-  cuda::std::mdspan const fields(linearized_fields, extents_3d{params.fields.x, params.fields.y, params.fields.z});
+  cuda::std::mdspan const fields(linearized_fields, extents_3d{params.samples.x, params.samples.y, params.samples.z});
   cuda::std::mdspan const triangle_counts(linearized_triangle_counts,
                                           extents_3d{params.cells.x, params.cells.y, params.cells.z});
   u323 const coords = (vec_cast<u323>(blockIdx) ^ vec_cast<u323>(blockDim)) + vec_cast<u323>(threadIdx);
@@ -93,10 +99,14 @@ count_triangles(Params const params, float const *const linearized_fields, u32 *
 
 KERNEL void make_triangles(Params const params,
                            float const *const linearized_fields,
+                           float3 const *const linearized_gradients,
                            u32 const *const linearized_triangle_prefixes,
-                           Triangle *const triangles) {
+                           float33 *const triangles,
+                           float33 *const normals) {
 
-  cuda::std::mdspan const fields(linearized_fields, extents_3d{params.fields.x, params.fields.y, params.fields.z});
+  cuda::std::mdspan const fields(linearized_fields, extents_3d{params.samples.x, params.samples.y, params.samples.z});
+  cuda::std::mdspan const gradients(linearized_gradients,
+                                    extents_3d{params.samples.x, params.samples.y, params.samples.z});
   cuda::std::mdspan const triangle_prefixes(linearized_triangle_prefixes,
                                             extents_3d{params.cells.x, params.cells.y, params.cells.z});
   u323 const coords = (vec_cast<u323>(blockIdx) ^ vec_cast<u323>(blockDim)) + vec_cast<u323>(threadIdx);
@@ -105,26 +115,29 @@ KERNEL void make_triangles(Params const params,
     return;
 
   // read the 8 corners of the cell
-  float corner_fields[8];
+  CornerData corner_data[8];
   u8 case_index = 0;
   for (u8 i = 0; i < 8; ++i) {
     // read the 8 corners of the cell
     u323 const corner = coords + get_cell_corner_offsets(i);
-    corner_fields[i] = fields(corner.x, corner.y, corner.z);
+    corner_data[i] = {fields(corner.x, corner.y, corner.z), gradients(corner.x, corner.y, corner.z)};
     // build the corner bitmask (1 means outside the object)
-    case_index |= static_cast<u8>(corner_fields[i] <= params.isolevel) << i;
+    case_index |= static_cast<u8>(corner_data[i].field <= params.isolevel) << i;
   }
 
   u32 const start = triangle_prefixes(coords.x, coords.y, coords.z);
   for (u8 i = 0; i < triangle_table.counts[case_index]; ++i) {
-    u8 const e0 = triangle_table.triangles[case_index][i][0];
-    u8 const e1 = triangle_table.triangles[case_index][i][1];
-    u8 const e2 = triangle_table.triangles[case_index][i][2];
+    auto const [p1, gradient1] =
+        get_edge_vertex(params, triangle_table.triangles[case_index][i][0], coords, corner_data);
+    auto const [p2, gradient2] =
+        get_edge_vertex(params, triangle_table.triangles[case_index][i][1], coords, corner_data);
+    auto const [p3, gradient3] =
+        get_edge_vertex(params, triangle_table.triangles[case_index][i][2], coords, corner_data);
 
     triangles[start + i] = {
-        {get_edge_vertex(params, e0, coords, corner_fields), get_edge_vertex(params, e1, coords, corner_fields),
-         get_edge_vertex(params, e2, coords, corner_fields)}
+        {p1, p2, p3}
     };
+    normals[start + i] = {gradient1, gradient2, gradient3};
   }
 }
 } // namespace marching_cubes

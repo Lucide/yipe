@@ -49,19 +49,20 @@ static Ownership update_model(Model const *const model, u32 *const triangle_capa
     if (geometry.count <= *triangle_capacity) {
       mesh->vertexCount = (int)geometry.count * 3;
       mesh->triangleCount = (int)geometry.count;
-      UpdateMeshBuffer(*mesh, 0, geometry.triangles, (int)mesh->triangleCount * (int)sizeof(Triangle), 0);
+      UpdateMeshBuffer(*mesh, 0, geometry.triangles, (int)ARRAY_SIZE(geometry.triangles, (u32)mesh->triangleCount), 0);
+      UpdateMeshBuffer(*mesh, 2, geometry.normals, (int)ARRAY_SIZE(geometry.normals, (u32)mesh->triangleCount), 0);
       return OWNERSHIP_BORROWED;
     }
+    mesh->normals = NULL;
     UnloadMesh(*mesh);
   } else if (geometry.count == 0) {
-    return OWNERSHIP_OWNED;
+    return OWNERSHIP_BORROWED;
   }
   *triangle_capacity = geometry.count;
-  *mesh = (Mesh){
-      .vertexCount = (int)*triangle_capacity * 3,
-      .triangleCount = (int)*triangle_capacity,
-      .vertices = (float *)geometry.triangles,
-  };
+  *mesh = (Mesh){.vertexCount = (int)*triangle_capacity * 3,
+                 .triangleCount = (int)*triangle_capacity,
+                 .vertices = (float *)geometry.triangles,
+                 .normals = (float *)geometry.normals};
   UploadMesh(mesh, true);
   return OWNERSHIP_OWNED;
 }

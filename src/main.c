@@ -91,14 +91,14 @@ static int player(PlayerArguments args, GPUInfo const info) {
 static void random_points(RandomPointsArguments args, GPUInfo const info) {
   printf("seed %u\n", args.render.seed);
 
-  float4 *const cpu_points = (float4 *)malloc(sizeof(float4) * args.render.particle_count);
+  float4 *const cpu_points = (float4 *)malloc(ARRAY_SIZE(cpu_points, args.render.particle_count));
   generate_random_points(cpu_points, args.render.particle_count, args.render.seed, args.render.room);
 
   float4 *gpu_points;
-  handle_cuda_result(cudaMalloc((void **)&gpu_points, sizeof(float4) * args.render.particle_count),
+  handle_cuda_result(cudaMalloc((void **)&gpu_points, ARRAY_SIZE(cpu_points, args.render.particle_count)),
                      "main: allocate points");
   handle_cuda_result(
-      cudaMemcpy(gpu_points, cpu_points, sizeof(float4) * args.render.particle_count, cudaMemcpyHostToDevice),
+      cudaMemcpy(gpu_points, cpu_points, ARRAY_SIZE(cpu_points, args.render.particle_count), cudaMemcpyHostToDevice),
       "main: load points");
   printf("points loaded\n");
 
@@ -123,7 +123,7 @@ static void random_points(RandomPointsArguments args, GPUInfo const info) {
 static int test(RenderArguments const args, GPUInfo const info) {
   printf("seed %u\n", args.seed);
 
-  float4 *const cpu_points = (float4 *)malloc(sizeof(float4) * args.particle_count);
+  float4 *const cpu_points = (float4 *)malloc(ARRAY_SIZE(cpu_points, args.particle_count));
   generate_random_points(cpu_points, args.particle_count, args.seed, args.room);
 
   if (args.particle_count <= 4096) {
@@ -135,9 +135,11 @@ static int test(RenderArguments const args, GPUInfo const info) {
   }
 
   float4 *gpu_points;
-  handle_cuda_result(cudaMalloc((void **)&gpu_points, sizeof(float4) * args.particle_count), "main: allocate points");
-  handle_cuda_result(cudaMemcpy(gpu_points, cpu_points, sizeof(float4) * args.particle_count, cudaMemcpyHostToDevice),
-                     "main: load points");
+  handle_cuda_result(cudaMalloc((void **)&gpu_points, ARRAY_SIZE(cpu_points, args.particle_count)),
+                     "main: allocate points");
+  handle_cuda_result(
+      cudaMemcpy(gpu_points, cpu_points, ARRAY_SIZE(cpu_points, args.particle_count), cudaMemcpyHostToDevice),
+      "main: load points");
   printf("points loaded\n");
 
   printf("\n");
@@ -147,8 +149,9 @@ static int test(RenderArguments const args, GPUInfo const info) {
   printf("done\n");
 
   // Copy result back and clean up
-  handle_cuda_result(cudaMemcpy(cpu_points, gpu_points, sizeof(float4) * args.particle_count, cudaMemcpyDeviceToHost),
-                     "main: unload points");
+  handle_cuda_result(
+      cudaMemcpy(cpu_points, gpu_points, ARRAY_SIZE(gpu_points, args.particle_count), cudaMemcpyDeviceToHost),
+      "main: unload points");
 
   if (args.particle_count <= 4096) {
     printf("\n printing sorted points\n");
@@ -177,6 +180,7 @@ static int test(RenderArguments const args, GPUInfo const info) {
   HashTable *const table = new_hashtable(&info, gpu_points, args.particle_count, args.particle_count,
                                          args.common.particle_diameter, cudaStreamPerThread);
   u32 *const cpu_table = (u32 *)malloc(sizeof(u32) * args.particle_count + 1 + sizeof(u32));
+  // we can't use ARRAY_SIZE here, because HashTable is an incomplete type
   cudaMemcpy(cpu_table, table, sizeof(float) * args.particle_count + 1 + sizeof(u32), cudaMemcpyDeviceToHost);
   if (args.particle_count <= 4096) {
     for (u32 i = 0; i < args.particle_count - 1; ++i) {
@@ -198,12 +202,12 @@ static int test(RenderArguments const args, GPUInfo const info) {
   printf("prefix sum\n");
   u32 const arr_len = args.particle_count + 2;
   u32 *const gpu_array = (u32 *)table;
-  u32 *const cpu_array = malloc(sizeof(u32) * arr_len);
-  cudaMemcpy(cpu_array, gpu_array, sizeof(u32) * arr_len, cudaMemcpyDeviceToHost);
+  u32 *const cpu_array = malloc(ARRAY_SIZE(gpu_array, arr_len));
+  cudaMemcpy(cpu_array, gpu_array, ARRAY_SIZE(gpu_array, arr_len), cudaMemcpyDeviceToHost);
   launch_exclusive_scan(gpu_array, gpu_array, arr_len, cudaStreamPerThread);
   printf("prefix sum done\n");
-  u32 *const cpu_scanned = malloc(sizeof(u32) * arr_len);
-  cudaMemcpy(cpu_scanned, gpu_array, sizeof(u32) * arr_len, cudaMemcpyDeviceToHost);
+  u32 *const cpu_scanned = malloc(ARRAY_SIZE(gpu_array, arr_len));
+  cudaMemcpy(cpu_scanned, gpu_array, ARRAY_SIZE(gpu_array, arr_len), cudaMemcpyDeviceToHost);
   handle_cuda_result(cudaFree(table), "main: free table");
   u32 scan_error_count = cpu_scanned[0] != 0 ? 1 : 0;
   for (u32 i = 1; i < arr_len; ++i) {

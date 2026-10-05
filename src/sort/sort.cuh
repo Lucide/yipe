@@ -34,7 +34,7 @@ void sort(GPUInfo const &info, Data *const data, u32 const length, Hasher const 
   handle_cuda_result(cudaMallocAsync(&state_counters, state_couters_size, stream), "sort: allocate state/counters");
   handle_cuda_error_debug("sort: allocate state/counters");
   Data *dst;
-  handle_cuda_result(cudaMallocAsync(&dst, length * sizeof(Data), stream), "sort: allocate helper array");
+  handle_cuda_result(cudaMallocAsync(&dst, ARRAY_SIZE(dst, length), stream), "sort: allocate helper array");
   handle_cuda_error_debug("sort: allocate helper array");
   Data *src = data;
 
@@ -56,7 +56,7 @@ void sort(GPUInfo const &info, Data *const data, u32 const length, Hasher const 
 
   if (dst == data) {
     handle_cuda_result(
-        cudaMemcpyAsync((void *)data, (void *)src, length * sizeof(Data), cudaMemcpyDeviceToDevice, stream),
+        cudaMemcpyAsync((void *)data, (void *)src, ARRAY_SIZE(src, length), cudaMemcpyDeviceToDevice, stream),
         "sort: memcpy sorted points");
     handle_cuda_error_debug("sort: memcpy sorted points");
     handle_cuda_result(cudaFreeAsync((void *)src, stream), "sort: free helper array");
