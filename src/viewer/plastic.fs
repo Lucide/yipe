@@ -1,7 +1,7 @@
 #version 330
 
 // Uncomment this line to inspect the interpolated normals as RGB colors.
-#define DEBUG_NORMAL_COLOR
+// #define DEBUG_NORMAL_COLOR
 
 in vec3 worldPosition;
 in vec3 worldNormal;
