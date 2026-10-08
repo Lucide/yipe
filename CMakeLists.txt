@@ -36,6 +36,24 @@ set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES
     "${PROJECT_SOURCE_DIR}/compile_commands.json"
 )
 
+set(SHADERS_OUT_PATH "${PROJECT_BINARY_DIR}/generated/shaders.c")
+add_custom_command(
+    OUTPUT "${SHADERS_OUT_PATH}"
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/src/viewer"
+    COMMAND "${CMAKE_COMMAND}"
+    "-DFRAGMENT_SHADER_PATH=plastic.frag"
+    "-DVERTEX_SHADER_PATH=plastic.vert"
+    "-DTEMPLATE_PATH=shaders.c.in"
+    "-DOUTPUT_PATH=${SHADERS_OUT_PATH}"
+    -P "${PROJECT_SOURCE_DIR}/cmake/embed-shaders-script.cmake"
+    DEPENDS
+    src/viewer/plastic.frag
+    src/viewer/plastic.vert
+    src/viewer/shaders.c.in
+    COMMENT "embedding shaders into C source"
+    VERBATIM
+)
+
 include(raylib)
 include(argp-standalone)
 
@@ -47,8 +65,10 @@ target_sources(yipe
     src/entrypoints.cu
     src/viewer/viewer.c
     src/streamer/streamer.c
+    src/streamer/mmap.c
     src/utils/utils.c
-    src/args/args.c)
+    src/args/args.c
+    "${SHADERS_OUT_PATH}")
 
 target_include_directories(yipe
     PRIVATE
@@ -69,8 +89,7 @@ target_compile_options(yipe PRIVATE
     $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CXX_COMPILER_ID:MSVC>>:-Xcompiler=${MSVC_OPTIONS_COMMA}>
     $<$<AND:$<COMPILE_LANGUAGE:C>,$<C_COMPILER_ID:MSVC>>:/experimental:c11atomics>
     # $<$<COMPILE_LANGUAGE:CUDA>:-Wall;-Wextra;-Wpedantic;-Wconversion;-Wsign-conversion;--default-stream per-thread>
-    $<$<COMPILE_LANG_AND_ID:CUDA,NVIDIA>:--default-stream=per-thread;--extended-lambda;-Xptxas=-v,--warn-on-spills,--warn-on-local-memory-usage;-Xcudafe;--display_error_number>)
-
+    $<$<COMPILE_LANG_AND_ID:CUDA,NVIDIA>:--default-stream=per-thread;--extended-lambda;-Xptxas=-v,--warn-on-spills,--warn-on-local-memory-usage;-Xcudafe=--display_error_number,--diag_suppress=780>)
 
 target_include_directories(yipe SYSTEM PRIVATE
     "${CUDAToolkit_INCLUDE_DIRS}"

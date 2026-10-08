@@ -9,6 +9,7 @@
 #include <cstdint>
 extern "C" {
 #else
+#include <stdbool.h>
 #include <stdint.h>
 #endif
 
@@ -35,6 +36,10 @@ typedef uint16_t u16;
 typedef uint32_t u32;
 typedef int32_t s32;
 typedef uint64_t u64;
+
+typedef struct bool3 {
+  bool x, y, z;
+} bool3;
 
 typedef struct u83 {
   u8 x, y, z;

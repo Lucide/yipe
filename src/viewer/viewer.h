@@ -1,5 +1,4 @@
 #include <raylib.h>
-#include <stdbool.h>
 #include "common.h"
 
 typedef struct Viewer {
@@ -7,12 +6,11 @@ typedef struct Viewer {
   float *const isolevel;
   Vector3 const center;
   float3 const room;
-  Mesh mesh;
-  Model model;
-  Shader shader;
-  int view_position_location;
-  Camera3D camera;
+  s32 view_position_location;
   u32 mesh_capacity;
+  Mesh mesh;
+  Material material;
+  Camera3D camera;
 } Viewer;
 
 typedef enum Ownership {
@@ -20,7 +18,12 @@ typedef enum Ownership {
   OWNERSHIP_BORROWED,
 } Ownership;
 
-Viewer new_viewer(float3 room, float *particle_diameter, float *isolevel, u32 framerate);
+Viewer new_viewer(float3 room,
+                  float *particle_diameter,
+                  float *isolevel,
+                  u32 framerate,
+                  char const *vertex_shader_path,
+                  char const *fragment_shader_path);
 
 void unload_viewer(Viewer *viewer);
 
@@ -35,3 +38,5 @@ void present(Viewer *viewer, Geometry gpu_geometry, cudaStream_t stream);
 #endif
 
 void set_window_title(char const *format, ...) PRINTF_LIKE(1, 2);
+
+void draw_popup(char const *format, ...) PRINTF_LIKE(1, 2);

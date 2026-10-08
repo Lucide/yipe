@@ -14,24 +14,29 @@ typedef struct {
   float isolevel;
 } CommonArguments;
 
-typedef struct RenderArguments {
+typedef struct GeneratorArguments {
   CommonArguments common;
   u32 seed;
   u32 particle_count;
   float3 room;
-} RenderArguments;
+} GeneratorArguments;
+
+typedef struct RendererArguments {
+  char const *vertex_shader_file, *fragment_shader_file;
+  u32 framerate;
+} RendererArguments;
 
 typedef struct RandomPointsArguments {
-  RenderArguments render;
-  u32 framerate;
+  GeneratorArguments generator;
+  RendererArguments renderer;
 } RandomPointsArguments;
 
-typedef RenderArguments TestArguments;
+typedef GeneratorArguments TestArguments;
 
 typedef struct PlayerArguments {
   CommonArguments common;
   char const *file;
-  u32 framerate;
+  RendererArguments renderer;
 } PlayerArguments;
 
 typedef struct ProgramArguments {

@@ -2,13 +2,13 @@ If:
   PathMatch: .*\.(c|h)$
 CompileFlags:
   Add:
-    # windows MSVC support
-    - --driver-mode=cl
+    - --driver-mode=cl # windows MSVC support
     - -Wno-unused-macros
     - -Wno-unsafe-buffer-usage
     - -Wno-declaration-after-statement
     - -Wno-switch-default
     - -Wno-c++-compat
+    - -Wno-shadow
 ---
 If:
   PathMatch: .*(common\.h|\.(cu|cuh))$

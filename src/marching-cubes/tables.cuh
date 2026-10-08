@@ -14,10 +14,10 @@ namespace marching_cubes {
 //     {0, 1, 1}  // 0111     |  (idx & 1) ^ second_value  |  (idx & 2) >> 1  |  (idx & 4) >> 2
 // };
 
-inline constexpr GPU u83 get_cell_corner_offsets(u8 const corner) {
-  u8 const o1 = (corner & 0x2u) >> 1;
-  u8 const o0 = (corner & 0x1u) ^ o1;
-  u8 const o2 = (corner & 0x4u) >> 2;
+inline constexpr GPU u83 get_cell_corner_offsets(u8 const corner_index) {
+  u8 const o1 = (corner_index & 0x2u) >> 1;
+  u8 const o0 = (corner_index & 0x1u) ^ o1;
+  u8 const o2 = (corner_index & 0x4u) >> 2;
   return {o0, o1, o2};
 }
 
@@ -36,12 +36,12 @@ inline constexpr GPU u83 get_cell_corner_offsets(u8 const corner) {
 //     {3, 7}  //    1011   |         |  11  +  100
 // };
 
-inline constexpr GPU pair<u8, u8> get_edge_indices(u8 const edge) {
-  u8 const c0 = edge % 8u;
+inline constexpr GPU pair<u8, u8> get_edge_indices(u8 const edge_index) {
+  u8 const c0 = edge_index % 8u;
 
-  u8 const upper = (edge | (edge >> 1)) & 0x4u;
-  u8 const inc = 0x1u - (edge >> 3);
-  u8 const c1 = ((edge + inc) & 0x3u) | upper;
+  u8 const upper = (edge_index | (edge_index >> 1)) & 0x4u;
+  u8 const inc = 0x1u - (edge_index >> 3);
+  u8 const c1 = ((edge_index + inc) & 0x3u) | upper;
 
   return {c0, c1};
 }

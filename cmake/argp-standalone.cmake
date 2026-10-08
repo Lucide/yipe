@@ -14,3 +14,7 @@ FetchContent_Declare(
 # set(argp_standalone_ENABLE_WARNINGS OFF)
 
 FetchContent_MakeAvailable(argp_standalone)
+
+if(MSVC)
+    target_compile_options(argp-standalone PRIVATE /wd4028)
+endif()

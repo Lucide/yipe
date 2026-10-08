@@ -1,0 +1,8 @@
+#ifdef __clang__
+#pragma clang diagnostic ignored "-Wempty-translation-unit"
+#pragma clang diagnostic ignored "-Wmissing-variable-declarations"
+#endif
+
+char const default_fragment_shader[@FRAGMENT_SHADER_LENGTH@] = { @FRAGMENT_SHADER_CONTENTS@ };
+
+char const default_vertex_shader[@VERTEX_SHADER_LENGTH@] = { @VERTEX_SHADER_CONTENTS@ };

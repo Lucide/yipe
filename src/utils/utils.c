@@ -2,6 +2,68 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+bool read32_file(char const *const filepath, char const **const out_buffer, u32 *const out_size) {
+  if (!filepath || !out_buffer) {
+    return false;
+  }
+
+  FILE *file = fopen(filepath, "rb");
+  if (!file) {
+    perror("error opening file");
+    return false;
+  }
+
+  char *buffer = NULL;
+
+  // Determine file size
+  if (fseek(file, 0, SEEK_END) != 0) {
+    perror("error seeking file end");
+    goto cleanup;
+  }
+
+  u32 size = (u32)ftell(file);
+  if ((s32)size < 0) {
+    perror("error telling file size");
+    goto cleanup;
+  }
+
+  if (fseek(file, 0, SEEK_SET) != 0) {
+    perror("error seeking file start");
+    goto cleanup;
+  }
+
+  buffer = (char *)malloc(size + 1);
+  if (!buffer) {
+    perror("memory allocation failed");
+    goto cleanup;
+  }
+
+  u32 bytes_read = (u32)fread(buffer, 1, size, file);
+  if (bytes_read < size) {
+    if (ferror(file)) {
+      perror("error reading file data");
+      goto cleanup;
+    }
+  }
+
+  buffer[bytes_read] = '\0';
+  fclose(file);
+
+  *out_buffer = buffer;
+  if (out_size)
+    *out_size = bytes_read;
+  return true;
+
+cleanup:
+  if (buffer) {
+    free(buffer);
+  }
+  if (file) {
+    fclose(file);
+  }
+  return false;
+}
+
 static u32 get_cores_per_sm(int const major, int const minor) {
   switch (major) {
   case 2: // Fermi

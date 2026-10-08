@@ -10,7 +10,7 @@ FetchContent_Declare(
     SYSTEM
     EXCLUDE_FROM_ALL
     FIND_PACKAGE_ARGS
-    ${RAYLIB_VERSION}
+    "${RAYLIB_VERSION}"
     CONFIG
 )
 

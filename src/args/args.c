@@ -87,7 +87,7 @@ static struct argp_child const render_children[] = {
 };
 
 static error_t parse_render_opt(int key, char *arg, struct argp_state *state) {
-  RenderArguments *arguments = state->input;
+  GeneratorArguments *arguments = state->input;
   char *endptr;
 
   switch (key) {
@@ -156,8 +156,10 @@ static struct argp const render_argp = {render_options, parse_render_opt, NULL, 
 /* -------------------------------------------------------------------------- */
 
 static struct argp_option const random_points_options[] = {
-    {"framerate", 'f', "NUM", 0, "Framerate in frames per second", 0},
-    {       NULL,   0,  NULL, 0,                             NULL, 0}
+    {      "framerate", 'f',  "NUM", 0, "Framerate in frames per second", 0},
+    {  "vertex-shader", 'V', "FILE", 0,     "Path to vertex shader file", 0},
+    {"fragment-shader", 'F', "FILE", 0,   "Path to fragment shader file", 0},
+    {             NULL,   0,   NULL, 0,                             NULL, 0}
 };
 
 static struct argp_child const random_points_children[] = {
@@ -172,14 +174,22 @@ static error_t parse_random_points_opt(int key, char *arg, struct argp_state *st
   switch (key) {
   case ARGP_KEY_INIT:
     /* Direct render options to arguments->render */
-    state->child_inputs[0] = &arguments->render;
+    state->child_inputs[0] = &arguments->generator;
     break;
   case 'f': {
     u32 const framerate = strtoul(arg, &endptr, 0);
     if (arg == endptr || *endptr != '\0') {
       argp_failure(state, 1, 0, "Invalid argument: \"%s\"; framerate must be an integer", arg);
     }
-    arguments->framerate = framerate;
+    arguments->renderer.framerate = framerate;
+    break;
+  }
+  case 'V': {
+    arguments->renderer.vertex_shader_file = arg;
+    break;
+  }
+  case 'F': {
+    arguments->renderer.fragment_shader_file = arg;
     break;
   }
   default:
@@ -196,9 +206,11 @@ static struct argp const random_points_argp = {
 /* -------------------------------------------------------------------------- */
 
 static struct argp_option const player_options[] = {
-    {"recording", 'r', "FILE", 0, "Path to the recording file", 0},
-    {"framerate", 'f',  "NUM", 0,                  "framerate", 0},
-    {       NULL,   0,   NULL, 0,                         NULL, 0}
+    {      "recording", 'r', "FILE", 0,   "Path to the recording file", 0},
+    {      "framerate", 'f',  "NUM", 0,                    "framerate", 0},
+    {  "vertex-shader", 'V', "FILE", 0,   "Path to vertex shader file", 0},
+    {"fragment-shader", 'F', "FILE", 0, "Path to fragment shader file", 0},
+    {             NULL,   0,   NULL, 0,                           NULL, 0}
 };
 
 static struct argp_child const player_children[] = {
@@ -216,11 +228,19 @@ static error_t parse_player_opt(int key, char *arg, struct argp_state *state) {
     if (arg == endptr || *endptr != '\0') {
       argp_failure(state, 1, 0, "Invalid argument: \"%s\"; framerate must be a number", arg);
     }
-    arguments->framerate = framerate;
+    arguments->renderer.framerate = framerate;
     break;
   }
   case 'r': {
     arguments->file = arg;
+    break;
+  }
+  case 'V': {
+    arguments->renderer.vertex_shader_file = arg;
+    break;
+  }
+  case 'F': {
+    arguments->renderer.fragment_shader_file = arg;
     break;
   }
   case ARGP_KEY_INIT:
@@ -255,7 +275,7 @@ static error_t parse_main_opt(int key, char *arg, struct argp_state *state) {
 
       if (strcmp(arg, "random_points") == 0) {
         prog_args->mode = MODE_RANDOM_POINTS;
-        prog_args->random_points.render.common = prog_args->common;
+        prog_args->random_points.generator.common = prog_args->common;
         sub_argp = &random_points_argp;
         sub_args = &prog_args->random_points;
       } else if (strcmp(arg, "test") == 0) {

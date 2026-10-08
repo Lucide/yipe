@@ -12,31 +12,33 @@
 
 static int player(PlayerArguments args, GPUInfo info);
 static void random_points(RandomPointsArguments args, GPUInfo info);
-static int test(RenderArguments args, GPUInfo info);
+static int test(GeneratorArguments args, GPUInfo info);
 
 int main(int const argc, char **const argv) {
-  u32 const default_framerate = 60;
   CommonArguments const default_common = (CommonArguments){.particle_diameter = 0.06f, .isolevel = 0.1f};
-  RenderArguments const default_render = (RenderArguments){
+  GeneratorArguments const default_generator = (GeneratorArguments){
       // .common will be initialised by the parser
       .seed = 549951,
       .particle_count = 200,
       .room = {6.0f, 3.0f, 4.0f},
   };
+  RendererArguments const default_renderer =
+      (RendererArguments){.framerate = 60, .fragment_shader_file = NULL, .vertex_shader_file = NULL};
+
   ProgramArguments args = (ProgramArguments){
       .mode = MODE_NONE,
-      .test = default_render,
+      .test = default_generator,
       .common = default_common,
       .random_points =
           {
-                          .render = default_render,
-                          .framerate = default_framerate,
+                          .generator = default_generator,
+                          .renderer = default_renderer,
                           },
       .player =
           {
                           // .common will be initialised by the parser
                           .file = "pysrc/res/fluid/test1.bin",
-                          .framerate = default_framerate,
+                          .renderer = default_renderer,
                           },
   };
 
@@ -62,14 +64,22 @@ int main(int const argc, char **const argv) {
 }
 
 static int player(PlayerArguments args, GPUInfo const info) {
-  AsyncFluidStreamer *streamer = streamer_create(args.file);
+
+  FILE *const file = fopen(args.file, "rb");
+  if (!file) {
+    return -1;
+  }
+  AsyncFluidStreamer *streamer = streamer_create(file);
+  // after mmap we can close the file
+  fclose(file);
   if (!streamer)
     return -1;
 
   u32 active_buf = 0;
 
   Viewer viewer =
-      new_viewer(streamer->header.room, &args.common.particle_diameter, &args.common.isolevel, args.framerate);
+      new_viewer(streamer->header.room, &args.common.particle_diameter, &args.common.isolevel, args.renderer.framerate,
+                 args.renderer.vertex_shader_file, args.renderer.fragment_shader_file);
 
   while (!WindowShouldClose()) {
     float4 *gpu_points = streamer_acquire_next_frame(streamer, active_buf, cudaStreamPerThread);
@@ -79,7 +89,9 @@ static int player(PlayerArguments args, GPUInfo const info) {
     present(&viewer, gpu_geometry, cudaStreamPerThread);
     streamer_release_frame(streamer, active_buf, cudaStreamPerThread);
     active_buf = 1 - active_buf;
-    set_window_title("CUDA Marching Cubes | Triangles: %u | FPS: %d", gpu_geometry.count, GetFPS());
+    set_window_title("CUDA Marching Cubes | Isolevel %g | Room %gx%gx%g | Triangles: %u | FPS: %d",
+                     (double)args.common.isolevel, (double)streamer->header.room.x, (double)streamer->header.room.y,
+                     (double)streamer->header.room.z, gpu_geometry.count, GetFPS());
   }
 
   unload_viewer(&viewer);
@@ -89,28 +101,43 @@ static int player(PlayerArguments args, GPUInfo const info) {
 }
 
 static void random_points(RandomPointsArguments args, GPUInfo const info) {
-  printf("seed %u\n", args.render.seed);
+  printf("seed %u\n", args.generator.seed);
 
-  float4 *const cpu_points = (float4 *)malloc(ARRAY_SIZE(cpu_points, args.render.particle_count));
-  generate_random_points(cpu_points, args.render.particle_count, args.render.seed, args.render.room);
+  float4 *const cpu_points = (float4 *)malloc(ARRAY_SIZE(cpu_points, args.generator.particle_count));
+  generate_random_points(cpu_points, args.generator.particle_count, args.generator.seed, args.generator.room);
+  printf("points generated\n");
 
   float4 *gpu_points;
-  handle_cuda_result(cudaMalloc((void **)&gpu_points, ARRAY_SIZE(cpu_points, args.render.particle_count)),
+  handle_cuda_result(cudaMalloc((void **)&gpu_points, ARRAY_SIZE(cpu_points, args.generator.particle_count)),
                      "main: allocate points");
   handle_cuda_result(
-      cudaMemcpy(gpu_points, cpu_points, ARRAY_SIZE(cpu_points, args.render.particle_count), cudaMemcpyHostToDevice),
+      cudaMemcpy(gpu_points, cpu_points, ARRAY_SIZE(cpu_points, args.generator.particle_count), cudaMemcpyHostToDevice),
       "main: load points");
   printf("points loaded\n");
 
   Viewer viewer =
-      new_viewer(args.render.room, &args.render.common.particle_diameter, &args.render.common.isolevel, args.framerate);
+      new_viewer(args.generator.room, &args.generator.common.particle_diameter, &args.generator.common.isolevel,
+                 args.renderer.framerate, args.renderer.vertex_shader_file, args.renderer.fragment_shader_file);
 
   while (!WindowShouldClose()) {
+    if (IsKeyPressed(KEY_R)) {
+      args.generator.seed = (u32)rand() | ((u32)rand() << 16); // NOLINT(cert-msc50-cpp)
+      draw_popup("Generating %u points with seed %u...", args.generator.particle_count, args.generator.seed);
+      generate_random_points(cpu_points, args.generator.particle_count, args.generator.seed, args.generator.room);
+      printf("points generated\n");
+      handle_cuda_result(cudaMemcpy(gpu_points, cpu_points, ARRAY_SIZE(cpu_points, args.generator.particle_count),
+                                    cudaMemcpyHostToDevice),
+                         "main: load points");
+      printf("points loaded\n");
+    }
+
     Geometry const gpu_geometry =
-        triangulate(&info, gpu_points, args.render.particle_count, args.render.room,
-                    args.render.common.particle_diameter, args.render.common.isolevel, cudaStreamPerThread);
+        triangulate(&info, gpu_points, args.generator.particle_count, args.generator.room,
+                    args.generator.common.particle_diameter, args.generator.common.isolevel, cudaStreamPerThread);
     present(&viewer, gpu_geometry, cudaStreamPerThread);
-    set_window_title("CUDA Marching Cubes | Triangles: %u | FPS: %d", gpu_geometry.count, GetFPS());
+    set_window_title("CUDA Marching Cubes | Isolevel %g | Room %gx%gx%g | Triangles: %u | FPS: %d",
+                     (double)args.generator.common.isolevel, (double)args.generator.room.x,
+                     (double)args.generator.room.y, (double)args.generator.room.z, gpu_geometry.count, GetFPS());
   }
 
   unload_viewer(&viewer);
@@ -120,7 +147,7 @@ static void random_points(RandomPointsArguments args, GPUInfo const info) {
   free(cpu_points);
 }
 
-static int test(RenderArguments const args, GPUInfo const info) {
+static int test(GeneratorArguments const args, GPUInfo const info) {
   printf("seed %u\n", args.seed);
 
   float4 *const cpu_points = (float4 *)malloc(ARRAY_SIZE(cpu_points, args.particle_count));

@@ -2,16 +2,49 @@
 #include <math.h>
 #include <rcamera.h>
 #include <rlgl.h>
-#include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 #include "utils/utils.h"
 
-Viewer new_viewer(float3 const room, float *const particle_diameter, float *const isolevel, u32 const framerate) {
+extern char const default_vertex_shader[];
+extern char const default_fragment_shader[];
+
+static Matrix const identity = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+                                0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+
+Viewer new_viewer(float3 const room,
+                  float *const particle_diameter,
+                  float *const isolevel,
+                  u32 const framerate,
+                  char const *const vertex_shader_path,
+                  char const *const fragment_shader_path) {
   SetConfigFlags(FLAG_VSYNC_HINT);
   InitWindow(1024, 768, "");
   SetTargetFPS((int)framerate);
   Vector3 const center = (Vector3){room.x / 2.0f, room.y / 2.0f, room.z / 2.0f};
+
+  char const *vertex_shader = default_vertex_shader;
+  char const *fragment_shader = default_fragment_shader;
+  if (vertex_shader_path) {
+    read32_file(vertex_shader_path, &vertex_shader, NULL);
+  }
+  if (fragment_shader_path) {
+    read32_file(fragment_shader_path, &fragment_shader, NULL);
+  }
+  Shader const shader = LoadShaderFromMemory(vertex_shader, fragment_shader);
+  if (vertex_shader != default_vertex_shader) {
+    free((void *)(uintptr_t)vertex_shader);
+  }
+  if (fragment_shader != default_fragment_shader) {
+    free((void *)(uintptr_t)fragment_shader);
+  }
+  Material material = LoadMaterialDefault();
+  material.maps[MATERIAL_MAP_DIFFUSE].color = BLUE;
+  if (IsShaderValid(shader)) {
+    material.shader = shader;
+  }
+
   Viewer viewer = (Viewer){
       .particle_diameter = particle_diameter,
       .isolevel = isolevel,
@@ -20,31 +53,27 @@ Viewer new_viewer(float3 const room, float *const particle_diameter, float *cons
       .camera =
           (Camera3D){
                      .target = center,
-                     // Position the camera to fit the room in view
+                     // position the camera to fit the room in view
               .position = (Vector3){room.x * -1.f, room.y * -1.f, room.z * 1.5f},
                      .up = (Vector3){0.0f, 1.0f, .0f}, // Z is up
               .fovy = 45.0f,
                      .projection = CAMERA_PERSPECTIVE,
                      },
-      .model = LoadModelFromMesh((Mesh){0}
-          ),
-      .shader = LoadShader("src/viewer/plastic.vs", "src/viewer/plastic.fs"),
+      .mesh = (Mesh){0},
+      .material = material
   };
 
-  viewer.view_position_location = GetShaderLocation(viewer.shader, "viewPos");
-  if (viewer.shader.id > 0 && viewer.model.materialCount > 0) {
-    viewer.model.materials[0].shader = viewer.shader;
-  }
+  viewer.view_position_location = GetShaderLocation(viewer.material.shader, "viewPos");
   return viewer;
 }
 
 void unload_viewer(Viewer *const viewer) {
-  UnloadModel(viewer->model);
-  UnloadShader(viewer->shader);
+  viewer->mesh.normals = NULL; // prevent double free
+  UnloadMesh(viewer->mesh);
+  UnloadMaterial(viewer->material);
 }
 
-static Ownership update_model(Model const *const model, u32 *const triangle_capacity, Geometry const geometry) {
-  Mesh *const mesh = model->meshes;
+static Ownership update_mesh(Mesh *const mesh, u32 *const triangle_capacity, Geometry const geometry) {
   if (*triangle_capacity > 0) {
     if (geometry.count <= *triangle_capacity) {
       mesh->vertexCount = (int)geometry.count * 3;
@@ -53,7 +82,7 @@ static Ownership update_model(Model const *const model, u32 *const triangle_capa
       UpdateMeshBuffer(*mesh, 2, geometry.normals, (int)ARRAY_SIZE(geometry.normals, (u32)mesh->triangleCount), 0);
       return OWNERSHIP_BORROWED;
     }
-    mesh->normals = NULL;
+    mesh->normals = NULL; // prevent double free
     UnloadMesh(*mesh);
   } else if (geometry.count == 0) {
     return OWNERSHIP_BORROWED;
@@ -161,30 +190,23 @@ static void draw_room_dimensions(Viewer const *const viewer) {
 }
 
 static Ownership render(Viewer *const viewer, Geometry const *const geometry) {
-  Ownership const ownership = update_model(&viewer->model, &viewer->mesh_capacity, *geometry);
-  // bool const owned = false;
+  Ownership const ownership = update_mesh(&viewer->mesh, &viewer->mesh_capacity, *geometry);
 
   update_parameters(viewer);
   update_camera(viewer);
 
   ClearBackground(RAYWHITE);
-
   BeginDrawing();
-
   BeginMode3D(viewer->camera);
+
   // rlDisableBackfaceCulling();
-
   DrawCubeWires(viewer->center, viewer->room.x, viewer->room.y, viewer->room.z, DARKGRAY);
+  SetShaderValue(viewer->material.shader, viewer->view_position_location, &viewer->camera.position,
+                 SHADER_UNIFORM_VEC3);
+  DrawMesh(viewer->mesh, viewer->material, identity);
 
-  if (viewer->shader.id > 0) {
-    SetShaderValue(viewer->shader, viewer->view_position_location, &viewer->camera.position, SHADER_UNIFORM_VEC3);
-  }
-  DrawModel(viewer->model, (Vector3){0}, 1.0f, RED);
-  // DrawModelWires(viewer->model, (Vector3){0}, 1.0f, BLACK);
   EndMode3D();
-
   draw_room_dimensions(viewer);
-
   EndDrawing();
 
   return ownership;
@@ -202,7 +224,7 @@ void set_window_title(char const *format, ...) {
   static time_t last_update;
   time_t const now = time(NULL);
 
-  if (difftime(now, last_update) < 1.0) {
+  if (difftime(now, last_update) < 0.5) {
     return;
   }
 
@@ -214,4 +236,28 @@ void set_window_title(char const *format, ...) {
 
   SetWindowTitle(title);
   last_update = now;
+}
+
+void draw_popup(char const *format, ...) {
+  char title[256];
+  va_list args;
+  va_start(args, format);
+  vsnprintf(title, sizeof(title), format, args);
+  va_end(args);
+
+  float const padding = 10.f;
+  int const font_size = 20;
+  Font font = GetFontDefault();
+  float spacing = (float)font_size / 10.0f;
+  Vector2 text_size = MeasureTextEx(font, title, (float)font_size, spacing);
+
+  float box_width = text_size.x + (padding * 2);
+  float box_height = text_size.y + (padding * 2);
+  float box_x = ((float)-GetScreenWidth() - box_width) / 2.0f;
+  float box_y = ((float)-GetScreenHeight() - box_height) / 2.0f;
+
+  BeginDrawing();
+  DrawRectangle((int)box_x, (int)box_y, (int)box_width, (int)box_height, (Color){80, 80, 80, 200});
+  DrawText(title, (int)(box_x + padding), (int)(box_y + padding), font_size, LIGHTGRAY);
+  EndDrawing();
 }

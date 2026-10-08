@@ -12,10 +12,10 @@ using extents_3d =
 
 inline constexpr dim3 threads_per_block = {4, 4, 4};
 
-typedef struct CornerData {
+typedef struct SampleData {
   float field;
   float3 gradient;
-} CornerData;
+} SampleData;
 
 struct Params {
   u32 points;
@@ -25,7 +25,6 @@ struct Params {
   float isolevel;
   u323 cells{};
   u323 samples{};
-  float33 gradients{};
 
   Params(u32 const points, float3 const room_dim, float const particle_diameter, float const isolevel) {
     this->points = points;
@@ -98,8 +97,8 @@ GPU pair<s83, u83> get_neighbourhood_bounds(u323 const coords, u323 const sample
   };
 }
 
-template <typename T> GPU void add_checked_hash(T (&seen)[8], u8 &checked_count, T const hash) {
-  switch (checked_count) {
+template <typename T> GPU void add_checked_hash(T (&seen)[8], u8 &seen_count, T const hash) {
+  switch (seen_count) {
   case 0:
     seen[0] = hash;
     break;
@@ -125,14 +124,14 @@ template <typename T> GPU void add_checked_hash(T (&seen)[8], u8 &checked_count,
     seen[7] = hash;
     break;
   default:
-    assert(checked_count < 8);
+    assert(seen_count < 8);
     return;
   }
-  ++checked_count;
+  ++seen_count;
 }
 
-GPU inline CornerData get_corner_data(CornerData const (&data)[8], u8 const corner) {
-  switch (corner) {
+GPU inline SampleData get_corner_data(SampleData const (&data)[8], u8 const corner_index) {
+  switch (corner_index) {
   case 0:
     return data[0];
   case 1:
@@ -150,7 +149,7 @@ GPU inline CornerData get_corner_data(CornerData const (&data)[8], u8 const corn
   case 7:
     return data[7];
   default:
-    assert(corner < 8);
+    assert(corner_index < 8);
     return {};
   }
 }
@@ -175,56 +174,28 @@ GPU float calculate_density(Params const params, float3 const sample_point, floa
   return w;
 }
 
-GPU float3 calculate_density_gradient(Params const params, float3 const sample_point, float3 const point) {
-  float3 const offset = sample_point - point;
-  float const distance_squared = offset * offset;
-
-  if (distance_squared >= params.particle_diameter_sq) {
-    return {0.0f, 0.0f, 0.0f};
-  }
-
-  float const distance = distance_squared * rsqrtf(distance_squared + cuda::std::numeric_limits<float>::min());
-
-  float const u = distance / params.particle_diameter;
-  float const term = 1.0f - u;
-  float const scale = -20.0f * term * term * term / params.particle_diameter_sq;
-
-  return offset * scale;
-}
-
-GPU float3 interpolate(float3 const p1, float3 const p2, float const coefficient, bool const approximate) {
-  return approximate ? (p1 + p2) * 0.5f : p1 + (p2 - p1) * coefficient;
-}
-
-GPU float3
-interpolate_gradient(float const isolevel, float3 const p1, float3 const p2, float const field1, float const field2) {
-  float const scale = fmaxf(fabsf(field1), fmaxf(fabsf(field2), fabsf(isolevel)));
-  float const tolerance = 8.f * cuda::std::numeric_limits<float>::epsilon() * fmaxf(scale, 1.0f);
-
-  if (fabsf(field1 - field2) <= tolerance)
-    // numerical stability
-    return (p1 + p2) * 0.5f;
-  return p1 + (p2 - p1) * (isolevel - field1) / (field2 - field1);
+GPU float3 interpolate(float3 const p1, float3 const p2, float const coefficient) {
+  return (1 - coefficient) * p1 + coefficient * p2;
 }
 
 GPU pair<float3, float3>
-get_edge_vertex(Params const &params, u8 const edge, u323 const cell, CornerData const (&data)[8]) {
+get_edge_vertex(Params const &params, u8 const edge, u323 const cell, SampleData const (&data)[8]) {
   auto const [i1, i2] = get_edge_indices(edge);
-
   float3 const corner1 =
       clamp_point(get_grid_point(cell + get_cell_corner_offsets(i1), params.particle_diameter), params.room);
   float3 const corner2 =
       clamp_point(get_grid_point(cell + get_cell_corner_offsets(i2), params.particle_diameter), params.room);
-  CornerData data1 = get_corner_data(data, i1);
-  CornerData data2 = get_corner_data(data, i2);
+  SampleData data1 = get_corner_data(data, i1);
+  SampleData data2 = get_corner_data(data, i2);
 
-  float const coefficient = (params.isolevel - data1.field) / (data2.field - data1.field);
   float const scale = fmaxf(fabsf(data1.field), fmaxf(fabsf(data2.field), fabsf(params.isolevel)));
   float const tolerance = 8.f * cuda::std::numeric_limits<float>::epsilon() * fmaxf(scale, 1.0f);
-  bool const approximate = fabsf(data1.field - data2.field) <= tolerance;
-  float3 const avg_gradient = interpolate(data1.gradient, data2.gradient, coefficient, approximate);
+  float const coefficient = fabsf(data1.field - data2.field) <= tolerance
+                                ? 0.5f
+                                : (params.isolevel - data1.field) / (data2.field - data1.field);
+  float3 const avg_gradient = interpolate(data1.gradient, data2.gradient, coefficient);
   float const sq_avg_gradient = avg_gradient * avg_gradient;
-  return {interpolate(corner1, corner2, coefficient, approximate),
+  return {interpolate(corner1, corner2, coefficient),
           ((sq_avg_gradient > 0.f) ? avg_gradient * -rsqrtf(sq_avg_gradient) : float3{})};
 }
 

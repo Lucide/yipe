@@ -5,6 +5,8 @@
 #include "scan/scan.cuh"
 #include "sort/sort.cuh"
 
+extern "C" GPU HOST u32 point_hash(float4 point, u32 particle_count, float particle_diameter);
+
 extern "C" void handle_cuda_result(cudaError_t const err, char const *message) {
   if (err != cudaSuccess) {
     printf("[%s] CUDA error: %s\n", message, cudaGetErrorString(err));

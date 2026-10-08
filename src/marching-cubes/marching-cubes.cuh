@@ -26,16 +26,12 @@ Geometry compute_marching_cubes(GPUInfo const &info,
 
   // compute scalar fields
   float *fields;
-  float3 *gradients;
   handle_cuda_result(cudaMallocAsync(&fields, ARRAY_SIZE(fields, params.samples_count()), stream),
                      "marching_cubes: allocate scalar fields array");
   handle_cuda_error_debug("marching_cubes: allocate scalar fields array");
-  handle_cuda_result(cudaMallocAsync(&gradients, ARRAY_SIZE(gradients, params.samples_count()), stream),
-                     "marching_cubes: allocate gradients array");
-  handle_cuda_error_debug("marching_cubes: allocate gradients array");
   marching_cubes::compute_scalar_fields<<<field_block_count, marching_cubes::threads_per_block, 0, stream>>>(
-      points, table, params, fields, gradients, hasher);
-  handle_cuda_error_debug("marching_cubes: compute scalar fields + gradients");
+      points, table, params, fields, hasher);
+  handle_cuda_error_debug("marching_cubes: compute scalar fields");
 
   // get triangle counts
   u32 *triangle_counts;
@@ -71,13 +67,11 @@ Geometry compute_marching_cubes(GPUInfo const &info,
   float33 *const normals = triangles + total_triangles;
 
   marching_cubes::make_triangles<<<cell_block_count, marching_cubes::threads_per_block, 0, stream>>>(
-      params, fields, gradients, triangle_counts, triangles, normals);
+      params, fields, triangle_counts, triangles, normals);
   handle_cuda_error_debug("marching_cubes: make triangles");
 
   handle_cuda_result(cudaFreeAsync(fields, stream), "marching_cubes: free scalar field array");
   handle_cuda_error_debug("marching_cubes: free scalar field array");
-  handle_cuda_result(cudaFreeAsync(gradients, stream), "marching_cubes: free gradients array");
-  handle_cuda_error_debug("marching_cubes: free gradients array");
   handle_cuda_result(cudaFreeAsync(triangle_counts, stream), "marching_cubes: free triangle counts");
   handle_cuda_error_debug("marching_cubes: free triangle counts");
 

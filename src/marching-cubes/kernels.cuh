@@ -13,12 +13,9 @@ KERNEL void compute_scalar_fields(float4 const *const points,
                                   HashTable const *const table,
                                   Params const params,
                                   float *const linearized_fields,
-                                  float3 *const linearized_gradients,
                                   Hasher const hasher) {
   using Key = Key<Hasher, float4>;
-  cuda::std::mdspan const fields(linearized_fields, extents_3d{params.samples.x, params.samples.y, params.samples.z});
-  cuda::std::mdspan const gradients(linearized_gradients,
-                                    extents_3d{params.samples.x, params.samples.y, params.samples.z});
+  u323span const fields(linearized_fields, extents_3d{params.samples.x, params.samples.y, params.samples.z});
   u323 const coords = (vec_cast<u323>(blockIdx) ^ vec_cast<u323>(blockDim)) + vec_cast<u323>(threadIdx);
 
   if (is_out_of_bounds(coords, params.samples))
@@ -29,7 +26,6 @@ KERNEL void compute_scalar_fields(float4 const *const points,
   float3 const sample_point = clamp_point(grid_point, params.room);
 
   float field = 0.0f;
-  float3 gradient = {};
   typename Key::KeyType seen_hashes[8];
   u8 seen_count = 0;
 
@@ -56,7 +52,6 @@ KERNEL void compute_scalar_fields(float4 const *const points,
             float3 const point = project4to3(points[i]);
             // currently calculated using Wendland C2
             field += calculate_density(params, sample_point, point);
-            gradient = gradient + calculate_density_gradient(params, sample_point, point);
           }
         }
       }
@@ -64,15 +59,14 @@ KERNEL void compute_scalar_fields(float4 const *const points,
   }
 
   field = is_out_of_bounds(grid_point, params.room) ? fminf(field, params.isolevel) : field;
-  fields(coords.x, coords.y, coords.z) = field;
-  gradients(coords.x, coords.y, coords.z) = gradient;
+  fields[coords] = field;
 }
 
 KERNEL void
 count_triangles(Params const params, float const *const linearized_fields, u32 *const linearized_triangle_counts) {
-  cuda::std::mdspan const fields(linearized_fields, extents_3d{params.samples.x, params.samples.y, params.samples.z});
-  cuda::std::mdspan const triangle_counts(linearized_triangle_counts,
-                                          extents_3d{params.cells.x, params.cells.y, params.cells.z});
+  u323span const fields(linearized_fields, extents_3d{params.samples.x, params.samples.y, params.samples.z});
+  u323span const triangle_counts(linearized_triangle_counts,
+                                 extents_3d{params.cells.x, params.cells.y, params.cells.z});
   u323 const coords = (vec_cast<u323>(blockIdx) ^ vec_cast<u323>(blockDim)) + vec_cast<u323>(threadIdx);
 
   if (is_out_of_bounds(coords, params.cells))
@@ -89,50 +83,61 @@ count_triangles(Params const params, float const *const linearized_fields, u32 *
   for (u8 i = 0; i < 8; ++i) {
     // read the corner of the cell
     u323 const corner = coords + get_cell_corner_offsets(i);
-    float const corner_field = fields(corner.x, corner.y, corner.z);
     // build the corner bitmask (1 means outside the object)
-    case_index |= static_cast<u8>(corner_field <= params.isolevel) << i;
+    case_index |= static_cast<u8>(fields[corner] <= params.isolevel) << i;
   }
 
-  triangle_counts(coords.x, coords.y, coords.z) = triangle_table.counts[case_index];
+  triangle_counts[coords] = triangle_table.counts[case_index];
 }
 
 KERNEL void make_triangles(Params const params,
                            float const *const linearized_fields,
-                           float3 const *const linearized_gradients,
                            u32 const *const linearized_triangle_prefixes,
                            float33 *const triangles,
                            float33 *const normals) {
 
-  cuda::std::mdspan const fields(linearized_fields, extents_3d{params.samples.x, params.samples.y, params.samples.z});
-  cuda::std::mdspan const gradients(linearized_gradients,
-                                    extents_3d{params.samples.x, params.samples.y, params.samples.z});
-  cuda::std::mdspan const triangle_prefixes(linearized_triangle_prefixes,
-                                            extents_3d{params.cells.x, params.cells.y, params.cells.z});
-  u323 const coords = (vec_cast<u323>(blockIdx) ^ vec_cast<u323>(blockDim)) + vec_cast<u323>(threadIdx);
+  u323span const fields(linearized_fields, extents_3d{params.samples.x, params.samples.y, params.samples.z});
+  u323span const triangle_prefixes(linearized_triangle_prefixes,
+                                   extents_3d{params.cells.x, params.cells.y, params.cells.z});
+  u323 const coord = (vec_cast<u323>(blockIdx) ^ vec_cast<u323>(blockDim)) + vec_cast<u323>(threadIdx);
 
-  if (is_out_of_bounds(coords, params.cells))
+  if (is_out_of_bounds(coord, params.cells))
     return;
 
-  // read the 8 corners of the cell
-  CornerData corner_data[8];
+  SampleData sample_data[8];
   u8 case_index = 0;
   for (u8 i = 0; i < 8; ++i) {
-    // read the 8 corners of the cell
-    u323 const corner = coords + get_cell_corner_offsets(i);
-    corner_data[i] = {fields(corner.x, corner.y, corner.z), gradients(corner.x, corner.y, corner.z)};
-    // build the corner bitmask (1 means outside the object)
-    case_index |= static_cast<u8>(corner_data[i].field <= params.isolevel) << i;
+    u323 const corner = coord + get_cell_corner_offsets(i);
+    sample_data[i].field = fields(corner.x, corner.y, corner.z);
+    case_index |= static_cast<u8>(sample_data[i].field <= params.isolevel) << i;
   }
 
-  u32 const start = triangle_prefixes(coords.x, coords.y, coords.z);
-  for (u8 i = 0; i < triangle_table.counts[case_index]; ++i) {
+  u8 const triangle_count = triangle_table.counts[case_index];
+  if (triangle_count == 0)
+    return;
+
+  for (u8 i = 0; i < 8; ++i) {
+    u323 const corner = coord + get_cell_corner_offsets(i);
+    float3 const f_next = {
+        (corner.x + 1 < params.samples.x) ? fields(corner.x + 1, corner.y, corner.z) : params.isolevel,
+        (corner.y + 1 < params.samples.y) ? fields(corner.x, corner.y + 1, corner.z) : params.isolevel,
+        (corner.z + 1 < params.samples.z) ? fields(corner.x, corner.y, corner.z + 1) : params.isolevel};
+    float3 const f_prev = {
+        (corner.x > 0) ? fields(corner.x - 1, corner.y, corner.z) : params.isolevel,
+        (corner.y > 0) ? fields(corner.x, corner.y - 1, corner.z) : params.isolevel,
+        (corner.z > 0) ? fields(corner.x, corner.y, corner.z - 1) : params.isolevel,
+    };
+    sample_data[i].gradient = f_next - f_prev;
+  }
+
+  u32 const start = triangle_prefixes[coord];
+  for (u8 i = 0; i < triangle_count; ++i) {
     auto const [p1, gradient1] =
-        get_edge_vertex(params, triangle_table.triangles[case_index][i][0], coords, corner_data);
+        get_edge_vertex(params, triangle_table.triangles[case_index][i][0], coord, sample_data);
     auto const [p2, gradient2] =
-        get_edge_vertex(params, triangle_table.triangles[case_index][i][1], coords, corner_data);
+        get_edge_vertex(params, triangle_table.triangles[case_index][i][1], coord, sample_data);
     auto const [p3, gradient3] =
-        get_edge_vertex(params, triangle_table.triangles[case_index][i][2], coords, corner_data);
+        get_edge_vertex(params, triangle_table.triangles[case_index][i][2], coord, sample_data);
 
     triangles[start + i] = {
         {p1, p2, p3}

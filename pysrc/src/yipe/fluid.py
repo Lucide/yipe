@@ -4,7 +4,7 @@ import time
 from collections.abc import Iterable
 from io import BufferedWriter
 from pathlib import Path
-from typing import Any, Final, cast
+from typing import Any, Final
 
 import numpy as np
 import pysplishsplash as sph
@@ -22,17 +22,18 @@ __all__ = ["main"]
 
 # pysplishsplash pain in the ass
 
-console = Console(highlight=False)
-
-total_progress = Progress(
+console: Final = Console(highlight=False)
+bar_column: Final = BarColumn(
+  complete_style="blue",
+)
+total_progress: Final = Progress(
   TimeElapsedColumn(table_column=Column(justify="right", min_width=7)),
-  BarColumn(
-    complete_style="blue",
-  ),
-  TextColumn("{task.description}"),
+  bar_column,
+  TextColumn("{task.description} {task.completed}/{task.total}"),
+  refresh_per_second=1,
   console=console,
 )
-total_task = total_progress.add_task("description", start=False, visible=False)
+total_task: Final = total_progress.add_task("skipped frame", start=False, visible=False)
 
 
 def infer_room_size(scene):
@@ -70,6 +71,7 @@ def export_fluid_and_obstacles(
   output_stream: BufferedWriter,
   frame_dt: float = 1.0 / 60,
   total_frames: int = 5 * 60,
+  warmup: int = 0,
 ):
   base: Final = sph.Exec.SimulatorBase()
 
@@ -82,9 +84,11 @@ def export_fluid_and_obstacles(
     time_manager: Final = sph.TimeManager.getCurrent()
     fluid_models: Final = [sim.getFluidModel(index) for index in range(sim.numberOfFluidModels())]
 
-    base.setValueFloat(base.STOP_AT, total_frames * frame_dt)
+    # ignore previous simulation
+    time_manager.setTime(0.0)
+    base.setValueFloat(base.STOP_AT, (warmup + total_frames) * frame_dt)
 
-    fc = 1
+    fc = warmup + 1
     total_particles = 0
     boundary_bindings: list[tuple[NDArray[np.float32], Any]] = []
 
@@ -113,9 +117,11 @@ def export_fluid_and_obstacles(
 
     def dump_frames():
       nonlocal fc, total_particles
+      dump_fc = fc - warmup
+      sim_time: Final = time_manager.getTime()
       # one timestep can span multiple frames
-      # capture starts at frame_dt, there is no t=0 frame.
-      while fc <= total_frames and fc * frame_dt <= time_manager.getTime():
+      # callbacks start at frame_dt, there is no t=0 frame
+      while dump_fc <= total_frames and fc * frame_dt <= sim_time:
         particle_blocks = []
 
         for fluid_model in fluid_models:
@@ -133,7 +139,7 @@ def export_fluid_and_obstacles(
 
         merged_frame = np.vstack(particle_blocks).astype(np.float32)
 
-        if fc == 1:
+        if dump_fc == 1:
           total_particles = merged_frame.shape[0]
           room_dimensions = infer_room_size(scene)
           output_stream.write(room_dimensions)
@@ -146,34 +152,55 @@ def export_fluid_and_obstacles(
           console.print("room size: " + "x".join(str(dimension) for dimension in room_dimensions))
           console.print(f"particle count: {total_particles}")
 
-        assert fc == 1 or merged_frame.shape[0] == total_particles, (
+        assert dump_fc == 1 or merged_frame.shape[0] == total_particles, (
           "particle count changed; raw fixed-size frame output is invalid"
         )
         output_stream.write(merged_frame.tobytes())
-        total_progress.update(
-          total_task, visible=True, completed=fc, total=total_frames, description=f"frame {fc}/{total_frames}"
-        )
+        dump_fc += 1
         fc += 1
+      if dump_fc == 2:
+        total_progress.update(
+          total_task,
+          description="written frame",
+        )
+      total_progress.update(
+        total_task,
+        visible=True,
+        completed=int(sim_time / frame_dt),
+        total=warmup + total_frames,
+      )
 
     base.setTimeStepCB(bind_boundaries)
     with total_progress:
       base.runSimulation()
 
-    assert fc == total_frames + 1, "simulation ended before all frames were captured"
+    assert fc - 1 == warmup + total_frames, "simulation ended before all frames were captured"
   finally:
     base.cleanup()
+
+
+def positive_int(value):
+  try:
+    ivalue = int(value)
+  except ValueError:
+    raise argparse.ArgumentTypeError(f"'{value}' is not a valid integer")
+
+  if ivalue < 0:
+    raise argparse.ArgumentTypeError(f"'{value}' is not a positive integer (must be >= 0)")
+  return ivalue
 
 
 def main():
   try:
     parser = argparse.ArgumentParser(description="export simulated fluid and obstacle particles")
-    parser.add_argument("scene_file", help="SPlisHSPlasH scene file")
-    parser.add_argument("output_bin", help="output binary file")
-    parser.add_argument("--fps", type=int, default=60)
-    parser.add_argument("--total-frames", type=int, default=300)
+    parser.add_argument("scene_file", type=Path, help="SPlisHSPlasH scene file")
+    parser.add_argument("output_bin", type=Path, help="output binary file")
+    parser.add_argument("--fps", type=positive_int, default=60)
+    parser.add_argument("--total-frames", type=positive_int, default=300)
+    parser.add_argument("--warmup", type=positive_int, default=0, help="simulate this many frames before recording")
     args = parser.parse_args()
 
-    scene_path = Path(args.scene_file).absolute()
+    scene_path: Path = args.scene_file.absolute()
     if not scene_path.is_file():
       raise FileNotFoundError(f"scene file: {scene_path}")
 
@@ -186,6 +213,7 @@ def main():
         output_stream,
         frame_dt=1.0 / args.fps,
         total_frames=args.total_frames,
+        warmup=args.warmup,
       )
 
     print(f"export complete in {time.perf_counter() - start_time:.2f}s.")

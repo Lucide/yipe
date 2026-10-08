@@ -2,11 +2,11 @@
 
 #include <cuda_runtime.h>
 #include <stdatomic.h>
-#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <threads.h>
 #include "common.h"
+#include "mmap.h"
 
 #pragma pack(push, 1)
 typedef struct StreamHeader {
@@ -16,19 +16,19 @@ typedef struct StreamHeader {
 } StreamHeader;
 #pragma pack(pop)
 
-typedef struct AsyncFluidStreamer {
-  FILE *file_stream;
-  // float3 room;
-  // u32 num_particles;
-  // u32 total_frames;
+#pragma pack(push, 1)
+typedef struct Stream {
   StreamHeader header;
-  u32 file_frame_bytes;
-  u32 frame_bytes;
-  u32 data_offset;
+  float3 points[];
+} Stream;
+#pragma pack(pop)
 
-  // Double buffers (Host Pinned & Device VRAM)
-  float3 *h_file_buffers[2];
-  float4 *h_pinned[2];
+typedef struct AsyncFluidStreamer {
+  MappedFile mapped_file;
+  StreamHeader header;
+  u32 frame_bytes;
+
+  // Double device buffers
   float4 *d_buffers[2];
 
   // CUDA Streams and Events
@@ -40,17 +40,13 @@ typedef struct AsyncFluidStreamer {
   thrd_t worker_thread;
   atomic_bool stop_requested;
 
-  mtx_t mutex;
-  cnd_t cv_produce;
-  cnd_t cv_consume;
-
   bool buffer_ready[2];
   bool frame_done_recorded[2];
   u32 frame_loaded[2];
 } AsyncFluidStreamer;
 
 // function declarations
-AsyncFluidStreamer *streamer_create(char const *filepath);
+AsyncFluidStreamer *streamer_create(FILE *file);
 void streamer_destroy(AsyncFluidStreamer *streamer);
 float4 *streamer_acquire_next_frame(AsyncFluidStreamer *streamer, u32 buf_idx, cudaStream_t compute_stream);
 void streamer_release_frame(AsyncFluidStreamer *streamer, u32 buf_idx, cudaStream_t compute_stream);
