@@ -1,4 +1,3 @@
-#include <driver_types.h>
 #include <math.h>
 #include <raylib.h>
 #include <stdio.h>
@@ -67,13 +66,16 @@ static int player(PlayerArguments args, GPUInfo const info) {
 
   FILE *const file = fopen(args.file, "rb");
   if (!file) {
-    return -1;
+    perror("file not found");
+    return -ENOENT;
   }
   AsyncFluidStreamer *streamer = streamer_create(file);
   // after mmap we can close the file
   fclose(file);
-  if (!streamer)
-    return -1;
+  if (!streamer) {
+    perror("failed to create streamer");
+    return -EPIPE;
+  }
 
   u32 active_buf = 0;
 
@@ -82,7 +84,7 @@ static int player(PlayerArguments args, GPUInfo const info) {
                  args.renderer.vertex_shader_file, args.renderer.fragment_shader_file);
 
   while (!WindowShouldClose()) {
-    float4 *gpu_points = streamer_acquire_next_frame(streamer, active_buf, cudaStreamPerThread);
+    float3 *gpu_points = streamer_acquire_next_frame(streamer, active_buf, cudaStreamPerThread);
 
     Geometry const gpu_geometry = triangulate(&info, gpu_points, streamer->header.num_particles, streamer->header.room,
                                               args.common.particle_diameter, args.common.isolevel, cudaStreamPerThread);
@@ -103,11 +105,11 @@ static int player(PlayerArguments args, GPUInfo const info) {
 static void random_points(RandomPointsArguments args, GPUInfo const info) {
   printf("seed %u\n", args.generator.seed);
 
-  float4 *const cpu_points = (float4 *)malloc(ARRAY_SIZE(cpu_points, args.generator.particle_count));
+  float3 *const cpu_points = (float3 *)malloc(ARRAY_SIZE(cpu_points, args.generator.particle_count));
   generate_random_points(cpu_points, args.generator.particle_count, args.generator.seed, args.generator.room);
   printf("points generated\n");
 
-  float4 *gpu_points;
+  float3 *gpu_points;
   handle_cuda_result(cudaMalloc((void **)&gpu_points, ARRAY_SIZE(cpu_points, args.generator.particle_count)),
                      "main: allocate points");
   handle_cuda_result(
@@ -150,7 +152,7 @@ static void random_points(RandomPointsArguments args, GPUInfo const info) {
 static int test(GeneratorArguments const args, GPUInfo const info) {
   printf("seed %u\n", args.seed);
 
-  float4 *const cpu_points = (float4 *)malloc(ARRAY_SIZE(cpu_points, args.particle_count));
+  float3 *const cpu_points = (float3 *)malloc(ARRAY_SIZE(cpu_points, args.particle_count));
   generate_random_points(cpu_points, args.particle_count, args.seed, args.room);
 
   if (args.particle_count <= 4096) {
@@ -161,7 +163,7 @@ static int test(GeneratorArguments const args, GPUInfo const info) {
     }
   }
 
-  float4 *gpu_points;
+  float3 *gpu_points;
   handle_cuda_result(cudaMalloc((void **)&gpu_points, ARRAY_SIZE(cpu_points, args.particle_count)),
                      "main: allocate points");
   handle_cuda_result(

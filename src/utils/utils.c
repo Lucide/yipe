@@ -111,14 +111,15 @@ GPUInfo fetch_gpu_info(void) {
 }
 
 // function to fill an array with random numbers within a specific range
-void generate_random_points(float4 *const points, u32 const length, u32 const seed, float3 const room) {
+void generate_random_points(float3 *const points, u32 const length, u32 const seed, float3 const room) {
   srand(seed);
   for (u32 i = 0; i < length; ++i) {
     // (double)+ is the "unary plus sign operator" for double, it avoids a bad cast from u32 to double
-    points[i] = (float4){.x = (float)(((double)+rand() / (double)RAND_MAX) * (double)room.x), // NOLINT(cert-msc50-cpp)
-                         .y = (float)(((double)+rand() / (double)RAND_MAX) * (double)room.y), // NOLINT(cert-msc50-cpp)
-                         .z = (float)(((double)+rand() / (double)RAND_MAX) * (double)room.z), // NOLINT(cert-msc50-cpp)
-                         .w = 1};
+    points[i] = (float3){
+        .x = (float)(((double)+rand() / (double)RAND_MAX) * (double)room.x), // NOLINT(cert-msc50-cpp)
+        .y = (float)(((double)+rand() / (double)RAND_MAX) * (double)room.y), // NOLINT(cert-msc50-cpp)
+        .z = (float)(((double)+rand() / (double)RAND_MAX) * (double)room.z), // NOLINT(cert-msc50-cpp)
+    };
   }
 }
 

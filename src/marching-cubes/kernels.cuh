@@ -9,12 +9,12 @@ namespace marching_cubes {
 
 template <typename Hasher>
   requires is_hasher<Hasher, u323>
-KERNEL void compute_scalar_fields(float4 const *const points,
+KERNEL void compute_scalar_fields(float3 const *const points,
                                   HashTable const *const table,
                                   Params const params,
                                   float *const linearized_fields,
                                   Hasher const hasher) {
-  using Key = Key<Hasher, float4>;
+  using Key = Key<Hasher, float3>;
   u323span const fields(linearized_fields, extents_3d{params.samples.x, params.samples.y, params.samples.z});
   u323 const coords = (vec_cast<u323>(blockIdx) ^ vec_cast<u323>(blockDim)) + vec_cast<u323>(threadIdx);
 
@@ -49,7 +49,7 @@ KERNEL void compute_scalar_fields(float4 const *const points,
 
         if (auto const bucket = table->lookup(hash); bucket) {
           for (u32 i = bucket->begin; i < bucket->end; ++i) {
-            float3 const point = project4to3(points[i]);
+            float3 const point = points[i];
             // currently calculated using Wendland C2
             field += calculate_density(params, sample_point, point);
           }

@@ -5,7 +5,7 @@
 #include "scan/scan.cuh"
 #include "sort/sort.cuh"
 
-extern "C" GPU HOST u32 point_hash(float4 point, u32 particle_count, float particle_diameter);
+extern "C" GPU HOST u32 point_hash(float3 point, u32 particle_count, float particle_diameter);
 
 extern "C" void handle_cuda_result(cudaError_t const err, char const *message) {
   if (err != cudaSuccess) {
@@ -33,7 +33,7 @@ launch_exclusive_scan(u32 const *const src, u32 *const dst, u32 const length, cu
 }
 
 extern "C" void launch_sort_points(GPUInfo const *const info,
-                                   float4 *const points,
+                                   float3 *const points,
                                    u32 const length,
                                    float const particle_diameter,
                                    cudaStream_t const stream) {
@@ -44,7 +44,7 @@ extern "C" void launch_sort_points(GPUInfo const *const info,
 }
 
 extern "C" HashTable *new_hashtable(GPUInfo const *const info,
-                                    float4 *const points,
+                                    float3 *const points,
                                     u32 const length,
                                     u32 const buckets,
                                     float const particle_diameter,
@@ -56,7 +56,7 @@ extern "C" HashTable *new_hashtable(GPUInfo const *const info,
 }
 
 extern "C" void launch_verify_hashtable(GPUInfo const *const info,
-                                        float4 const *const data,
+                                        float3 const *const data,
                                         u32 const length,
                                         HashTable const *const table,
                                         float const particle_diameter,
@@ -72,7 +72,7 @@ extern "C" void launch_verify_hashtable(GPUInfo const *const info,
 }
 
 extern "C" Geometry triangulate(GPUInfo const *const info,
-                                float4 *const data,
+                                float3 *const data,
                                 u32 const length,
                                 float3 const room_dim,
                                 float const particle_diameter,

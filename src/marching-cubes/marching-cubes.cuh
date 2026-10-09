@@ -5,7 +5,7 @@
 #include "scan/scan.cuh"
 
 Geometry compute_marching_cubes(GPUInfo const &info,
-                                float4 *const points,
+                                float3 *const points,
                                 u32 const length,
                                 float3 const room,
                                 float const particle_diameter,

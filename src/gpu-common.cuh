@@ -275,7 +275,7 @@ GPU HOST inline u32 point_hash(u323 const discrete, u32 const particle_count) {
   return ((discrete.x * primes[0]) ^ (discrete.y * primes[1]) ^ (discrete.z * primes[2])) % particle_count;
 }
 
-GPU HOST inline u32 point_hash(float4 const point, u32 const particle_count, float const particle_diameter) {
+GPU HOST inline u32 point_hash(float3 const point, u32 const particle_count, float const particle_diameter) {
   // int3 const discrete = point_discretize(point, particle_diameter);
   return point_hash({static_cast<u32>(point.x / particle_diameter), static_cast<u32>(point.y / particle_diameter),
                      static_cast<u32>(point.z / particle_diameter)},
@@ -286,7 +286,7 @@ struct PointHasher {
   u32 length;
   float particle_diameter;
 
-  GPU HOST u32 operator()(float4 const p) const { return point_hash(p, length, particle_diameter); }
+  GPU HOST u32 operator()(float3 const p) const { return point_hash(p, length, particle_diameter); }
   GPU HOST u32 operator()(u323 const cell) const { return point_hash(cell, length); }
 };
 

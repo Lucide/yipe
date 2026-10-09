@@ -95,4 +95,4 @@ target_include_directories(yipe SYSTEM PRIVATE
     "${CUDAToolkit_INCLUDE_DIRS}"
 )
 
-target_link_libraries(yipe PRIVATE CUDA::cudart raylib argp-standalone)
+target_link_libraries(yipe PRIVATE CUDA::cudart CUDA::cuda_driver raylib argp-standalone)
