@@ -4,21 +4,18 @@
 #include "kernels.cuh"
 #include "scan/scan.cuh"
 
-Geometry compute_marching_cubes(GPUInfo const &info,
-                                float3 *const points,
-                                u32 const length,
-                                float3 const room,
-                                float const particle_diameter,
-                                float const isolevel,
-                                cudaStream_t const stream) {
+float *compute_scalar_fields(GPUInfo const &info,
+                             float3 *const points,
+                             u32 const length,
+                             float3 const room,
+                             float const particle_diameter,
+                             float const isolevel,
+                             cudaStream_t const stream) {
   auto const params = marching_cubes::Params(length, room, particle_diameter, isolevel);
   u32 const buckets = std::min(params.cell_count(), length);
   dim3 const field_block_count = {ceil_div<uint, uint, uint>(params.samples.x, marching_cubes::threads_per_block.x),
                                   ceil_div<uint, uint, uint>(params.samples.y, marching_cubes::threads_per_block.y),
                                   ceil_div<uint, uint, uint>(params.samples.z, marching_cubes::threads_per_block.z)};
-  dim3 const cell_block_count = {ceil_div<uint, uint, uint>(params.cells.x, marching_cubes::threads_per_block.x),
-                                 ceil_div<uint, uint, uint>(params.cells.y, marching_cubes::threads_per_block.y),
-                                 ceil_div<uint, uint, uint>(params.cells.z, marching_cubes::threads_per_block.z)};
 
   // compute hashtable
   auto const hasher = get_hasher(buckets, particle_diameter);
@@ -32,6 +29,21 @@ Geometry compute_marching_cubes(GPUInfo const &info,
   marching_cubes::compute_scalar_fields<<<field_block_count, marching_cubes::threads_per_block, 0, stream>>>(
       points, table, params, fields, hasher);
   handle_cuda_error_debug("marching_cubes: compute scalar fields");
+  handle_cuda_result(cudaFreeAsync(table, stream), "marching_cubes: free hash table");
+  handle_cuda_error_debug("marching_cubes: free hash table");
+  return fields;
+}
+
+Geometry compute_marching_cubes(float const *const fields,
+                                u32 const length,
+                                float3 const room,
+                                float const particle_diameter,
+                                float const isolevel,
+                                cudaStream_t const stream) {
+  auto const params = marching_cubes::Params(length, room, particle_diameter, isolevel);
+  dim3 const cell_block_count = {ceil_div<uint, uint, uint>(params.cells.x, marching_cubes::threads_per_block.x),
+                                 ceil_div<uint, uint, uint>(params.cells.y, marching_cubes::threads_per_block.y),
+                                 ceil_div<uint, uint, uint>(params.cells.z, marching_cubes::threads_per_block.z)};
 
   // get triangle counts
   u32 *triangle_counts;
@@ -45,8 +57,6 @@ Geometry compute_marching_cubes(GPUInfo const &info,
   marching_cubes::count_triangles<<<cell_block_count, marching_cubes::threads_per_block, 0, stream>>>(params, fields,
                                                                                                       triangle_counts);
   handle_cuda_error_debug("marching_cubes: count triangles");
-  handle_cuda_result(cudaFreeAsync(table, stream), "marching_cubes: free hash table");
-  handle_cuda_error_debug("marching_cubes: free hash table");
 
   // calculate prefix sum
   scan(triangle_counts, triangle_counts, triangle_counts_length, stream);
@@ -70,7 +80,7 @@ Geometry compute_marching_cubes(GPUInfo const &info,
       params, fields, triangle_counts, triangles, normals);
   handle_cuda_error_debug("marching_cubes: make triangles");
 
-  handle_cuda_result(cudaFreeAsync(fields, stream), "marching_cubes: free scalar field array");
+  handle_cuda_result(cudaFreeAsync(const_cast<float *>(fields), stream), "marching_cubes: free scalar field array");
   handle_cuda_error_debug("marching_cubes: free scalar field array");
   handle_cuda_result(cudaFreeAsync(triangle_counts, stream), "marching_cubes: free triangle counts");
   handle_cuda_error_debug("marching_cubes: free triangle counts");

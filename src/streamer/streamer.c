@@ -1,9 +1,20 @@
 #include "streamer.h"
 #include <cuda.h>
 #include <cuda_runtime_api.h>
-#include <stdio.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <vector_types.h>
+#ifdef _MSC_VER
+#define fseek64 _fseeki64
+#define ftell64 _ftelli64
+#else
+#define _FILE_OFFSET_BITS 64
+#define fseek64 fseeko
+#define ftell64 ftello
+#endif
+#include <stdio.h>
 #include "mmap.h"
 
 /*
@@ -47,26 +58,13 @@
 /*  Worker thread                                                     */
 /* ------------------------------------------------------------------ */
 
-static int worker_loop(void *const arg) {
-  AsyncFluidStreamer *const streamer = (AsyncFluidStreamer *)arg;
-  Stream const *const stream = (Stream const *)streamer->mapped_file.data;
-  StreamHeader const header = streamer->header;
-
-  u32 const n_particles = header.num_particles;
-  u32 const frame_size = n_particles * (u32)sizeof(float3);
-  float3 const *const all_points = stream->points;
-
-  if (streamer->header.total_frames == 0) {
-    // exit immediately if there are no frames
-    return 0;
-  }
-
+static int worker_loop(void const *const arg) {
+  Streamer const *const streamer = (Streamer const *)arg;
+  u8 slot = 0;
   u32 seq = 0;
 
-  for (u32 frame = 0; !atomic_load(&streamer->stop_requested); frame = (frame + 1) % header.total_frames) {
-
-    u32 const slot = frame % 2;
-
+  for (u32 frame = 0; !atomic_load(&streamer->stop_requested);
+       frame = (frame + streamer->frameskip + 1) % streamer->total_frames) {
     /*
      * Sequence number for this particular upload into `slot`.
      * slot 0 is used by frames 0, 2, 4, … → seq 1, 2, 3, …
@@ -88,7 +86,8 @@ static int worker_loop(void *const arg) {
       return 0;
 
     /* 2. Synchronous host-to-device copy (fine on a worker thread). */
-    cudaMemcpy(streamer->buffers[slot], &all_points[(size_t)n_particles * frame], frame_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(streamer->buffers[slot], &((float3 const *)streamer->mapped_file.data)[streamer->num_particles * frame],
+               streamer->frame_size, cudaMemcpyHostToDevice);
 
     /* 3. Tell the GPU the upload is ready (visible via device pointer). */
     // printf("producer publishing %u on slot %u\n", seq + 1, slot);
@@ -96,15 +95,17 @@ static int worker_loop(void *const arg) {
 
     // increment once every two frame loaded
     seq += slot;
+    slot = (slot + 1) % 2;
   }
   return 0;
 }
 
 /* ------------------------------------------------------------------ */
-/*  Helper: allocate one pinned+mapped uint32 flag                    */
+/*  Helpers                                                           */
 /* ------------------------------------------------------------------ */
 
-static int alloc_flag(u32 volatile **host_ptr, unsigned long long *dev_ptr, u32 initial_value) {
+// allocate one pinned+mapped uint32 flag
+static int alloc_flag(u32 volatile **const host_ptr, unsigned long long *const dev_ptr, u32 const initial_value) {
   /*
    * cudaHostAlloc with cudaHostAllocMapped gives us:
    *   - a host pointer the CPU can read/write directly
@@ -132,42 +133,63 @@ static int alloc_flag(u32 volatile **host_ptr, unsigned long long *dev_ptr, u32 
   return 0;
 }
 
+static bool parse_header(
+    StreamHeader *const header, FILE *const file, u32 const start_frame, u32 const total_frames, u8 const frameskip) {
+  size_t const bytes_read = fread(header, 1, sizeof(StreamHeader), file);
+  if (bytes_read < sizeof(StreamHeader)) {
+    if (ferror(file)) {
+      perror("error reading recording header");
+      return false;
+    }
+  }
+
+  // determine file size
+  if (fseek64(file, 0, SEEK_END) != 0) {
+    perror("error seeking file end");
+    return false;
+  }
+
+  s64 const size = ftell64(file);
+  if (size < 0) {
+    perror("error telling file size");
+    return false;
+  }
+
+  if (header->total_frames == 0 || header->num_particles == 0)
+    return false;
+
+  return true;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Public API                                                        */
 /* ------------------------------------------------------------------ */
 
-AsyncFluidStreamer *streamer_create(FILE *const file) {
-  AsyncFluidStreamer *streamer = (AsyncFluidStreamer *)calloc(1, sizeof(AsyncFluidStreamer));
-  if (!streamer)
-    return NULL;
+Streamer *streamer_create(FILE *const file, u32 const start_frame, u32 const total_frames, u8 const frameskip) {
+  Streamer *streamer = malloc(sizeof(Streamer));
 
-  MappedFile mapped_file;
-  mmap_file(file, &mapped_file);
+  StreamHeader header;
+  parse_header(&header, file, start_frame, total_frames, frameskip);
+  size_t const frame_size = header.num_particles * sizeof(float3);
+  size_t const map_start = sizeof(StreamHeader) + start_frame * frame_size;
+  size_t const map_size = total_frames * frame_size;
 
-  if (mapped_file.size < sizeof(StreamHeader)) {
-    munmap_file(&mapped_file);
-    free(streamer);
-    return NULL;
-  }
-  StreamHeader const header = ((Stream const *)mapped_file.data)->header;
+  *streamer = (Streamer){
+      .room = header.room,
+      .total_frames = total_frames,
+      .num_particles = header.num_particles,
+      .frame_size = frame_size,
+      .start_frame = start_frame,
+      .frameskip = frameskip,
+  };
 
-  streamer->mapped_file = mapped_file;
-  streamer->header = header;
+  mmap_file(file, map_start, map_size, &streamer->mapped_file);
 
-  u32 const file_frame_bytes = header.num_particles * (u32)sizeof(float3);
-  streamer->frame_bytes = file_frame_bytes;
-
-  if (mapped_file.size < sizeof(header) + (size_t)header.total_frames * file_frame_bytes) {
-    munmap_file(&mapped_file);
-    free(streamer);
-    return NULL;
-  }
-
-  /* Allocate two device buffers (one contiguous allocation). */
-  float3 *buffer = NULL;
-  cudaMalloc((void **)&buffer, (size_t)2 * file_frame_bytes);
-  streamer->buffers[0] = buffer;
-  streamer->buffers[1] = &buffer[header.num_particles];
+  // allocate two device buffers (one contiguous allocation)
+  float3 *buffers;
+  cudaMalloc((void **)&buffers, 2 * frame_size);
+  streamer->buffers[0] = buffers;
+  streamer->buffers[1] = &buffers[header.num_particles];
 
   /* Allocate pinned+mapped synchronisation flags.
    *
@@ -187,7 +209,7 @@ AsyncFluidStreamer *streamer_create(FILE *const file) {
   cudaStreamCreate(&streamer->worker_stream);
   atomic_init(&streamer->stop_requested, false);
 
-  /* Launch background worker thread. */
+  /* launch background worker thread. */
   if (thrd_create(&streamer->worker_thread, (thrd_start_t)worker_loop, streamer) != thrd_success) {
     atomic_store(&streamer->stop_requested, true);
     streamer_destroy(streamer);
@@ -197,64 +219,7 @@ AsyncFluidStreamer *streamer_create(FILE *const file) {
   return streamer;
 }
 
-/* ---- acquire: make the compute stream wait for the upload ---------- */
-
-float3 *streamer_acquire_next_frame(AsyncFluidStreamer *streamer, u32 buf_idx, cudaStream_t compute_stream) {
-  /*
-   * The worker thread writes *upload_done[buf_idx] = seq when the
-   * memcpy is done.  We need to know the current expected sequence
-   * number.  The latest value already stored tells us what to wait for:
-   *
-   *   current value V  →  we are waiting for V+1  (next upload).
-   *
-   * But because the worker may have *just* written V and the compute
-   * stream hasn't released V-1 yet, the simplest correct approach is to
-   * wait for a value strictly greater than what we last consumed.
-   *
-   * However, because we pair acquire/release 1:1 in the render loop and
-   * the worker increments upload_done monotonically, we can simply read
-   * the current host value and wait for (value+1) - the NEXT upload.
-   *
-   * In practice, the very first time buf_idx 0 is acquired the stored
-   * value is 0, so we wait for >= 1, which is the first upload.
-   */
-
-  if (streamer->header.total_frames == 0) {
-    // don't wait if there are no frames
-    return streamer->buffers[buf_idx];
-  }
-
-  u32 const wait_val = streamer->consumer_seq[buf_idx];
-
-  // printf("consumer waiting for %u on slot %u\n", wait_val, buf_idx);
-  cuStreamWaitValue32((CUstream)compute_stream, (CUdeviceptr)streamer->upload_done_dptr[buf_idx], wait_val,
-                      CU_STREAM_WAIT_VALUE_GEQ);
-
-  return streamer->buffers[buf_idx];
-}
-
-/* ---- release: tell the worker the buffer is free ------------------- */
-
-void streamer_release_frame(AsyncFluidStreamer *streamer, u32 buf_idx, cudaStream_t compute_stream) {
-  /*
-   * We write the *same* sequence number that the worker wrote into
-   * upload_done[buf_idx] - the worker waits for gpu_done >= seq before
-   * reusing this slot.
-   *
-   * upload_done was updated to `seq` by the worker; at this point the
-   * value is already visible on the host so we can read it directly.
-   */
-  u32 const seq = streamer->consumer_seq[buf_idx];
-
-  // printf("consumer publishing %u on slot %u\n", seq, buf_idx);
-  cuStreamWriteValue32((CUstream)compute_stream, (CUdeviceptr)streamer->gpu_done_dptr[buf_idx], seq,
-                       CU_STREAM_WRITE_VALUE_DEFAULT);
-
-  // The consumer is done with this sequence, expect the next one
-  streamer->consumer_seq[buf_idx]++;
-}
-
-void streamer_destroy(AsyncFluidStreamer *streamer) {
+void streamer_destroy(Streamer *const streamer) {
   if (!streamer)
     return;
 
@@ -283,11 +248,69 @@ void streamer_destroy(AsyncFluidStreamer *streamer) {
 
   for (u32 i = 0; i < 2; ++i) {
     if (streamer->upload_done[i])
-      cudaFreeHost((void *)streamer->upload_done[i]);
+      cudaFreeHost((void *)(uintptr_t)(streamer->upload_done[i]));
     if (streamer->gpu_done[i])
-      cudaFreeHost((void *)streamer->gpu_done[i]);
+      cudaFreeHost((void *)(uintptr_t)(streamer->gpu_done[i]));
   }
 
   munmap_file(&streamer->mapped_file);
   free(streamer);
+}
+
+/* ---- acquire: make the compute stream wait for the upload ---------- */
+
+float3 *
+streamer_acquire_next_frame(Streamer const *const streamer, u32 const buf_idx, cudaStream_t const compute_stream) {
+  /*
+   * The worker thread writes *upload_done[buf_idx] = seq when the
+   * memcpy is done.  We need to know the current expected sequence
+   * number.  The latest value already stored tells us what to wait for:
+   *
+   *   current value V  →  we are waiting for V+1  (next upload).
+   *
+   * But because the worker may have *just* written V and the compute
+   * stream hasn't released V-1 yet, the simplest correct approach is to
+   * wait for a value strictly greater than what we last consumed.
+   *
+   * However, because we pair acquire/release 1:1 in the render loop and
+   * the worker increments upload_done monotonically, we can simply read
+   * the current host value and wait for (value+1) - the NEXT upload.
+   *
+   * In practice, the very first time buf_idx 0 is acquired the stored
+   * value is 0, so we wait for >= 1, which is the first upload.
+   */
+
+  if (streamer->total_frames == 0) {
+    // don't wait if there are no frames
+    return streamer->buffers[buf_idx];
+  }
+
+  u32 const wait_val = streamer->consumer_seq[buf_idx];
+
+  // printf("consumer waiting for %u on slot %u\n", wait_val, buf_idx);
+  cuStreamWaitValue32((CUstream)compute_stream, (CUdeviceptr)streamer->upload_done_dptr[buf_idx], wait_val,
+                      CU_STREAM_WAIT_VALUE_GEQ);
+
+  return streamer->buffers[buf_idx];
+}
+
+/* ---- release: tell the worker the buffer is free ------------------- */
+
+void streamer_release_frame(Streamer *const streamer, u32 const buf_idx, cudaStream_t const compute_stream) {
+  /*
+   * We write the *same* sequence number that the worker wrote into
+   * upload_done[buf_idx] - the worker waits for gpu_done >= seq before
+   * reusing this slot.
+   *
+   * upload_done was updated to `seq` by the worker; at this point the
+   * value is already visible on the host so we can read it directly.
+   */
+  u32 const seq = streamer->consumer_seq[buf_idx];
+
+  // printf("consumer publishing %u on slot %u\n", seq, buf_idx);
+  cuStreamWriteValue32((CUstream)compute_stream, (CUdeviceptr)streamer->gpu_done_dptr[buf_idx], seq,
+                       CU_STREAM_WRITE_VALUE_DEFAULT);
+
+  // The consumer is done with this sequence, expect the next one
+  ++streamer->consumer_seq[buf_idx];
 }

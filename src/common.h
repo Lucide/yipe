@@ -36,6 +36,7 @@ typedef uint16_t u16;
 typedef uint32_t u32;
 typedef int32_t s32;
 typedef uint64_t u64;
+typedef int64_t s64;
 
 typedef struct bool3 {
   bool x, y, z;
@@ -106,14 +107,22 @@ void launch_verify_hashtable(GPUInfo const *info,
                              HashTable const *table,
                              float particle_diameter,
                              cudaStream_t stream);
-Geometry triangulate(GPUInfo const *info,
-                     float3 *data,
-                     u32 length,
-                     float3 room_dim,
-                     float particle_diameter,
-                     float isolevel,
-                     cudaStream_t stream);
-
+float *launch_compute_scalar_fields(GPUInfo const *info,
+                                    float3 *data,
+                                    u32 length,
+                                    float3 room_dim,
+                                    float particle_diameter,
+                                    float isolevel,
+                                    cudaStream_t stream);
+Geometry launch_marching_cubes(
+    float const *fields, u32 length, float3 room_dim, float particle_diameter, float isolevel, cudaStream_t stream);
+Geometry launch_triangulate(GPUInfo const *info,
+                            float3 *data,
+                            u32 length,
+                            float3 room_dim,
+                            float particle_diameter,
+                            float isolevel,
+                            cudaStream_t stream);
 GPU HOST u32 point_hash(float3 point, u32 particle_count, float particle_diameter);
 
 #ifdef __cplusplus

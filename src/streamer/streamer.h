@@ -13,19 +13,17 @@ typedef struct StreamHeader {
 } StreamHeader;
 #pragma pack(pop)
 
-#pragma pack(push, 1)
-typedef struct Stream {
-  StreamHeader header;
-  float3 points[];
-} Stream;
-#pragma pack(pop)
-
-typedef struct AsyncFluidStreamer {
+typedef struct Streamer {
   MappedFile mapped_file;
-  StreamHeader header;
-  u32 frame_bytes;
+  float3 room;
+  u32 total_frames;
+  u32 num_particles;
+  size_t frame_size;
+  u32 start_frame;
+  u32 end_frame;
+  u8 frameskip;
 
-  // Double device buffers
+  // double device buffers
   float3 *buffers[2];
 
   /*
@@ -58,10 +56,10 @@ typedef struct AsyncFluidStreamer {
   cudaStream_t worker_stream;
   thrd_t worker_thread;
   atomic_bool stop_requested;
-} AsyncFluidStreamer;
+} Streamer;
 
 // function declarations
-AsyncFluidStreamer *streamer_create(FILE *file);
-void streamer_destroy(AsyncFluidStreamer *streamer);
-float3 *streamer_acquire_next_frame(AsyncFluidStreamer *streamer, u32 buf_idx, cudaStream_t compute_stream);
-void streamer_release_frame(AsyncFluidStreamer *streamer, u32 buf_idx, cudaStream_t compute_stream);
+Streamer *streamer_create(FILE *file, u32 start_frame, u32 total_frames, u8 frameskip);
+void streamer_destroy(Streamer *streamer);
+float3 *streamer_acquire_next_frame(Streamer const *streamer, u32 buf_idx, cudaStream_t compute_stream);
+void streamer_release_frame(Streamer *streamer, u32 buf_idx, cudaStream_t compute_stream);

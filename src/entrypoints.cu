@@ -71,13 +71,35 @@ extern "C" void launch_verify_hashtable(GPUInfo const *const info,
   verify_hashtable(*info, data, length, table, hasher, stream);
 }
 
-extern "C" Geometry triangulate(GPUInfo const *const info,
-                                float3 *const data,
-                                u32 const length,
-                                float3 const room_dim,
-                                float const particle_diameter,
-                                float const isolevel,
-                                cudaStream_t const stream) {
+extern "C" float *launch_compute_scalar_fields(GPUInfo const *const info,
+                                               float3 *const data,
+                                               u32 const length,
+                                               float3 const room_dim,
+                                               float const particle_diameter,
+                                               float const isolevel,
+                                               cudaStream_t const stream) {
 
-  return compute_marching_cubes(*info, data, length, room_dim, particle_diameter, isolevel, stream);
+  return compute_scalar_fields(*info, data, length, room_dim, particle_diameter, isolevel, stream);
+}
+
+extern "C" Geometry launch_marching_cubes(float const *const fields,
+                                          u32 const length,
+                                          float3 const room_dim,
+                                          float const particle_diameter,
+                                          float const isolevel,
+                                          cudaStream_t const stream) {
+
+  return compute_marching_cubes(fields, length, room_dim, particle_diameter, isolevel, stream);
+}
+
+extern "C" Geometry launch_triangulate(GPUInfo const *const info,
+                                       float3 *const data,
+                                       u32 const length,
+                                       float3 const room_dim,
+                                       float const particle_diameter,
+                                       float const isolevel,
+                                       cudaStream_t const stream) {
+
+  float const *const fields = compute_scalar_fields(*info, data, length, room_dim, particle_diameter, isolevel, stream);
+  return launch_marching_cubes(fields, length, room_dim, particle_diameter, isolevel, stream);
 }

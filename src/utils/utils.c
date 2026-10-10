@@ -15,7 +15,7 @@ bool read32_file(char const *const filepath, char const **const out_buffer, u32 
 
   char *buffer = NULL;
 
-  // Determine file size
+  // determine file size
   if (fseek(file, 0, SEEK_END) != 0) {
     perror("error seeking file end");
     goto cleanup;

@@ -69,7 +69,7 @@ static int player(PlayerArguments args, GPUInfo const info) {
     perror("file not found");
     return -ENOENT;
   }
-  AsyncFluidStreamer *streamer = streamer_create(file);
+  Streamer *streamer = streamer_create(file, 117, 173, 1);
   // after mmap we can close the file
   fclose(file);
   if (!streamer) {
@@ -80,20 +80,25 @@ static int player(PlayerArguments args, GPUInfo const info) {
   u32 active_buf = 0;
 
   Viewer viewer =
-      new_viewer(streamer->header.room, &args.common.particle_diameter, &args.common.isolevel, args.renderer.framerate,
+      new_viewer(streamer->room, &args.common.particle_diameter, &args.common.isolevel, args.renderer.framerate,
                  args.renderer.vertex_shader_file, args.renderer.fragment_shader_file);
 
   while (!WindowShouldClose()) {
     float3 *gpu_points = streamer_acquire_next_frame(streamer, active_buf, cudaStreamPerThread);
 
-    Geometry const gpu_geometry = triangulate(&info, gpu_points, streamer->header.num_particles, streamer->header.room,
-                                              args.common.particle_diameter, args.common.isolevel, cudaStreamPerThread);
-    present(&viewer, gpu_geometry, cudaStreamPerThread);
+    float const *const fields =
+        launch_compute_scalar_fields(&info, gpu_points, streamer->num_particles, streamer->room,
+                                     args.common.particle_diameter, args.common.isolevel, cudaStreamPerThread);
     streamer_release_frame(streamer, active_buf, cudaStreamPerThread);
     active_buf = 1 - active_buf;
+
+    Geometry const gpu_geometry =
+        launch_marching_cubes(fields, streamer->num_particles, streamer->room, args.common.particle_diameter,
+                              args.common.isolevel, cudaStreamPerThread);
+    present(&viewer, gpu_geometry, cudaStreamPerThread);
     set_window_title("CUDA Marching Cubes | Isolevel %g | Room %gx%gx%g | Triangles: %u | FPS: %d",
-                     (double)args.common.isolevel, (double)streamer->header.room.x, (double)streamer->header.room.y,
-                     (double)streamer->header.room.z, gpu_geometry.count, GetFPS());
+                     (double)args.common.isolevel, (double)streamer->room.x, (double)streamer->room.y,
+                     (double)streamer->room.z, gpu_geometry.count, GetFPS());
   }
 
   unload_viewer(&viewer);
@@ -133,9 +138,9 @@ static void random_points(RandomPointsArguments args, GPUInfo const info) {
       printf("points loaded\n");
     }
 
-    Geometry const gpu_geometry =
-        triangulate(&info, gpu_points, args.generator.particle_count, args.generator.room,
-                    args.generator.common.particle_diameter, args.generator.common.isolevel, cudaStreamPerThread);
+    Geometry const gpu_geometry = launch_triangulate(&info, gpu_points, args.generator.particle_count,
+                                                     args.generator.room, args.generator.common.particle_diameter,
+                                                     args.generator.common.isolevel, cudaStreamPerThread);
     present(&viewer, gpu_geometry, cudaStreamPerThread);
     set_window_title("CUDA Marching Cubes | Isolevel %g | Room %gx%gx%g | Triangles: %u | FPS: %d",
                      (double)args.generator.common.isolevel, (double)args.generator.room.x,
@@ -250,8 +255,9 @@ static int test(GeneratorArguments const args, GPUInfo const info) {
 
   printf("\n");
 
-  Geometry const geometry = triangulate(&info, gpu_points, args.particle_count, args.room,
-                                        args.common.particle_diameter, args.common.isolevel, cudaStreamPerThread);
+  Geometry const geometry =
+      launch_triangulate(&info, gpu_points, args.particle_count, args.room, args.common.particle_diameter,
+                         args.common.isolevel, cudaStreamPerThread);
   if (geometry.count <= 1024) {
     printf("\n printint triangles\n");
     Geometry const cpu_geometry = download_geometry(geometry, cudaStreamPerThread);

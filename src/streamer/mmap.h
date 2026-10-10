@@ -12,9 +12,11 @@ typedef enum MmapError {
 } MmapError;
 
 typedef struct MappedFile {
+  void const *map_ptr;
   void const *data;
+  size_t map_size;
   size_t size;
 } MappedFile;
 
-MmapError mmap_file(FILE *file, MappedFile *out_mapping);
+MmapError mmap_file(FILE *file, size_t offset, size_t size, MappedFile *out_mapping);
 void munmap_file(MappedFile *mapping);
