@@ -62,7 +62,7 @@ add_executable(yipe)
 target_sources(yipe
     PRIVATE
     src/main.c
-    src/entrypoints.cu
+    src/gpu/entrypoints.cu
     src/viewer/viewer.c
     src/streamer/streamer.c
     src/streamer/mmap.c
@@ -73,6 +73,7 @@ target_sources(yipe
 target_include_directories(yipe
     PRIVATE
     ${PROJECT_SOURCE_DIR}/src
+    ${PROJECT_SOURCE_DIR}/src/gpu
 )
 
 target_compile_definitions(yipe PRIVATE _CRT_SECURE_NO_WARNINGS)
@@ -95,4 +96,4 @@ target_include_directories(yipe SYSTEM PRIVATE
     "${CUDAToolkit_INCLUDE_DIRS}"
 )
 
-target_link_libraries(yipe PRIVATE CUDA::cudart CUDA::cuda_driver raylib argp-standalone)
+target_link_libraries(yipe PRIVATE CUDA::cudart CUDA::cuda_driver CUDA::curand raylib argp-standalone)

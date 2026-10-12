@@ -134,7 +134,7 @@ static int alloc_flag(u32 volatile **const host_ptr, unsigned long long *const d
 }
 
 static bool parse_header(
-    StreamHeader *const header, FILE *const file, u32 const start_frame, u32 const total_frames, u8 const frameskip) {
+    StreamHeader *const header, FILE *const file, u32 const start_frame, u32 total_frames, u8 const frameskip) {
   size_t const bytes_read = fread(header, 1, sizeof(StreamHeader), file);
   if (bytes_read < sizeof(StreamHeader)) {
     if (ferror(file)) {
@@ -142,6 +142,13 @@ static bool parse_header(
       return false;
     }
   }
+
+  if (start_frame >= header->total_frames) {
+    printf("start_frame \"%u\" is outside the recording file (%u frames)\n", start_frame, header->total_frames);
+    return false;
+  }
+
+  total_frames = total_frames ? min(total_frames, header->total_frames - start_frame) : header->total_frames;
 
   // determine file size
   if (fseek64(file, 0, SEEK_END) != 0) {
@@ -155,9 +162,38 @@ static bool parse_header(
     return false;
   }
 
-  if (header->total_frames == 0 || header->num_particles == 0)
+  if (header->total_frames == 0) {
+    printf("file has no frames\n");
     return false;
+  }
+  if (header->num_particles == 0) {
+    printf("frames are empty\n");
+    return false;
+  }
 
+  u64 const frame_size = header->num_particles * sizeof(float3);
+  u64 const expected_size = sizeof(StreamHeader) + header->total_frames * frame_size;
+  if ((u64)size < expected_size) {
+    printf("file ends too soon, %lld bytes (expected %llu)\n", size, header->total_frames * frame_size);
+    return false;
+  }
+  if ((u64)size > expected_size) {
+    printf("file too long, %lld bytes (expected %llu)\n", size, header->total_frames * frame_size);
+    return false;
+  }
+
+  if (header->room.x <= 0 && header->room.y <= 0 && header->room.z <= 0) {
+    printf("all room dimensions must be greater than 0 (found %gx%gx%g)\n", (double)header->room.x,
+           (double)header->room.y, (double)header->room.z);
+    return false;
+  }
+
+  if (frameskip + 1 >= total_frames) {
+    printf("frameskip (%u) skips every frame (%u)", frameskip, total_frames);
+    return false;
+  }
+
+  header->total_frames = total_frames;
   return true;
 }
 
@@ -172,11 +208,11 @@ Streamer *streamer_create(FILE *const file, u32 const start_frame, u32 const tot
   parse_header(&header, file, start_frame, total_frames, frameskip);
   size_t const frame_size = header.num_particles * sizeof(float3);
   size_t const map_start = sizeof(StreamHeader) + start_frame * frame_size;
-  size_t const map_size = total_frames * frame_size;
+  size_t const map_size = header.total_frames * frame_size;
 
   *streamer = (Streamer){
       .room = header.room,
-      .total_frames = total_frames,
+      .total_frames = header.total_frames,
       .num_particles = header.num_particles,
       .frame_size = frame_size,
       .start_frame = start_frame,
@@ -210,7 +246,7 @@ Streamer *streamer_create(FILE *const file, u32 const start_frame, u32 const tot
   atomic_init(&streamer->stop_requested, false);
 
   /* launch background worker thread. */
-  if (thrd_create(&streamer->worker_thread, (thrd_start_t)worker_loop, streamer) != thrd_success) {
+  if (thrd_create(&streamer->worker_thread, (thrd_start_t)(uintptr_t)worker_loop, streamer) != thrd_success) {
     atomic_store(&streamer->stop_requested, true);
     streamer_destroy(streamer);
     return NULL;

@@ -36,6 +36,9 @@ typedef GeneratorArguments TestArguments;
 typedef struct PlayerArguments {
   CommonArguments common;
   char const *file;
+  u32 start_frame;
+  u32 total_frames;
+  u8 frameskip;
   RendererArguments renderer;
 } PlayerArguments;
 

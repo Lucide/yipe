@@ -5,7 +5,7 @@
 #include "scan/scan.cuh"
 
 float *compute_scalar_fields(GPUInfo const &info,
-                             float3 *const points,
+                             float4 *const points,
                              u32 const length,
                              float3 const room,
                              float const particle_diameter,

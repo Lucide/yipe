@@ -5,14 +5,13 @@
 namespace upfront {
 inline constexpr u32 slice_length = threads_per_block * items_per_thread_per_slice;
 
-template <typename Data, typename Hasher>
-  requires is_hasher<Hasher, Data>
+template <typename Data, is_hasher<Data> Hasher>
 KERNEL void count(Data const *const data,
                   u32 const length,
-                  u32 (&counters)[Key<Hasher, Data>::digit_places][RADIX],
+                  u32 (&counters)[Key<Data, Hasher>::digit_places][RADIX],
                   Hasher const hasher) {
   // block-local counters
-  using Key = Key<Hasher, Data>;
+  using Key = Key<Data, Hasher>;
   SHARED u32 local_counters[Key::digit_places][RADIX]; // NOLINT(bugprone-dynamic-static-initializers)
   auto const linearized_local_counters = flatten(local_counters);
 

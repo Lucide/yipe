@@ -1,16 +1,15 @@
 #pragma once
 
+#include "gpu-common.cuh"
 #include "hashtable/hashtable-common.cuh"
-#include "sort/sort-common.cuh"
 
 namespace hash_table {
 inline constexpr u32 slice_length = threads_per_block * items_per_thread_per_slice;
 
-template <typename Data, typename Hasher>
-  requires is_hasher<Hasher, Data>
+template <typename Data, is_hasher<Data> Hasher>
 KERNEL void
 build(Data const *const data, u32 const length, HashTable *const hash_table, u32 const buckets, Hasher const hasher) {
-  using Key = Key<Hasher, Data>;
+  using Key = Key<Data, Hasher>;
   hash_table->length = buckets + 1;
   cuda::std::span<u32, cuda::std::dynamic_extent> table(hash_table->table, buckets + 1);
   assert(length > 0);
@@ -59,10 +58,9 @@ build(Data const *const data, u32 const length, HashTable *const hash_table, u32
   }
 }
 
-template <typename Data, typename Hasher>
-  requires is_hasher<Hasher, Data>
+template <typename Data, is_hasher<Data> Hasher>
 KERNEL void verify(Data const *const data, u32 const length, HashTable const *const hash_table, Hasher const hasher) {
-  using Key = Key<Hasher, Data>;
+  using Key = Key<Data, Hasher>;
   u32 const buckets = hash_table->length - 1;
   cuda::std::span<u32 const, cuda::std::dynamic_extent> table(hash_table->table, buckets + 1);
   u32 const warps = blockDim.x / 32;

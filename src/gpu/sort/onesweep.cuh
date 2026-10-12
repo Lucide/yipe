@@ -24,8 +24,7 @@ inline constexpr u8 subwarp_size = pow2_ceiling(warp_slices);
 inline constexpr u8 subwarps_per_warp = 32 / subwarp_size;
 inline constexpr u16 subwarps = warp_slices * subwarps_per_warp;
 
-template <typename Data, typename Hasher>
-  requires is_hasher<Hasher, Data>
+template <typename Data, is_hasher<Data> Hasher>
 KERNEL void onesweep(u32 *const atomic_id,
                      Data const *const data,
                      Data *const sorted,
@@ -34,7 +33,7 @@ KERNEL void onesweep(u32 *const atomic_id,
                      StateCounter *const linearized_global_state_counters,
                      u32 const (&global_totals)[RADIX],
                      Hasher const hasher) {
-  using Key = Key<Hasher, Data>;
+  using Key = Key<Data, Hasher>;
   SHARED u32 block_id; // NOLINT(bugprone-dynamic-static-initializers)
   if (threadIdx.x == 0) {
     block_id = atomicAdd(atomic_id, 1) % gridDim.x;

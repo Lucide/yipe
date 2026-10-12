@@ -98,32 +98,34 @@ void handle_cuda_result(cudaError_t err, char const *message);
 void handle_cuda_error_debug(char const *message);
 
 void launch_exclusive_scan(u32 const *src, u32 *dst, u32 length, cudaStream_t stream);
-void launch_sort_points(GPUInfo const *info, float3 *points, u32 length, float particle_diameter, cudaStream_t stream);
+void launch_sort_points(GPUInfo const *info, float4 *points, u32 length, float particle_diameter, cudaStream_t stream);
 struct HashTable *new_hashtable(
-    GPUInfo const *info, float3 *points, u32 length, u32 buckets, float particle_diameter, cudaStream_t stream);
+    GPUInfo const *info, float4 *points, u32 length, u32 buckets, float particle_diameter, cudaStream_t stream);
 void launch_verify_hashtable(GPUInfo const *info,
-                             float3 const *data,
+                             float4 const *data,
                              u32 length,
                              HashTable const *table,
                              float particle_diameter,
                              cudaStream_t stream);
+void launch_generate_points(GPUInfo const *info, float3 room, u32 seed, float4 *out, u32 length, cudaStream_t stream);
 float *launch_compute_scalar_fields(GPUInfo const *info,
-                                    float3 *data,
+                                    float4 *data,
                                     u32 length,
                                     float3 room_dim,
                                     float particle_diameter,
                                     float isolevel,
                                     cudaStream_t stream);
+void launch_preprocess_float3(GPUInfo const *info, float3 const *in, float4 *out, u32 length, cudaStream_t stream);
 Geometry launch_marching_cubes(
     float const *fields, u32 length, float3 room_dim, float particle_diameter, float isolevel, cudaStream_t stream);
 Geometry launch_triangulate(GPUInfo const *info,
-                            float3 *data,
+                            float4 *data,
                             u32 length,
                             float3 room_dim,
                             float particle_diameter,
                             float isolevel,
                             cudaStream_t stream);
-GPU HOST u32 point_hash(float3 point, u32 particle_count, float particle_diameter);
+GPU HOST u32 point_hash(float4 point, u32 particle_count, float particle_diameter);
 
 #ifdef __cplusplus
 }

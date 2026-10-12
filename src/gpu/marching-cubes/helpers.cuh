@@ -53,11 +53,6 @@ GPU bool is_out_of_bounds(float3 const point, float3 const room) {
   return point.x <= 0 || point.y <= 0 || point.z <= 0 || point.x >= room.x || point.y >= room.y || point.z >= room.z;
 }
 
-GPU float3 clamp_point(float3 const point, float3 const room) {
-  // assume positive coordinates
-  return {fmin(point.x, room.x), fmin(point.y, room.y), fmin(point.z, room.z)};
-}
-
 GPU pair<s83, u83> get_neighbourhood_bounds(u323 const coords, u323 const samples) {
   s8 sx, sy, sz;
   u8 dx, dy, dz;

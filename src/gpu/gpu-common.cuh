@@ -7,6 +7,9 @@
 #include "common.h"
 
 inline constexpr u32 SYNC_WARP = 0xffffffff;
+// size of the radix in bits
+inline constexpr u8 RADIX_SIZE = 8;
+static_assert(RADIX_SIZE > 0, "RADIX_SIZE must be greater than 0");
 
 template <typename T, template <typename...> class TargetTemplate> struct is_instance_of : std::false_type {};
 
@@ -15,6 +18,61 @@ struct is_instance_of<TargetTemplate<Args...>, TargetTemplate> : std::true_type 
 
 template <typename T, template <typename...> class TargetTemplate>
 concept IsInstanceOf = is_instance_of<T, TargetTemplate>::value;
+
+template <typename T1, typename T2> using pair = cuda::std::pair<T1, T2>;
+
+template <typename T,
+          typename Extents,
+          typename Layout = cuda::std::layout_right,
+          typename Accessor = cuda::std::default_accessor<T>>
+using mdspan = cuda::std::mdspan<T, Extents, Layout, Accessor>;
+
+template <typename T, typename Extents>
+  requires(Extents::rank() == 3 && std::is_same_v<typename Extents::index_type, u32>)
+struct u323span : public mdspan<T, Extents> {
+  using base = mdspan<T, Extents>;
+  // inherit standard host/device constructors
+  using base::base;
+  // bring all standard parent operator() overloads into this scope
+  using base::operator();
+
+  GPU HOST inline constexpr typename base::reference operator[](u323 idx) const noexcept {
+    return base::operator()(idx.x, idx.y, idx.z);
+  }
+};
+
+template <class T, class E> u323span(T *, E) -> u323span<T, E>;
+
+template <typename Func, typename T>
+concept is_hasher = requires(Func const f, T const val) {
+  // enforces that f(val) is valid and returns an unsigned integer
+  { f(val) } -> std::unsigned_integral;
+};
+
+template <typename Data, is_hasher<Data> Hasher> struct Key {
+  using KeyType = std::invoke_result_t<Hasher, Data>;
+  // size of the hash in bits
+  static constexpr u8 key_size = sizeof(KeyType) * 8;
+  static_assert(RADIX_SIZE < key_size, "RADIX_SIZE must be less than KEY_SIZE");
+  // digit places in a hash
+  static constexpr u8 digit_places = key_size / RADIX_SIZE;
+  static constexpr u16 total_bits = std::numeric_limits<KeyType>::digits;
+
+  // mask generation safe for bit counts up to total_bits
+  GPU HOST static constexpr KeyType mask(u16 const num_bits) {
+    if (num_bits >= total_bits)
+      return ~KeyType(0);
+    return (KeyType(1) << num_bits) - KeyType(1);
+  }
+
+  // all 1 in the first RADIX_SIZE bits
+  static constexpr KeyType radix_mask = mask(RADIX_SIZE);
+
+  GPU HOST static constexpr u16 extract_digit(KeyType key, u8 place) {
+    auto const shift = static_cast<KeyType>(place * RADIX_SIZE);
+    return (key >> shift) & radix_mask;
+  }
+};
 
 // CASTERS
 
@@ -197,6 +255,14 @@ GPU HOST inline constexpr bool operator<(u83 const lhs, u83 const rhs) noexcept 
 GPU HOST inline constexpr const u32 &get_elem(u323 const &vec, int index) noexcept { return (&vec.x)[index]; }
 GPU HOST inline constexpr float3 project4to3(float4 const point) noexcept { return {point.x, point.y, point.z}; }
 GPU HOST inline constexpr float4 project3to4(float3 const point) noexcept { return {point.x, point.y, point.z, 1}; }
+GPU float3 clamp_point(float3 const point, float3 const bounds) {
+  // assume positive coordinates
+  return {fmin(point.x, bounds.x), fmin(point.y, bounds.y), fmin(point.z, bounds.z)};
+}
+GPU float4 clamp_point(float4 const point, float4 const bounds) {
+  // assume positive coordinates
+  return {fmin(point.x, bounds.x), fmin(point.y, bounds.y), fmin(point.z, bounds.z), 1};
+}
 
 GPU HOST inline constexpr mat4x4 transpose(mat4x4 const op) noexcept {
   return {
@@ -235,30 +301,6 @@ GPU HOST inline constexpr u8 pow2_ceiling(u8 const val) noexcept {
 
 // UTILS
 
-template <typename T1, typename T2> using pair = cuda::std::pair<T1, T2>;
-
-template <typename T,
-          typename Extents,
-          typename Layout = cuda::std::layout_right,
-          typename Accessor = cuda::std::default_accessor<T>>
-using mdspan = cuda::std::mdspan<T, Extents, Layout, Accessor>;
-
-template <typename T, typename Extents>
-  requires(Extents::rank() == 3 && std::is_same_v<typename Extents::index_type, u32>)
-struct u323span : public mdspan<T, Extents> {
-  using base = mdspan<T, Extents>;
-  // inherit standard host/device constructors
-  using base::base;
-  // bring all standard parent operator() overloads into this scope
-  using base::operator();
-
-  GPU HOST inline constexpr typename base::reference operator[](u323 idx) const noexcept {
-    return base::operator()(idx.x, idx.y, idx.z);
-  }
-};
-
-template <class T, class E> u323span(T *, E) -> u323span<T, E>;
-
 template <typename T, size_t N1, size_t N2> GPU inline constexpr auto flatten(T (&arr)[N1][N2]) noexcept {
   return cuda::std::span<T, N1 * N2>(&arr[0][0], N1 * N2);
 }
@@ -275,7 +317,7 @@ GPU HOST inline u32 point_hash(u323 const discrete, u32 const particle_count) {
   return ((discrete.x * primes[0]) ^ (discrete.y * primes[1]) ^ (discrete.z * primes[2])) % particle_count;
 }
 
-GPU HOST inline u32 point_hash(float3 const point, u32 const particle_count, float const particle_diameter) {
+GPU HOST inline u32 point_hash(float4 const point, u32 const particle_count, float const particle_diameter) {
   // int3 const discrete = point_discretize(point, particle_diameter);
   return point_hash({static_cast<u32>(point.x / particle_diameter), static_cast<u32>(point.y / particle_diameter),
                      static_cast<u32>(point.z / particle_diameter)},
@@ -286,7 +328,7 @@ struct PointHasher {
   u32 length;
   float particle_diameter;
 
-  GPU HOST u32 operator()(float3 const p) const { return point_hash(p, length, particle_diameter); }
+  GPU HOST u32 operator()(float4 const p) const { return point_hash(p, length, particle_diameter); }
   GPU HOST u32 operator()(u323 const cell) const { return point_hash(cell, length); }
 };
 

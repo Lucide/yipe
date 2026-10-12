@@ -111,15 +111,14 @@ GPUInfo fetch_gpu_info(void) {
 }
 
 // function to fill an array with random numbers within a specific range
-void generate_random_points(float3 *const points, u32 const length, u32 const seed, float3 const room) {
+void generate_random_points(float4 *const points, u32 const length, u32 const seed, float3 const room) {
   srand(seed);
   for (u32 i = 0; i < length; ++i) {
     // (double)+ is the "unary plus sign operator" for double, it avoids a bad cast from u32 to double
-    points[i] = (float3){
-        .x = (float)(((double)+rand() / (double)RAND_MAX) * (double)room.x), // NOLINT(cert-msc50-cpp)
-        .y = (float)(((double)+rand() / (double)RAND_MAX) * (double)room.y), // NOLINT(cert-msc50-cpp)
-        .z = (float)(((double)+rand() / (double)RAND_MAX) * (double)room.z), // NOLINT(cert-msc50-cpp)
-    };
+    points[i] = (float4){.x = (float)(((double)+rand() / (double)RAND_MAX) * (double)room.x), // NOLINT(cert-msc50-cpp)
+                         .y = (float)(((double)+rand() / (double)RAND_MAX) * (double)room.y), // NOLINT(cert-msc50-cpp)
+                         .z = (float)(((double)+rand() / (double)RAND_MAX) * (double)room.z), // NOLINT(cert-msc50-cpp)
+                         .w = 1};
   }
 }
 
@@ -138,13 +137,13 @@ void free_gpu_geometry(Geometry const geometry) {
 }
 
 Geometry download_geometry(Geometry const gpu_geometry, cudaStream_t const stream) {
-  Geometry cpu_geometry =
-      (Geometry){.count = gpu_geometry.count, .triangles = malloc(2 * gpu_geometry.count * sizeof(float33))};
+  Geometry cpu_geometry = (Geometry){.count = gpu_geometry.count,
+                                     .triangles = malloc(ARRAY_SIZE(gpu_geometry.triangles, 2 * gpu_geometry.count))};
   handle_cuda_result(cudaMemcpyAsync(cpu_geometry.triangles, gpu_geometry.triangles,
                                      2 * gpu_geometry.count * sizeof(float33), cudaMemcpyDeviceToHost, stream),
                      "main: download triangles");
   handle_cuda_result(cudaStreamSynchronize(stream), "main: download triangles");
-  handle_cuda_result(cudaFree(gpu_geometry.triangles), "main: free triangles");
+  free_gpu_geometry(gpu_geometry);
   cpu_geometry.normals = cpu_geometry.triangles + cpu_geometry.count;
   return cpu_geometry;
 }

@@ -69,10 +69,10 @@ static struct argp_child const main_children[] = {
 };
 
 /* -------------------------------------------------------------------------- */
-/* Render Options (Shared base for test / random_points)                      */
+/* Generator Options (Shared base for test / random_points)                      */
 /* -------------------------------------------------------------------------- */
 
-static struct argp_option const render_options[] = {
+static struct argp_option const generator_options[] = {
     {          "seed", 's', "NUM", 0, "Seed for random points", 0},
     {"particle-count", 'c', "NUM", 0,    "Number of particles", 0},
     {    "room-width", 'x', "NUM", 0,   "Room width in metres", 0},
@@ -81,12 +81,12 @@ static struct argp_option const render_options[] = {
     {            NULL,   0,  NULL, 0,                     NULL, 0}
 };
 
-static struct argp_child const render_children[] = {
+static struct argp_child const generator_children[] = {
     {&common_argp, 0, "Shared Options:", 0},
     {0}
 };
 
-static error_t parse_render_opt(int key, char *arg, struct argp_state *state) {
+static error_t parse_generator_opt(int key, char *arg, struct argp_state *state) {
   GeneratorArguments *arguments = state->input;
   char *endptr;
 
@@ -149,7 +149,8 @@ static error_t parse_render_opt(int key, char *arg, struct argp_state *state) {
   return 0;
 }
 
-static struct argp const render_argp = {render_options, parse_render_opt, NULL, NULL, render_children, NULL, NULL};
+static struct argp const generator_argp = {
+    generator_options, parse_generator_opt, NULL, NULL, generator_children, NULL, NULL};
 
 /* -------------------------------------------------------------------------- */
 /* Random Points Subcommand                                                   */
@@ -163,7 +164,7 @@ static struct argp_option const random_points_options[] = {
 };
 
 static struct argp_child const random_points_children[] = {
-    {&render_argp, 0, NULL, 0},
+    {&generator_argp, 0, NULL, 0},
     {0}
 };
 
@@ -206,11 +207,14 @@ static struct argp const random_points_argp = {
 /* -------------------------------------------------------------------------- */
 
 static struct argp_option const player_options[] = {
-    {      "recording", 'r', "FILE", 0,   "Path to the recording file", 0},
-    {      "framerate", 'f',  "NUM", 0,                    "framerate", 0},
-    {  "vertex-shader", 'V', "FILE", 0,   "Path to vertex shader file", 0},
-    {"fragment-shader", 'F', "FILE", 0, "Path to fragment shader file", 0},
-    {             NULL,   0,   NULL, 0,                           NULL, 0}
+    {      "recording", 'r', "FILE", 0,              "Path to the recording file", 0},
+    {      "framerate", 'f',  "NUM", 0,                               "framerate", 0},
+    {  "vertex-shader", 'V', "FILE", 0,              "Path to vertex shader file", 0},
+    {"fragment-shader", 'F', "FILE", 0,            "Path to fragment shader file", 0},
+    {      "frameskip", 'k',  "NUM", 0,      "Skipped frames (0 for no skipping)", 0},
+    {    "start-frame", 'b',  "NUM", 0,                 "Index of starting frame", 0},
+    {   "total-frames", 't',  "NUM", 0, "Max number of frames (0 for all frames)", 0},
+    {             NULL,   0,   NULL, 0,                                      NULL, 0}
 };
 
 static struct argp_child const player_children[] = {
@@ -241,6 +245,33 @@ static error_t parse_player_opt(int key, char *arg, struct argp_state *state) {
   }
   case 'F': {
     arguments->renderer.fragment_shader_file = arg;
+    break;
+  }
+  case 'k': {
+    u32 const frameskip = strtoul(arg, &endptr, 0);
+    if (arg == endptr || *endptr != '\0') {
+      argp_failure(state, 1, 0, "Invalid argument: \"%s\"; frameskip must be a number", arg);
+    }
+    if (frameskip >= 256) {
+      argp_failure(state, 1, 0, "Invalid argument: frameskip must be less than 256");
+    }
+    arguments->frameskip = (u8)frameskip;
+    break;
+  }
+  case 'b': {
+    u32 const start_frame = strtoul(arg, &endptr, 0);
+    if (arg == endptr || *endptr != '\0') {
+      argp_failure(state, 1, 0, "Invalid argument: \"%s\"; start-frame must be a number", arg);
+    }
+    arguments->start_frame = start_frame;
+    break;
+  }
+  case 't': {
+    u32 const total_frames = strtoul(arg, &endptr, 0);
+    if (arg == endptr || *endptr != '\0') {
+      argp_failure(state, 1, 0, "Invalid argument: \"%s\"; total-frames must be a number", arg);
+    }
+    arguments->total_frames = total_frames;
     break;
   }
   case ARGP_KEY_INIT:
@@ -281,7 +312,7 @@ static error_t parse_main_opt(int key, char *arg, struct argp_state *state) {
       } else if (strcmp(arg, "test") == 0) {
         prog_args->mode = MODE_TEST;
         prog_args->test.common = prog_args->common;
-        sub_argp = &render_argp;
+        sub_argp = &generator_argp;
         sub_args = &prog_args->test;
       } else if (strcmp(arg, "player") == 0) {
         prog_args->mode = MODE_PLAYER;

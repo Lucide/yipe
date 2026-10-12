@@ -4,10 +4,9 @@
 #include "onesweep.cuh"
 #include "upfront-pass.cuh"
 
-template <typename Data, typename Hasher>
-  requires is_hasher<Hasher, Data>
+template <typename Data, is_hasher<Data> Hasher>
 void sort(GPUInfo const &info, Data *const data, u32 const length, Hasher const hasher, cudaStream_t const stream) {
-  using Key = Key<Hasher, Data>;
+  using Key = Key<Data, Hasher>;
   Counters<Key> *counters;
 
   handle_cuda_result(cudaMallocAsync(&counters, sizeof(*counters), stream), "sort: allocate global counters");

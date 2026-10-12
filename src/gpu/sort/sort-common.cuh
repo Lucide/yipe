@@ -3,47 +3,10 @@
 #include <cuda/std/optional>
 #include "scan/scan-common.cuh"
 
-// size of the radix in bits
-inline constexpr u8 RADIX_SIZE = 8;
-static_assert(RADIX_SIZE > 0, "RADIX_SIZE must be greater than 0");
-
 // number of radix values
 inline constexpr u16 RADIX = 1u << RADIX_SIZE;
 static_assert(RADIX % 32 == 0, "RADIX must be a multiple of 32");
 static_assert(RADIX <= 1024, "RADIX can't be higher than 1024");
-
-template <typename Func, typename T>
-concept is_hasher = requires(Func const f, T const val) {
-  // enforces that f(val) is valid and returns an unsigned integer
-  { f(val) } -> std::unsigned_integral;
-};
-
-template <typename Hasher, typename Data>
-  requires is_hasher<Hasher, Data>
-struct Key {
-  using KeyType = std::invoke_result_t<Hasher, Data>;
-  // size of the hash in bits
-  static constexpr u8 key_size = sizeof(KeyType) * 8;
-  static_assert(RADIX_SIZE < key_size, "RADIX_SIZE must be less than KEY_SIZE");
-  // digit places in a hash
-  static constexpr u8 digit_places = key_size / RADIX_SIZE;
-  static constexpr u16 total_bits = std::numeric_limits<KeyType>::digits;
-
-  // mask generation safe for bit counts up to total_bits
-  GPU HOST static constexpr KeyType mask(u16 const num_bits) {
-    if (num_bits >= total_bits)
-      return ~KeyType(0);
-    return (KeyType(1) << num_bits) - KeyType(1);
-  }
-
-  // all 1 in the first RADIX_SIZE bits
-  static constexpr KeyType radix_mask = mask(RADIX_SIZE);
-
-  GPU HOST static constexpr u16 extract_digit(KeyType key, u8 place) {
-    auto const shift = static_cast<KeyType>(place * RADIX_SIZE);
-    return (key >> shift) & radix_mask;
-  }
-};
 
 namespace upfront {
 inline constexpr u8 blocks_per_sm = 2;

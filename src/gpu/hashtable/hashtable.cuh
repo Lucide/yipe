@@ -2,8 +2,7 @@
 
 #include "kernels.cuh"
 
-template <typename Data, typename Hasher>
-  requires is_hasher<Hasher, Data>
+template <typename Data, is_hasher<Data> Hasher>
 HashTable *build_hashtable(GPUInfo const &info,
                            Data *const data,
                            u32 const length,
@@ -30,8 +29,7 @@ HashTable *build_hashtable(GPUInfo const &info,
   return table;
 }
 
-template <typename Data, typename Hasher>
-  requires is_hasher<Hasher, Data>
+template <typename Data, is_hasher<Data> Hasher>
 void verify_hashtable(GPUInfo const &info,
                       Data const *const data,
                       u32 const length,
