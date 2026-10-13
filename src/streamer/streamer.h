@@ -1,9 +1,41 @@
 #pragma once
 
+#include <cuda.h>
 #include <stdatomic.h>
 #include <threads.h>
 #include "common.h"
 #include "mmap.h"
+
+typedef struct Streamer {
+  MappedFile mapped_file;
+
+  thrd_t worker_thread;
+
+  u32 volatile *upload_done[2];
+  u32 volatile *gpu_done[2];
+
+  // device pointers for cuStreamWaitValue32 / cuStreamWriteValue32
+  CUdeviceptr upload_done_dptr[2];
+  CUdeviceptr gpu_done_dptr[2];
+
+  u32 consumer_seq[2];
+
+  float3 *buffers[2];
+
+  size_t frame_size;
+  float3 room;
+  u32 total_frames;
+  u32 num_particles;
+  u32 start_frame;
+  u32 end_frame;
+  u8 frameskip;
+
+  atomic_bool stop_requested;
+
+  struct {
+    u8 _pad[2];
+  };
+} Streamer;
 
 #pragma pack(push, 1)
 typedef struct StreamHeader {
@@ -12,51 +44,6 @@ typedef struct StreamHeader {
   u32 num_particles;
 } StreamHeader;
 #pragma pack(pop)
-
-typedef struct Streamer {
-  MappedFile mapped_file;
-  float3 room;
-  u32 total_frames;
-  u32 num_particles;
-  size_t frame_size;
-  u32 start_frame;
-  u32 end_frame;
-  u8 frameskip;
-
-  // double device buffers
-  float3 *buffers[2];
-
-  /*
-   * cuStreamWaitValue / cuStreamWriteValue synchronisation.
-   *
-   * Each buffer slot has two flags living in CUDA host-pinned memory
-   * (visible to both CPU and GPU via their device-pointer):
-   *
-   *   upload_done[i]  – written by the CPU worker  after cudaMemcpy finishes,
-   *                     waited on by the GPU compute stream before it reads
-   *                     the buffer.
-   *   gpu_done[i]     – written by the GPU compute stream when it is finished
-   *                     with the buffer, waited on by the CPU worker before it
-   *                     starts the next upload into that slot.
-   *
-   * Both are monotonically increasing sequence numbers so the wait/write
-   * pairs never see stale values from a previous frame.
-   */
-  u32 volatile *upload_done[2]; // host-pinned, device-mapped
-  u32 volatile *gpu_done[2];    // host-pinned, device-mapped
-  u32 consumer_seq[2];          // deterministic sequence tracking for consumer
-
-  /* Device pointers for cuStreamWaitValue32 / cuStreamWriteValue32.
-   * Typed as unsigned long long to avoid pulling <cuda.h> into the header
-   * (CUdeviceptr is unsigned long long on all platforms). */
-  unsigned long long upload_done_dptr[2];
-  unsigned long long gpu_done_dptr[2];
-
-  // C11 Threading & Synchronization
-  cudaStream_t worker_stream;
-  thrd_t worker_thread;
-  atomic_bool stop_requested;
-} Streamer;
 
 // function declarations
 Streamer *streamer_create(FILE *file, u32 start_frame, u32 total_frames, u8 frameskip);

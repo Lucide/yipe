@@ -9,7 +9,7 @@ typedef enum {
   MODE_PLAYER,
 } Mode;
 
-typedef struct {
+typedef struct CommonArguments {
   float particle_diameter;
   float isolevel;
 } CommonArguments;
@@ -24,30 +24,35 @@ typedef struct GeneratorArguments {
 typedef struct RendererArguments {
   char const *vertex_shader_file, *fragment_shader_file;
   u32 framerate;
+  u32 : 32;
 } RendererArguments;
 
 typedef struct RandomPointsArguments {
-  GeneratorArguments generator;
   RendererArguments renderer;
+  GeneratorArguments generator;
+  u32 : 32;
 } RandomPointsArguments;
 
 typedef GeneratorArguments TestArguments;
 
 typedef struct PlayerArguments {
-  CommonArguments common;
+  RendererArguments renderer;
   char const *file;
+  CommonArguments common;
   u32 start_frame;
   u32 total_frames;
   u8 frameskip;
-  RendererArguments renderer;
+  struct {
+    u8 _pad[7];
+  };
 } PlayerArguments;
 
 typedef struct ProgramArguments {
-  Mode mode;
-  CommonArguments common;
   RandomPointsArguments random_points;
-  TestArguments test;
   PlayerArguments player;
+  CommonArguments common;
+  TestArguments test;
+  Mode mode;
 } ProgramArguments;
 
 extern struct argp const main_argp;

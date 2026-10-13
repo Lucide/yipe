@@ -9,6 +9,7 @@ CompileFlags:
     - -Wno-switch-default
     - -Wno-c++-compat
     - -Wno-shadow
+    - -Wbraces-around-scalar-init
 ---
 If:
   PathMatch: .*(common\.h|\.(cu|cuh))$

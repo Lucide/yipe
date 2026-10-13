@@ -4,7 +4,7 @@
 
 static char const main_doc[] = "yipe -- A onesweep/spatial-hashing/marching-cubes demo.\n\n"
                                "Subcommands:\n"
-                               "  random_points   Render random points demo\n"
+                               "  random          Render random points demo\n"
                                "  test            Run test suite\n"
                                "  player          Run player mode";
 
@@ -69,7 +69,7 @@ static struct argp_child const main_children[] = {
 };
 
 /* -------------------------------------------------------------------------- */
-/* Generator Options (Shared base for test / random_points)                      */
+/* Generator Options (Shared base for test / random)                      */
 /* -------------------------------------------------------------------------- */
 
 static struct argp_option const generator_options[] = {
@@ -304,7 +304,7 @@ static error_t parse_main_opt(int key, char *arg, struct argp_state *state) {
       struct argp const *sub_argp = NULL;
       void *sub_args = NULL;
 
-      if (strcmp(arg, "random_points") == 0) {
+      if (strcmp(arg, "random") == 0) {
         prog_args->mode = MODE_RANDOM_POINTS;
         prog_args->random_points.generator.common = prog_args->common;
         sub_argp = &random_points_argp;
@@ -334,7 +334,7 @@ static error_t parse_main_opt(int key, char *arg, struct argp_state *state) {
     break;
   case ARGP_KEY_END:
     if (prog_args->mode == MODE_NONE) {
-      argp_error(state, "A subcommand {random_points|test|player} is required");
+      argp_error(state, "A subcommand {random|test|player} is required");
     }
     break;
   default:
@@ -343,5 +343,5 @@ static error_t parse_main_opt(int key, char *arg, struct argp_state *state) {
   return 0;
 }
 
-struct argp const main_argp = {
-    NULL, parse_main_opt, "{random_points|test|player} [options]", main_doc, main_children, NULL, NULL};
+struct argp const main_argp = {NULL, parse_main_opt, "{random|test|player} [options]", main_doc, main_children, NULL,
+                               NULL};

@@ -11,6 +11,7 @@ typedef struct Viewer {
   Mesh mesh;
   Material material;
   Camera3D camera;
+  u32 : 32;
 } Viewer;
 
 typedef enum Ownership {
@@ -40,3 +41,5 @@ void present(Viewer *viewer, Geometry gpu_geometry, cudaStream_t stream);
 void set_window_title(char const *format, ...) PRINTF_LIKE(1, 2);
 
 void draw_popup(char const *format, ...) PRINTF_LIKE(1, 2);
+
+extern char const viewer_controls[];

@@ -1,7 +1,8 @@
 import argparse
 import sys
 import time
-from collections.abc import Iterable
+
+# from collections.abc import Iterable
 from io import BufferedWriter
 from pathlib import Path
 from typing import Any, Final
@@ -29,15 +30,16 @@ bar_column: Final = BarColumn(
 total_progress: Final = Progress(
   TimeElapsedColumn(table_column=Column(justify="right", min_width=7)),
   bar_column,
-  TextColumn("{task.description} {task.completed}/{task.total}"),
+  TextColumn("{task.description} {task.completed:0.0f}/{task.total:0.0f}"),
   refresh_per_second=1,
   console=console,
 )
 total_task: Final = total_progress.add_task("skipped frame", start=False, visible=False)
 
 
-def infer_room_size(scene):
-  room_config = next(config for config in scene.boundaryModels if config.isWall)
+def infer_room_size(scene) -> NDArray[np.float32]:
+  room_config = next((config for config in scene.boundaryModels if config.isWall), None)
+  assert room_config, "failed to infer room model"
   return np.asarray(room_config.scale, dtype=np.float32)
 
 
@@ -45,12 +47,13 @@ def iter_non_wall_boundary_configs(scene):
   return (item for item in enumerate(scene.boundaryModels) if not item[1].isWall)
 
 
-def load_boundary_cloud(scene_dir: Path, config) -> NDArray[np.float32]:
+def load_boundary_cloud(scene_dir: Path, index: int, config) -> None | NDArray[np.float32]:
   if not config.samplesFile:
-    raise ValueError(f"non-wall boundary {config.id} has no particleFile")
+    print(f"skipped non-wall boundary {index} with no particle file")
+    return None
 
   particle_file: Final = (scene_dir / config.samplesFile).resolve()
-  positions: Iterable[tuple[float, float, float]] = sph.Utilities.VecVector3r()
+  positions = sph.Utilities.VecVector3r()
   loaded: Final = sph.Utilities.PartioReaderWriter.readParticle(
     str(particle_file),
     np.zeros(3),
@@ -58,8 +61,7 @@ def load_boundary_cloud(scene_dir: Path, config) -> NDArray[np.float32]:
     1.0,
     positions,
   )
-  if not loaded:
-    raise RuntimeError(f"could not load boundary particles: {particle_file}")
+  assert loaded, f"could not load boundary particles: {particle_file}"
 
   points: Final = np.asarray([[point[0], point[1], point[2]] for point in positions], dtype=np.float32).reshape((-1, 3))
   scale: Final = np.asarray(config.scale, dtype=np.float32)
@@ -96,12 +98,13 @@ def export_fluid_and_obstacles(
     def bind_boundaries():
       nonlocal boundary_bindings
       boundary_clouds = [
-        (index, load_boundary_cloud(scene_path.parent, config)) for index, config in iter_non_wall_boundary_configs(scene)
+        (index, bc)
+        for index, config in iter_non_wall_boundary_configs(scene)
+        if (bc := load_boundary_cloud(scene_path.parent, index, config)) is not None
       ]
       boundary_count = sim.numberOfBoundaryModels()
       for index, points in boundary_clouds:
-        if not 0 <= index < boundary_count:
-          raise RuntimeError("a non-wall scene boundary has no initialized SPH boundary model")
+        assert 0 <= index < boundary_count, "a non-wall scene boundary has no initialized SPH boundary model"
         boundary_bindings.append(
           (
             points,

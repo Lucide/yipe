@@ -22,6 +22,21 @@ extern "C" {
 #define ARRAY_LENGTH_2D(arr) (sizeof(arr) / sizeof(**(arr)))
 #define ARRAY_SIZE(ptr, length) ((length) * sizeof(*(ptr)))
 
+// for API calls returning cudaError_t
+#define TRAP_CUDAPI(call, msg_str)                                                                                     \
+  do {                                                                                                                 \
+    cudaError_t _err = (call);                                                                                         \
+    a(_err, (msg_str));                                                                                                \
+    b((msg_str));                                                                                                      \
+  } while (0)
+
+// for kernel launches
+#define TRAP_KERNEL(call, msg_str)                                                                                     \
+  do {                                                                                                                 \
+    (call);                                                                                                            \
+    b((msg_str));                                                                                                      \
+  } while (0)
+
 #define GPU __device__
 #define HOST __host__
 #define KERNEL __global__

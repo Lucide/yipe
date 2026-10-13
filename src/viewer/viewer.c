@@ -124,6 +124,17 @@ static void update_parameters(Viewer *const viewer) {
   }
 }
 
+char const viewer_controls[] = "Mouse Middle: pan\n"
+                               "Mouse Left: rotate\n"
+                               "←: increase particle size\n"
+                               "→: decrease particle size\n"
+                               "↑: increase isolevel\n"
+                               "↓: decrease isolevel\n"
+                               "W: move camera forward"
+                               "A: move camera to the left\n"
+                               "S: move camera backward\n"
+                               "D: move camera to the right\n";
+
 static void update_camera(Viewer *const viewer) {
   Vector2 const delta = GetMouseDelta();
   float const room_scale =
