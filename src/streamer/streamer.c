@@ -1,6 +1,7 @@
 #include "streamer.h"
 #include <cuda.h>
 #include <cuda_runtime_api.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -42,20 +43,23 @@ static int worker_loop(void *const arg) {
 
     // waiting must happen in the cpu because the gpu can deadlock
     // spin wait for gpu_done
-    while (*streamer->gpu_done[slot] < seq && !atomic_load(&streamer->stop_requested)) {
+    while (atomic_load_explicit(streamer->gpu_done[slot], memory_order_acquire) < seq &&
+           !atomic_load(&streamer->stop_requested)) {
       thrd_yield();
     }
 
-    if (atomic_load(&streamer->stop_requested))
+    if (atomic_load_explicit(&streamer->stop_requested, memory_order_acquire))
       return 0;
 
     // synchronoud copy
-    cudaMemcpy(streamer->buffers[slot], &((float3 const *)streamer->mapped_file.data)[streamer->num_particles * frame],
-               streamer->frame_size, cudaMemcpyHostToDevice);
+    TRAP_CUDAPI(cudaMemcpy(streamer->buffers[slot],
+                           &((float3 const *)streamer->mapped_file.data)[(u64)streamer->num_particles * (u64)frame],
+                           streamer->frame_size, cudaMemcpyHostToDevice),
+                "streamer: worker thread upload frame");
 
     // publishing must also happen in the cpu with mapped memory because the gpu can deadlock
     // publish upload_done
-    *streamer->upload_done[slot] = seq + 1;
+    atomic_store_explicit(streamer->upload_done[slot], seq + 1, memory_order_release);
   }
   return 0;
 }
@@ -65,27 +69,22 @@ static int worker_loop(void *const arg) {
 /* ------------------------------------------------------------------ */
 
 // allocate one pinned+mapped uint32 flag
-static int alloc_flag(u32 volatile **const host_ptr, CUdeviceptr *const dev_ptr, u32 const initial_value) {
+static void alloc_flag(_Atomic u32 volatile **const host_ptr, CUdeviceptr *const dev_ptr, u32 const initial_value) {
   // allocate memory mapped flag (the cpu must be able to read and update it)
-  u32 *hostptr;
-  if (cudaHostAlloc((void **)&hostptr, sizeof(u32), cudaHostAllocMapped | cudaHostAllocPortable) != cudaSuccess)
-    return -1;
+  void *hostptr;
+  TRAP_CUDAPI(cudaHostAlloc(&hostptr, sizeof(_Atomic u32), cudaHostAllocMapped | cudaHostAllocPortable),
+              "streamer: allocate mapped flag");
 
-  *hostptr = initial_value;
+  atomic_init((_Atomic u32 *)hostptr, initial_value);
 
   // get device pointers for the mapped memory
   // the gpu will use this to wait/write
   CUdeviceptr deviceptr;
-  if (cudaHostGetDevicePointer((void **)&deviceptr, hostptr, 0) != cudaSuccess) {
-    // free the mapped memory if it failed
-    cudaFreeHost(hostptr);
-    return -1;
-  }
+  TRAP_CUDAPI(cudaHostGetDevicePointer((void **)&deviceptr, hostptr, 0), "streamer: get device pointer to mapped flag");
 
   // pass back the pointers
   *host_ptr = hostptr;
   *dev_ptr = deviceptr;
-  return 0;
 }
 
 static bool parse_header(
@@ -148,8 +147,34 @@ static bool parse_header(
     return false;
   }
 
+  printf("File stats:\n"
+         "\tnum particles: %u\n"
+         "\tfile total_frames: %u\n"
+         "\ttotal rendered frames:%u\n"
+         "\tfile size: %lld\n"
+         "\tframe size: %u\n",
+         header->num_particles, header->total_frames, total_frames, size, header->num_particles * (u32)sizeof(float3));
+
   header->total_frames = total_frames;
+
   return true;
+}
+
+// special error handler for low level driver errors
+// only this file uses low level driver operations
+static void handle_cuda_driver_error(CUresult const result, char const *message) {
+  if (result != CUDA_SUCCESS) {
+    char const *errorName = NULL;
+    char const *errorStr = NULL;
+
+    // Fetch driver error details
+    cuGetErrorName(result, &errorName);
+    cuGetErrorString(result, &errorStr);
+
+    printf("[%s] CUDA error \"%s\": %s\n", message, errorName, errorStr);
+
+    exit(-1);
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -175,29 +200,30 @@ Streamer *streamer_create(FILE *const file, u32 const start_frame, u32 const tot
       .frameskip = frameskip,
   };
 
-  mmap_file(file, map_start, map_size, &streamer->mapped_file);
+  MmapError const err = mmap_file(file, map_start, map_size, &streamer->mapped_file);
+  if (err != MMAP_SUCCESS) {
+    printf("mmap error: %d\n", err);
+    exit(-err);
+  }
 
   // allocate two device buffers (one contiguous allocation)
   float3 *buffers;
-  cudaMalloc((void **)&buffers, 2 * frame_size);
+  TRAP_CUDAPI(cudaMalloc((void **)&buffers, 2 * frame_size), "streamer: allocate device buffers");
   streamer->buffers[0] = buffers;
   streamer->buffers[1] = &buffers[header.num_particles];
 
   // allocate pinned+mapped synchronisation flags
   for (u32 i = 0; i < 2; ++i) {
     streamer->consumer_seq[i] = 1;
-    if (alloc_flag(&streamer->upload_done[i], &streamer->upload_done_dptr[i], 0) != 0 ||
-        alloc_flag(&streamer->gpu_done[i], &streamer->gpu_done_dptr[i], 0) != 0) {
-      streamer_destroy(streamer);
-      return NULL;
-    }
+    alloc_flag(&streamer->upload_done[i], &streamer->upload_done_dptr[i], 0);
+    alloc_flag(&streamer->gpu_done[i], &streamer->gpu_done_dptr[i], 0);
   }
 
   atomic_init(&streamer->stop_requested, false);
 
   // launch background worker thread
   if (thrd_create(&streamer->worker_thread, worker_loop, streamer) != thrd_success) {
-    atomic_store(&streamer->stop_requested, true);
+    atomic_store_explicit(&streamer->stop_requested, true, memory_order_release);
     streamer_destroy(streamer);
     return NULL;
   }
@@ -210,8 +236,8 @@ void streamer_destroy(Streamer *const streamer) {
     return;
 
   // signal the worker to stop and join it
-  if (!atomic_load(&streamer->stop_requested)) {
-    atomic_store(&streamer->stop_requested, true);
+  if (!atomic_load_explicit(&streamer->stop_requested, memory_order_acquire)) {
+    atomic_store_explicit(&streamer->stop_requested, true, memory_order_release);
     // unblock the worker thread if it's waiting on cudaStreamSynchronize
     for (u32 i = 0; i < 2; ++i) {
       if (streamer->gpu_done[i]) {
@@ -223,16 +249,16 @@ void streamer_destroy(Streamer *const streamer) {
   }
 
   // make sure the GPU is idle before freeing resources
-  cudaDeviceSynchronize();
+  TRAP_CUDAPI(cudaDeviceSynchronize(), "streamer: synchronize while destroying streamer");
 
   if (streamer->buffers[0])
-    cudaFree(streamer->buffers[0]);
+    TRAP_CUDAPI(cudaFree(streamer->buffers[0]), "streamer: free device buffers");
 
   for (u32 i = 0; i < 2; ++i) {
     if (streamer->upload_done[i])
-      cudaFreeHost((void *)(uintptr_t)(streamer->upload_done[i]));
+      TRAP_CUDAPI(cudaFreeHost((void *)(uintptr_t)(streamer->upload_done[i])), "streamer: free flag");
     if (streamer->gpu_done[i])
-      cudaFreeHost((void *)(uintptr_t)(streamer->gpu_done[i]));
+      TRAP_CUDAPI(cudaFreeHost((void *)(uintptr_t)(streamer->gpu_done[i])), "streamer: free flag");
   }
 
   munmap_file(&streamer->mapped_file);
@@ -243,15 +269,11 @@ void streamer_destroy(Streamer *const streamer) {
 
 float3 *
 streamer_acquire_next_frame(Streamer const *const streamer, u32 const buf_idx, cudaStream_t const compute_stream) {
-  if (streamer->total_frames == 0) {
-    // don't wait if there are no frames
-    return streamer->buffers[buf_idx];
-  }
-
   u32 const wait_val = streamer->consumer_seq[buf_idx];
 
-  cuStreamWaitValue32((CUstream)compute_stream, streamer->upload_done_dptr[buf_idx], wait_val,
-                      CU_STREAM_WAIT_VALUE_GEQ);
+  handle_cuda_driver_error(
+      cuStreamWaitValue32(compute_stream, streamer->upload_done_dptr[buf_idx], wait_val, CU_STREAM_WAIT_VALUE_GEQ),
+      "streamer: wait to aquire frame");
 
   return streamer->buffers[buf_idx];
 }
@@ -261,8 +283,9 @@ streamer_acquire_next_frame(Streamer const *const streamer, u32 const buf_idx, c
 void streamer_release_frame(Streamer *const streamer, u32 const buf_idx, cudaStream_t const compute_stream) {
   u32 const seq = streamer->consumer_seq[buf_idx];
 
-  cuStreamWriteValue32((CUstream)compute_stream, (CUdeviceptr)streamer->gpu_done_dptr[buf_idx], seq,
-                       CU_STREAM_WRITE_VALUE_DEFAULT);
+  handle_cuda_driver_error(
+      cuStreamWriteValue32(compute_stream, streamer->gpu_done_dptr[buf_idx], seq, CU_STREAM_WRITE_VALUE_DEFAULT),
+      "streamer: release frame");
 
   ++streamer->consumer_seq[buf_idx];
 }

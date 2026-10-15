@@ -11,8 +11,8 @@ typedef struct Streamer {
 
   thrd_t worker_thread;
 
-  u32 volatile *upload_done[2];
-  u32 volatile *gpu_done[2];
+  _Atomic u32 volatile *upload_done[2];
+  _Atomic u32 volatile *gpu_done[2];
 
   // device pointers for cuStreamWaitValue32 / cuStreamWriteValue32
   CUdeviceptr upload_done_dptr[2];

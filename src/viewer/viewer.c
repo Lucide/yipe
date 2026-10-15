@@ -18,7 +18,8 @@ Viewer new_viewer(float3 const room,
                   float *const isolevel,
                   u32 const framerate,
                   char const *const vertex_shader_path,
-                  char const *const fragment_shader_path) {
+                  char const *const fragment_shader_path,
+                  u32 const total_frames) {
   SetConfigFlags(FLAG_VSYNC_HINT);
   InitWindow(1024, 768, "");
   SetTargetFPS((int)framerate);
@@ -60,7 +61,8 @@ Viewer new_viewer(float3 const room,
                      .projection = CAMERA_PERSPECTIVE,
                      },
       .mesh = (Mesh){0},
-      .material = material
+      .material = material,
+      .total_frames = total_frames,
   };
 
   viewer.view_position_location = GetShaderLocation(viewer.material.shader, "viewPos");
@@ -200,7 +202,20 @@ static void draw_room_dimensions(Viewer const *const viewer) {
   DrawText(TextFormat("%g", (double)viewer->room.z), (int)depth_screen.x, (int)depth_screen.y, 15, DARKGRAY);
 }
 
-static Ownership render(Viewer *const viewer, Geometry const *const geometry) {
+static void draw_frame_idx(Viewer *const viewer, u32 const frame_idx) {
+  if (viewer->total_frames > 1) {
+    s32 padding = 10;
+    s32 fontSize = 15;
+    char const *formattedText = TextFormat("%u/%u", frame_idx, viewer->total_frames);
+
+    int textX = GetScreenWidth() - MeasureText(formattedText, fontSize) - padding;
+    int textY = GetScreenHeight() - fontSize - padding;
+
+    DrawText(formattedText, textX, textY, fontSize, BLACK);
+  }
+}
+
+static Ownership render(Viewer *const viewer, Geometry const *const geometry, u32 const frame_idx) {
   Ownership const ownership = update_mesh(&viewer->mesh, &viewer->mesh_capacity, *geometry);
 
   update_parameters(viewer);
@@ -218,15 +233,16 @@ static Ownership render(Viewer *const viewer, Geometry const *const geometry) {
 
   EndMode3D();
   draw_room_dimensions(viewer);
+  draw_frame_idx(viewer, frame_idx);
   EndDrawing();
 
   return ownership;
 }
 
-void present(Viewer *const viewer, Geometry const gpu_geometry, cudaStream_t const stream) {
+void present(Viewer *const viewer, Geometry const gpu_geometry, u32 const frame_idx, cudaStream_t const stream) {
   Geometry geometry = download_geometry(gpu_geometry, stream);
 
-  if (OWNERSHIP_BORROWED == render(viewer, &geometry)) {
+  if (OWNERSHIP_BORROWED == render(viewer, &geometry, frame_idx)) {
     free_geometry(geometry);
   }
 }
@@ -247,28 +263,4 @@ void set_window_title(char const *format, ...) {
 
   SetWindowTitle(title);
   last_update = now;
-}
-
-void draw_popup(char const *format, ...) {
-  char title[256];
-  va_list args;
-  va_start(args, format);
-  vsnprintf(title, sizeof(title), format, args);
-  va_end(args);
-
-  float const padding = 10.f;
-  int const font_size = 20;
-  Font font = GetFontDefault();
-  float spacing = (float)font_size / 10.0f;
-  Vector2 text_size = MeasureTextEx(font, title, (float)font_size, spacing);
-
-  float box_width = text_size.x + (padding * 2);
-  float box_height = text_size.y + (padding * 2);
-  float box_x = ((float)-GetScreenWidth() - box_width) / 2.0f;
-  float box_y = ((float)-GetScreenHeight() - box_height) / 2.0f;
-
-  BeginDrawing();
-  DrawRectangle((int)box_x, (int)box_y, (int)box_width, (int)box_height, (Color){80, 80, 80, 200});
-  DrawText(title, (int)(box_x + padding), (int)(box_y + padding), font_size, LIGHTGRAY);
-  EndDrawing();
 }

@@ -9,6 +9,7 @@ CompileFlags:
     - -Wno-switch-default
     - -Wno-c++-compat
     - -Wno-shadow
+    - -Wno-pre-c11-compat
     - -Wbraces-around-scalar-init
 ---
 If:

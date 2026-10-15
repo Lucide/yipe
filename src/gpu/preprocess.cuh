@@ -30,7 +30,7 @@ template <typename T_IN, typename T_OUT, Arrow<T_IN, T_OUT> F>
 void preprocess(
     GPUInfo const &info, T_IN const *const in, T_OUT *const out, u32 const length, F f, cudaStream_t const stream) {
   u32 const blocks_per_grid = min(info.multiprocessors * blocks_per_sm, ceil_div<u32, u16, u32>(length, slice_length));
-  map<<<blocks_per_grid, threads_per_block, 0, stream>>>(in, out, length, f);
-  handle_cuda_error_debug("preprocess: map float3 to float4");
+  TRAP_KERNEL((map<<<blocks_per_grid, threads_per_block, 0, stream>>>(in, out, length, f)),
+              "preprocess: map float3 to float4");
 }
 } // namespace preprocess

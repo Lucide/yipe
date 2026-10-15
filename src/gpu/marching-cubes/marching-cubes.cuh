@@ -23,14 +23,13 @@ float *compute_scalar_fields(GPUInfo const &info,
 
   // compute scalar fields
   float *fields;
-  handle_cuda_result(cudaMallocAsync(&fields, ARRAY_SIZE(fields, params.samples_count()), stream),
-                     "marching_cubes: allocate scalar fields array");
-  handle_cuda_error_debug("marching_cubes: allocate scalar fields array");
-  marching_cubes::compute_scalar_fields<<<field_block_count, marching_cubes::threads_per_block, 0, stream>>>(
-      points, table, params, fields, hasher);
-  handle_cuda_error_debug("marching_cubes: compute scalar fields");
-  handle_cuda_result(cudaFreeAsync(table, stream), "marching_cubes: free hash table");
-  handle_cuda_error_debug("marching_cubes: free hash table");
+  TRAP_CUDAPI(cudaMallocAsync(&fields, ARRAY_SIZE(fields, params.samples_count()), stream),
+              "marching_cubes: allocate scalar fields array");
+  TRAP_KERNEL(
+      (marching_cubes::compute_scalar_fields<<<field_block_count, marching_cubes::threads_per_block, 0, stream>>>(
+          points, table, params, fields, hasher)),
+      "marching_cubes: compute scalar fields");
+  TRAP_CUDAPI(cudaFreeAsync(table, stream), "marching_cubes: free hash table");
   return fields;
 }
 
@@ -51,39 +50,34 @@ Geometry compute_marching_cubes(float const *const fields,
   // we allocate an extra cell that will be set to 0 by the counting kernel
   // after the prefix_sum it will hold the total number of triangles
   // this allows to store the prefixes on the same buffer as the counts
-  handle_cuda_result(cudaMallocAsync(&triangle_counts, ARRAY_SIZE(triangle_counts, triangle_counts_length), stream),
-                     "marching_cubes: allocate triangle counts");
-  handle_cuda_error_debug("marching_cubes: allocate triangle counts");
-  marching_cubes::count_triangles<<<cell_block_count, marching_cubes::threads_per_block, 0, stream>>>(params, fields,
-                                                                                                      triangle_counts);
-  handle_cuda_error_debug("marching_cubes: count triangles");
+  TRAP_CUDAPI(cudaMallocAsync(&triangle_counts, ARRAY_SIZE(triangle_counts, triangle_counts_length), stream),
+              "marching_cubes: allocate triangle counts");
+  TRAP_KERNEL((marching_cubes::count_triangles<<<cell_block_count, marching_cubes::threads_per_block, 0, stream>>>(
+                  params, fields, triangle_counts)),
+              "marching_cubes: count triangles");
 
   // calculate prefix sum
   scan(triangle_counts, triangle_counts, triangle_counts_length, stream);
 
   // get total triangles
   u32 total_triangles;
-  handle_cuda_result(cudaMemcpyAsync(&total_triangles, &triangle_counts[params.cell_count()], sizeof(u32),
-                                     cudaMemcpyDeviceToHost, stream),
-                     "marching_cubes: fetch triangle total count");
-  handle_cuda_result(cudaStreamSynchronize(stream), "marching_cubes: fetch triangle total count");
-  handle_cuda_error_debug("marching_cubes: fetch triangle total count");
+  TRAP_CUDAPI(cudaMemcpyAsync(&total_triangles, &triangle_counts[params.cell_count()], sizeof(u32),
+                              cudaMemcpyDeviceToHost, stream),
+              "marching_cubes: fetch triangle total count");
+  TRAP_CUDAPI(cudaStreamSynchronize(stream), "marching_cubes: fetch triangle total count");
 
   // make triangles
   float33 *triangles;
-  handle_cuda_result(cudaMallocAsync(&triangles, ARRAY_SIZE(triangles, 2 * total_triangles), stream),
-                     "marching_cubes: allocate triangle buffer");
-  handle_cuda_error_debug("marching_cubes: allocate triangle buffer");
+  TRAP_CUDAPI(cudaMallocAsync(&triangles, ARRAY_SIZE(triangles, 2 * total_triangles), stream),
+              "marching_cubes: allocate triangle buffer");
   float33 *const normals = triangles + total_triangles;
 
-  marching_cubes::make_triangles<<<cell_block_count, marching_cubes::threads_per_block, 0, stream>>>(
-      params, fields, triangle_counts, triangles, normals);
-  handle_cuda_error_debug("marching_cubes: make triangles");
+  TRAP_KERNEL((marching_cubes::make_triangles<<<cell_block_count, marching_cubes::threads_per_block, 0, stream>>>(
+                  params, fields, triangle_counts, triangles, normals)),
+              "marching_cubes: make triangles");
 
-  handle_cuda_result(cudaFreeAsync(const_cast<float *>(fields), stream), "marching_cubes: free scalar field array");
-  handle_cuda_error_debug("marching_cubes: free scalar field array");
-  handle_cuda_result(cudaFreeAsync(triangle_counts, stream), "marching_cubes: free triangle counts");
-  handle_cuda_error_debug("marching_cubes: free triangle counts");
+  TRAP_CUDAPI(cudaFreeAsync(const_cast<float *>(fields), stream), "marching_cubes: free scalar field array");
+  TRAP_CUDAPI(cudaFreeAsync(triangle_counts, stream), "marching_cubes: free triangle counts");
 
   return {total_triangles, triangles, normals};
 }

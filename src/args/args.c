@@ -157,10 +157,11 @@ static struct argp const generator_argp = {
 /* -------------------------------------------------------------------------- */
 
 static struct argp_option const random_points_options[] = {
-    {      "framerate", 'f',  "NUM", 0, "Framerate in frames per second", 0},
-    {  "vertex-shader", 'V', "FILE", 0,     "Path to vertex shader file", 0},
-    {"fragment-shader", 'F', "FILE", 0,   "Path to fragment shader file", 0},
-    {             NULL,   0,   NULL, 0,                             NULL, 0}
+    {      "framerate", 'f',  "NUM", 0,     "Framerate in frames per second", 0},
+    {      "frameskip", 'k',  "NUM", 0, "Skipped frames (0 for no skipping)", 0},
+    {  "vertex-shader", 'V', "FILE", 0,         "Path to vertex shader file", 0},
+    {"fragment-shader", 'F', "FILE", 0,       "Path to fragment shader file", 0},
+    {             NULL,   0,   NULL, 0,                                 NULL, 0}
 };
 
 static struct argp_child const random_points_children[] = {
@@ -183,6 +184,17 @@ static error_t parse_random_points_opt(int key, char *arg, struct argp_state *st
       argp_failure(state, 1, 0, "Invalid argument: \"%s\"; framerate must be an integer", arg);
     }
     arguments->renderer.framerate = framerate;
+    break;
+  }
+  case 'k': {
+    u32 const frameskip = strtoul(arg, &endptr, 0);
+    if (arg == endptr || *endptr != '\0') {
+      argp_failure(state, 1, 0, "Invalid argument: \"%s\"; frameskip must be a number", arg);
+    }
+    if (frameskip >= 256) {
+      argp_failure(state, 1, 0, "Invalid argument: frameskip must be less than 256");
+    }
+    arguments->renderer.frameskip = (u8)frameskip;
     break;
   }
   case 'V': {
@@ -255,7 +267,7 @@ static error_t parse_player_opt(int key, char *arg, struct argp_state *state) {
     if (frameskip >= 256) {
       argp_failure(state, 1, 0, "Invalid argument: frameskip must be less than 256");
     }
-    arguments->frameskip = (u8)frameskip;
+    arguments->renderer.frameskip = (u8)frameskip;
     break;
   }
   case 'b': {

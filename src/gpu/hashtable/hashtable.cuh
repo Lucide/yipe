@@ -15,16 +15,14 @@ HashTable *build_hashtable(GPUInfo const &info,
   u32 const full_table_size = sizeof(HashTable) + sizeof(u32) * buckets;
 
   HashTable *table;
-  handle_cuda_result(cudaMallocAsync(&table, full_table_size, stream), "hashtable: allocate table");
-  handle_cuda_error_debug("hashtable: allocate table");
-  handle_cuda_result(cudaMemsetAsync(table, 0, full_table_size, stream), "hashtable: memset table");
-  handle_cuda_error_debug("hashtable: memset table");
+  TRAP_CUDAPI(cudaMallocAsync(&table, full_table_size, stream), "hashtable: allocate table");
+  TRAP_CUDAPI(cudaMemsetAsync(table, 0, full_table_size, stream), "hashtable: memset table");
   u32 const blocks_per_grid =
       min(info.multiprocessors * hash_table::blocks_per_sm, ceil_div<u32, u16, u32>(length, hash_table::slice_length));
 
-  hash_table::build<<<blocks_per_grid, hash_table::threads_per_block, 0, stream>>>(data, length, table, buckets,
-                                                                                   hasher);
-  handle_cuda_error_debug("hashtable: `build` kernel");
+  TRAP_KERNEL((hash_table::build<<<blocks_per_grid, hash_table::threads_per_block, 0, stream>>>(data, length, table,
+                                                                                                buckets, hasher)),
+              "hashtable: `build` kernel");
 
   return table;
 }
@@ -38,6 +36,7 @@ void verify_hashtable(GPUInfo const &info,
                       cudaStream_t const stream) {
   u32 const blocks_per_grid = min(info.multiprocessors * hash_table::blocks_per_sm,
                                   (length + hash_table::slice_length - 1) / hash_table::slice_length);
-  hash_table::verify<<<blocks_per_grid, hash_table::threads_per_block, 0, stream>>>(data, length, table, hasher);
-  handle_cuda_error_debug("hashtable: `verify` kernel");
+  TRAP_KERNEL(
+      (hash_table::verify<<<blocks_per_grid, hash_table::threads_per_block, 0, stream>>>(data, length, table, hasher)),
+      "hashtable: `verify` kernel");
 }

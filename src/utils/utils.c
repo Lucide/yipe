@@ -100,9 +100,9 @@ static u32 get_cores_per_sm(int const major, int const minor) {
 
 GPUInfo fetch_gpu_info(void) {
   int deviceID;
-  cudaGetDevice(&deviceID);
+  TRAP_CUDAPI(cudaGetDevice(&deviceID), "utils: get device");
   struct cudaDeviceProp props;
-  cudaGetDeviceProperties(&props, deviceID);
+  TRAP_CUDAPI(cudaGetDeviceProperties(&props, deviceID), "utils: get device properties");
 
   int const multiprocessors = props.multiProcessorCount;
   u32 const cores_per_multiprocessor = get_cores_per_sm(props.major, props.minor);
@@ -132,17 +132,15 @@ void print_triangles(Geometry const geometry) {
   }
 }
 
-void free_gpu_geometry(Geometry const geometry) {
-  handle_cuda_result(cudaFree(geometry.triangles), "main: free triangles");
-}
+void free_gpu_geometry(Geometry const geometry) { TRAP_CUDAPI(cudaFree(geometry.triangles), "main: free triangles"); }
 
 Geometry download_geometry(Geometry const gpu_geometry, cudaStream_t const stream) {
   Geometry cpu_geometry = (Geometry){.count = gpu_geometry.count,
                                      .triangles = malloc(ARRAY_SIZE(gpu_geometry.triangles, 2 * gpu_geometry.count))};
-  handle_cuda_result(cudaMemcpyAsync(cpu_geometry.triangles, gpu_geometry.triangles,
-                                     2 * gpu_geometry.count * sizeof(float33), cudaMemcpyDeviceToHost, stream),
-                     "main: download triangles");
-  handle_cuda_result(cudaStreamSynchronize(stream), "main: download triangles");
+  TRAP_CUDAPI(cudaMemcpyAsync(cpu_geometry.triangles, gpu_geometry.triangles, 2 * gpu_geometry.count * sizeof(float33),
+                              cudaMemcpyDeviceToHost, stream),
+              "main: download triangles");
+  TRAP_CUDAPI(cudaStreamSynchronize(stream), "main: download triangles");
   free_gpu_geometry(gpu_geometry);
   cpu_geometry.normals = cpu_geometry.triangles + cpu_geometry.count;
   return cpu_geometry;

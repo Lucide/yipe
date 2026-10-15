@@ -7,6 +7,8 @@
 #include "scan/scan.cuh"
 #include "sort/sort.cuh"
 
+// force exporting point_hash even if it is inline
+// NOLINTNEXTLINE(readability-redundant-declaration)
 extern "C" GPU HOST u32 point_hash(float4 point, u32 particle_count, float particle_diameter);
 
 extern "C" void handle_cuda_result(cudaError_t const err, char const *message) {
@@ -21,6 +23,7 @@ extern "C" void handle_cuda_result(cudaError_t const err, char const *message) {
 //   handle_cuda_result(cudaGetLastError(), message);
 // }
 
+#define SYNC_ALL
 extern "C" void handle_cuda_error_debug([[maybe_unused]] char const *message) {
 #ifdef SYNC_ALL
   CPRINT("Debug synchronous error handling enabed")
@@ -65,9 +68,8 @@ extern "C" void launch_verify_hashtable(GPUInfo const *const info,
                                         cudaStream_t const stream) {
 
   u32 table_length;
-  handle_cuda_result(cudaMemcpyAsync(&table_length, table, sizeof(u32), cudaMemcpyDeviceToHost, stream),
-                     "hashtable: download table length");
-  handle_cuda_result(cudaStreamSynchronize(stream), "hashtable: download table length");
+  TRAP_CUDAPI(cudaMemcpyAsync(&table_length, table, sizeof(u32), cudaMemcpyDeviceToHost, stream),
+              "hashtable: download table length");
   auto const hasher = get_hasher(table_length - 1, particle_diameter);
 
   verify_hashtable(*info, data, length, table, hasher, stream);
@@ -80,8 +82,7 @@ extern "C" void launch_generate_points(GPUInfo const *const info,
                                        u32 const length,
                                        cudaStream_t const stream) {
   float3 *buf;
-  handle_cuda_result(cudaMallocAsync(&buf, ARRAY_SIZE(buf, length), stream), "generate_points: allocate random buffer");
-  handle_cuda_error_debug("generate_points: allocate random buffer");
+  TRAP_CUDAPI(cudaMallocAsync(&buf, ARRAY_SIZE(buf, length), stream), "generate_points: allocate random buffer");
   curandGenerator_t gen;
   // initialize cuRAND Host generator
   curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
@@ -91,8 +92,7 @@ extern "C" void launch_generate_points(GPUInfo const *const info,
   curandDestroyGenerator(gen);
   auto f = [=] GPU(float3 const x) -> float4 { return project3to4(x ^ room); };
   preprocess::preprocess(*info, buf, out, length, f, stream);
-  handle_cuda_result(cudaFreeAsync(buf, stream), "generate_points: free random buffer");
-  handle_cuda_error_debug("generate_points: free random buffer");
+  TRAP_CUDAPI(cudaFreeAsync(buf, stream), "generate_points: free random buffer");
 }
 
 extern "C" void launch_preprocess_float3(

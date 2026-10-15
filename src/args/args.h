@@ -24,7 +24,10 @@ typedef struct GeneratorArguments {
 typedef struct RendererArguments {
   char const *vertex_shader_file, *fragment_shader_file;
   u32 framerate;
-  u32 : 32;
+  u8 frameskip;
+  struct {
+    u8 _pad[3];
+  };
 } RendererArguments;
 
 typedef struct RandomPointsArguments {
@@ -41,10 +44,6 @@ typedef struct PlayerArguments {
   CommonArguments common;
   u32 start_frame;
   u32 total_frames;
-  u8 frameskip;
-  struct {
-    u8 _pad[7];
-  };
 } PlayerArguments;
 
 typedef struct ProgramArguments {

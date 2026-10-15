@@ -26,15 +26,15 @@ extern "C" {
 #define TRAP_CUDAPI(call, msg_str)                                                                                     \
   do {                                                                                                                 \
     cudaError_t _err = (call);                                                                                         \
-    a(_err, (msg_str));                                                                                                \
-    b((msg_str));                                                                                                      \
+    handle_cuda_result(_err, (msg_str));                                                                               \
+    handle_cuda_error_debug((msg_str));                                                                                \
   } while (0)
 
 // for kernel launches
 #define TRAP_KERNEL(call, msg_str)                                                                                     \
   do {                                                                                                                 \
     (call);                                                                                                            \
-    b((msg_str));                                                                                                      \
+    handle_cuda_error_debug((msg_str));                                                                                \
   } while (0)
 
 #define GPU __device__

@@ -11,7 +11,7 @@ typedef struct Viewer {
   Mesh mesh;
   Material material;
   Camera3D camera;
-  u32 : 32;
+  u32 total_frames;
 } Viewer;
 
 typedef enum Ownership {
@@ -24,13 +24,14 @@ Viewer new_viewer(float3 room,
                   float *isolevel,
                   u32 framerate,
                   char const *vertex_shader_path,
-                  char const *fragment_shader_path);
+                  char const *fragment_shader_path,
+                  u32 total_frames);
 
 void unload_viewer(Viewer *viewer);
 
 // Ownership render(Viewer *viewer, Geometry const *geometry);
 
-void present(Viewer *viewer, Geometry gpu_geometry, cudaStream_t stream);
+void present(Viewer *viewer, Geometry gpu_geometry, u32 frame_idx, cudaStream_t stream);
 
 #if defined(__GNUC__) || defined(__clang__)
 #define PRINTF_LIKE(format_index, argument_index) __attribute__((format(printf, format_index, argument_index)))
@@ -39,7 +40,5 @@ void present(Viewer *viewer, Geometry gpu_geometry, cudaStream_t stream);
 #endif
 
 void set_window_title(char const *format, ...) PRINTF_LIKE(1, 2);
-
-void draw_popup(char const *format, ...) PRINTF_LIKE(1, 2);
 
 extern char const viewer_controls[];
