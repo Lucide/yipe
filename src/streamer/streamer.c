@@ -18,9 +18,7 @@
 #include <stdio.h>
 #include "mmap.h"
 
-/* ------------------------------------------------------------------ */
-/*  Worker thread                                                     */
-/* ------------------------------------------------------------------ */
+// WORKER THREAD
 
 static int worker_loop(void *const arg) {
   Streamer const *const streamer = (Streamer const *)arg;
@@ -64,9 +62,7 @@ static int worker_loop(void *const arg) {
   return 0;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                           */
-/* ------------------------------------------------------------------ */
+// HELPERS
 
 // allocate one pinned+mapped uint32 flag
 static void alloc_flag(_Atomic u32 volatile **const host_ptr, CUdeviceptr *const dev_ptr, u32 const initial_value) {
@@ -152,8 +148,8 @@ static bool parse_header(
          "\tfile total_frames: %u\n"
          "\ttotal rendered frames:%u\n"
          "\tfile size: %lld\n"
-         "\tframe size: %u\n",
-         header->num_particles, header->total_frames, total_frames, size, header->num_particles * (u32)sizeof(float3));
+         "\tframe size: %zu\n",
+         header->num_particles, header->total_frames, total_frames, size, header->num_particles * sizeof(float3));
 
   header->total_frames = total_frames;
 
@@ -177,17 +173,13 @@ static void handle_cuda_driver_error(CUresult const result, char const *message)
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Public API                                                        */
-/* ------------------------------------------------------------------ */
-
 Streamer *streamer_create(FILE *const file, u32 const start_frame, u32 const total_frames, u8 const frameskip) {
   Streamer *streamer = malloc(sizeof(Streamer));
 
   StreamHeader header;
   if (!parse_header(&header, file, start_frame, total_frames, frameskip))
     return NULL;
-  u32 const frame_size = header.num_particles * sizeof(float3);
+  size_t const frame_size = header.num_particles * sizeof(float3);
   size_t const map_start = sizeof(StreamHeader) + start_frame * frame_size;
   size_t const map_size = header.total_frames * frame_size;
 
@@ -265,7 +257,7 @@ void streamer_destroy(Streamer *const streamer) {
   free(streamer);
 }
 
-/* ---- acquire: make the compute stream wait for the upload ---------- */
+// acquire: make the compute stream wait for the upload
 
 float3 *
 streamer_acquire_next_frame(Streamer const *const streamer, u32 const buf_idx, cudaStream_t const compute_stream) {
@@ -278,7 +270,7 @@ streamer_acquire_next_frame(Streamer const *const streamer, u32 const buf_idx, c
   return streamer->buffers[buf_idx];
 }
 
-/* ---- release: tell the worker the buffer is free ------------------- */
+// release: tell the worker the buffer is free
 
 void streamer_release_frame(Streamer *const streamer, u32 const buf_idx, cudaStream_t const compute_stream) {
   u32 const seq = streamer->consumer_seq[buf_idx];

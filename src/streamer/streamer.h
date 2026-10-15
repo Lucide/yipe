@@ -32,9 +32,7 @@ typedef struct Streamer {
 
   atomic_bool stop_requested;
 
-  struct {
-    u8 _pad[2];
-  };
+  STRUCT_PADDING(2);
 } Streamer;
 
 #pragma pack(push, 1)

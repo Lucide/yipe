@@ -113,7 +113,8 @@ KERNEL void onesweep(u32 *const atomic_id,
     // slice containing the slice totals
     // the paper explicitly specifies "RADIX arrays of slices counters"
     using global_state_counters_extents = cuda::std::extents<u32, RADIX, cuda::std::dynamic_extent>;
-    mdspan const global_state_counters(linearized_global_state_counters, global_state_counters_extents{gridDim.x});
+    cuda::std::mdspan<StateCounter, global_state_counters_extents> const global_state_counters(
+        linearized_global_state_counters, global_state_counters_extents{gridDim.x});
     // fenced global memory state_counter
     cuda::atomic_ref<StateCounter, cuda::thread_scope_device> const global_state_counter(
         global_state_counters(threadIdx.x, block_id));

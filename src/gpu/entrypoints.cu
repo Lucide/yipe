@@ -11,22 +11,16 @@
 // NOLINTNEXTLINE(readability-redundant-declaration)
 extern "C" GPU HOST u32 point_hash(float4 point, u32 particle_count, float particle_diameter);
 
-extern "C" void handle_cuda_result(cudaError_t const err, char const *message) {
+extern "C" void handle_cuda_result(cudaError_t const err, char const *const message) {
   if (err != cudaSuccess) {
     printf("[%s] CUDA error: %s\n", message, cudaGetErrorString(err));
     exit(-1);
   }
 }
 
-// extern "C" void handle_cuda_error(char const *message) {
-//   handle_cuda_result(cudaDeviceSynchronize(), message);
-//   handle_cuda_result(cudaGetLastError(), message);
-// }
-
-#define SYNC_ALL
-extern "C" void handle_cuda_error_debug([[maybe_unused]] char const *message) {
+extern "C" void handle_cuda_error_debug([[maybe_unused]] char const *const message) {
 #ifdef SYNC_ALL
-  CPRINT("Debug synchronous error handling enabed")
+  CPRINT("debug synchronous error handling enabed")
   handle_cuda_result(cudaDeviceSynchronize(), message);
   handle_cuda_result(cudaGetLastError(), message);
 #endif
@@ -68,7 +62,7 @@ extern "C" void launch_verify_hashtable(GPUInfo const *const info,
                                         cudaStream_t const stream) {
 
   u32 table_length;
-  TRAP_CUDAPI(cudaMemcpyAsync(&table_length, table, sizeof(u32), cudaMemcpyDeviceToHost, stream),
+  TRAP_CUDAPI(cudaMemcpy(&table_length, table, sizeof(u32), cudaMemcpyDeviceToHost),
               "hashtable: download table length");
   auto const hasher = get_hasher(table_length - 1, particle_diameter);
 

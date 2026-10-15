@@ -132,16 +132,17 @@ void print_triangles(Geometry const geometry) {
   }
 }
 
-void free_gpu_geometry(Geometry const geometry) { TRAP_CUDAPI(cudaFree(geometry.triangles), "main: free triangles"); }
+void free_gpu_geometry(Geometry const geometry, cudaStream_t const stream) {
+  TRAP_CUDAPI(cudaFreeAsync(geometry.triangles, stream), "main: free triangles");
+}
 
 Geometry download_geometry(Geometry const gpu_geometry, cudaStream_t const stream) {
   Geometry cpu_geometry = (Geometry){.count = gpu_geometry.count,
                                      .triangles = malloc(ARRAY_SIZE(gpu_geometry.triangles, 2 * gpu_geometry.count))};
-  TRAP_CUDAPI(cudaMemcpyAsync(cpu_geometry.triangles, gpu_geometry.triangles, 2 * gpu_geometry.count * sizeof(float33),
-                              cudaMemcpyDeviceToHost, stream),
+  TRAP_CUDAPI(cudaMemcpy(cpu_geometry.triangles, gpu_geometry.triangles,
+                         ARRAY_SIZE(gpu_geometry.triangles, 2 * gpu_geometry.count), cudaMemcpyDeviceToHost),
               "main: download triangles");
-  TRAP_CUDAPI(cudaStreamSynchronize(stream), "main: download triangles");
-  free_gpu_geometry(gpu_geometry);
+  free_gpu_geometry(gpu_geometry, stream);
   cpu_geometry.normals = cpu_geometry.triangles + cpu_geometry.count;
   return cpu_geometry;
 }

@@ -22,6 +22,8 @@ extern "C" {
 #define ARRAY_LENGTH_2D(arr) (sizeof(arr) / sizeof(**(arr)))
 #define ARRAY_SIZE(ptr, length) ((length) * sizeof(*(ptr)))
 
+#define STRUCT_PADDING(bytes) u8 _pad[(bytes)]
+
 // for API calls returning cudaError_t
 #define TRAP_CUDAPI(call, msg_str)                                                                                     \
   do {                                                                                                                 \
@@ -95,13 +97,13 @@ typedef struct float33 {
 } float33;
 
 typedef struct Geometry {
-  u32 count;
-  u32 : 32;
   float33 *triangles;
   float33 *normals;
+  u32 count;
+  STRUCT_PADDING(4);
 } Geometry;
 
-typedef struct {
+typedef struct GPUInfo {
   u32 multiprocessors;
   u32 cores_per_multiprocessor;
 } GPUInfo;

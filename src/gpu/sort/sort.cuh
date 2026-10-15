@@ -33,9 +33,8 @@ void sort(GPUInfo const &info, Data *const data, u32 const length, Hasher const 
   Data *src = data;
 
   decltype(counters->degenerates) degenerates;
-  TRAP_CUDAPI(cudaMemcpyAsync(degenerates, counters->degenerates, sizeof(degenerates), cudaMemcpyDeviceToHost, stream),
+  TRAP_CUDAPI(cudaMemcpy(degenerates, counters->degenerates, sizeof(degenerates), cudaMemcpyDeviceToHost),
               "sort: download degenerate blocks");
-  TRAP_CUDAPI(cudaStreamSynchronize(stream), "sort: download degenerate blocks");
   // onesweep iterations
   for (u8 place = 0; place < Key::digit_places; ++place) {
     if (degenerates[place])

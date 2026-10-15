@@ -219,7 +219,7 @@ static struct argp const random_points_argp = {
 /* -------------------------------------------------------------------------- */
 
 static struct argp_option const player_options[] = {
-    {      "recording", 'r', "FILE", 0,              "Path to the recording file", 0},
+    {          "input", 'i', "FILE", 0,              "Path to the recording file", 0},
     {      "framerate", 'f',  "NUM", 0,                               "framerate", 0},
     {  "vertex-shader", 'V', "FILE", 0,              "Path to vertex shader file", 0},
     {"fragment-shader", 'F', "FILE", 0,            "Path to fragment shader file", 0},
@@ -247,7 +247,7 @@ static error_t parse_player_opt(int key, char *arg, struct argp_state *state) {
     arguments->renderer.framerate = framerate;
     break;
   }
-  case 'r': {
+  case 'i': {
     arguments->file = arg;
     break;
   }
