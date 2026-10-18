@@ -69,6 +69,7 @@ void munmap_file(MappedFile *const mapping) {
 }
 
 #else
+#include <stdint.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -105,17 +106,17 @@ MmapError mmap_file(FILE *const file, size_t const offset, size_t size, MappedFi
 
   // Save the base pointer for unmapping, but expose the requested user data pointer
   *out_mapping = (MappedFile){
-      .base_ptr = ptr,
+      .map_ptr = ptr,
       .data = (void *)((uintptr_t)ptr + adjustment),
       .size = size,
-      .map_size = map_size,
+      .map_size = map_size, // track size used for unmapping if needed
   };
   return MMAP_SUCCESS;
 }
 
 void munmap_file(MappedFile *const mapping) {
-  if (mapping && mapping->base_ptr) {
-    munmap(mapping->base_ptr, mapping->map_size);
+  if (mapping && mapping->map_ptr) {
+    munmap((void *)(uintptr_t)mapping->map_ptr, mapping->map_size);
   }
 }
 #endif

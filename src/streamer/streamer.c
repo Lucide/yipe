@@ -11,13 +11,21 @@
 #define fseek64 _fseeki64
 #define ftell64 _ftelli64
 #else
+#ifndef _LARGEFILE64_SOURCE
+#define _LARGEFILE64_SOURCE 1
+#endif
+#ifndef _FILE_OFFSET_BITS
 #define _FILE_OFFSET_BITS 64
+#endif
 #define fseek64 fseeko
 #define ftell64 ftello
 #endif
 #include <stdio.h>
 #include "mmap.h"
 
+#ifndef min
+#define min(X, Y) (((X) < (Y)) ? (X) : (Y))
+#endif
 // WORKER THREAD
 
 static int worker_loop(void *const arg) {
@@ -123,11 +131,11 @@ static bool parse_header(
   u64 const frame_size = header->num_particles * sizeof(float3);
   u64 const expected_size = sizeof(StreamHeader) + header->total_frames * frame_size;
   if ((u64)size < expected_size) {
-    printf("file ends too soon, %lld bytes (expected %llu)\n", size, header->total_frames * frame_size);
+    printf("file ends too soon, %zd bytes (expected %zu)\n", size, header->total_frames * frame_size);
     return false;
   }
   if ((u64)size > expected_size) {
-    printf("file too long, %lld bytes (expected %llu)\n", size, header->total_frames * frame_size);
+    printf("file too long, %zd bytes (expected %zu)\n", size, header->total_frames * frame_size);
     return false;
   }
 
@@ -147,7 +155,7 @@ static bool parse_header(
          "\tnum particles: %u\n"
          "\tfile total_frames: %u\n"
          "\ttotal rendered frames:%u\n"
-         "\tfile size: %lld\n"
+         "\tfile size: %zd\n"
          "\tframe size: %zu\n",
          header->num_particles, header->total_frames, total_frames, size, header->num_particles * sizeof(float3));
 

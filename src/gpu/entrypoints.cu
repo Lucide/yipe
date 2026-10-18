@@ -7,9 +7,10 @@
 #include "scan/scan.cuh"
 #include "sort/sort.cuh"
 
-// force exporting point_hash even if it is inline
-// NOLINTNEXTLINE(readability-redundant-declaration)
-extern "C" GPU HOST u32 point_hash(float4 point, u32 particle_count, float particle_diameter);
+extern "C" GPU HOST u32 point_hash(float4 point, u32 particle_count,
+                                   float particle_diameter) {
+  return point_hash_inline(point, particle_count, particle_diameter);
+}
 
 extern "C" void handle_cuda_result(cudaError_t const err, char const *const message) {
   if (err != cudaSuccess) {

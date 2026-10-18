@@ -17,4 +17,8 @@ FetchContent_MakeAvailable(argp_standalone)
 
 if(MSVC)
     target_compile_options(argp-standalone PRIVATE /wd4028)
+else()
+    if(TARGET argp-standalone)
+        target_compile_definitions(argp-standalone PRIVATE _GNU_SOURCE _DEFAULT_SOURCE)
+    endif()
 endif()

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.4)
+cmake_minimum_required(VERSION 3.5)
 
 project(yipe LANGUAGES C CXX CUDA)
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
@@ -85,6 +85,11 @@ set_target_properties(yipe PROPERTIES
 set(MSVC_OPTIONS -Wall;/Zc:preprocessor;/external:W0;/W4;/permissive-;/wd4514;/wd5045;/wd4668;/wd4626;/wd5027;/wd5031)
 list(JOIN MSVC_OPTIONS "," MSVC_OPTIONS_COMMA)
 
+if(NOT MSVC)
+    target_compile_definitions(yipe PRIVATE _POSIX_C_SOURCE=200809L)
+endif()
+
+
 target_compile_options(yipe PRIVATE
     $<$<AND:$<COMPILE_LANGUAGE:C,CXX>,$<CXX_COMPILER_ID:MSVC>>:${MSVC_OPTIONS}>
     $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CXX_COMPILER_ID:MSVC>>:-Xcompiler=${MSVC_OPTIONS_COMMA}>
@@ -96,4 +101,5 @@ target_include_directories(yipe SYSTEM PRIVATE
     "${CUDAToolkit_INCLUDE_DIRS}"
 )
 
-target_link_libraries(yipe PRIVATE CUDA::cudart CUDA::cuda_driver CUDA::curand raylib argp-standalone)
+target_link_libraries(yipe PRIVATE CUDA::cudart CUDA::cuda_driver CUDA::curand raylib argp-standalone
+    $<$<PLATFORM_ID:Linux>:X11 Xrandr Xinerama Xi Xcursor GL m pthread dl>)

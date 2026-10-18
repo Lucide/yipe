@@ -312,24 +312,34 @@ template <typename T> GPU inline constexpr u32 find(T const *const data, u32 con
   return i;
 }
 
-GPU HOST inline u32 point_hash(u323 const discrete, u32 const particle_count) {
+GPU HOST inline u32 point_hash_inline(u323 const discrete,
+                                      u32 const particle_count) {
   static u32 const primes[3] = {73856093, 19349663, 83492791};
-  return ((discrete.x * primes[0]) ^ (discrete.y * primes[1]) ^ (discrete.z * primes[2])) % particle_count;
+  return ((discrete.x * primes[0]) ^ (discrete.y * primes[1]) ^
+          (discrete.z * primes[2])) %
+         particle_count;
 }
 
-GPU HOST inline u32 point_hash(float4 const point, u32 const particle_count, float const particle_diameter) {
+GPU HOST inline u32 point_hash_inline(float4 const point,
+                                      u32 const particle_count,
+                                      float const particle_diameter) {
   // int3 const discrete = point_discretize(point, particle_diameter);
-  return point_hash({static_cast<u32>(point.x / particle_diameter), static_cast<u32>(point.y / particle_diameter),
-                     static_cast<u32>(point.z / particle_diameter)},
-                    particle_count);
+  return point_hash_inline({static_cast<u32>(point.x / particle_diameter),
+                            static_cast<u32>(point.y / particle_diameter),
+                            static_cast<u32>(point.z / particle_diameter)},
+                           particle_count);
 }
 
 struct PointHasher {
   u32 length;
   float particle_diameter;
 
-  GPU HOST u32 operator()(float4 const p) const { return point_hash(p, length, particle_diameter); }
-  GPU HOST u32 operator()(u323 const cell) const { return point_hash(cell, length); }
+  GPU HOST inline u32 operator()(float4 const p) const {
+    return point_hash_inline(p, length, particle_diameter);
+  }
+  GPU HOST inline u32 operator()(u323 const cell) const {
+    return point_hash_inline(cell, length);
+  }
 };
 
 GPU HOST inline PointHasher get_hasher(u32 const length, float const particle_diameter) noexcept {
