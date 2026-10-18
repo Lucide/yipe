@@ -1,6 +1,5 @@
 #include <raylib.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include "args/args.h"
 #include "common.h"
 #include "streamer/streamer.h"

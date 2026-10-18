@@ -1,31 +1,18 @@
 #include "streamer.h"
-#include <cuda.h>
-#include <cuda_runtime_api.h>
-#include <stdatomic.h>
-#include <stdbool.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <vector_types.h>
 #ifdef _MSC_VER
 #define fseek64 _fseeki64
 #define ftell64 _ftelli64
 #else
-#ifndef _LARGEFILE64_SOURCE
 #define _LARGEFILE64_SOURCE 1
-#endif
-#ifndef _FILE_OFFSET_BITS
 #define _FILE_OFFSET_BITS 64
-#endif
 #define fseek64 fseeko
 #define ftell64 ftello
 #endif
 #include <stdio.h>
 #include "mmap.h"
-
-#ifndef min
-#define min(X, Y) (((X) < (Y)) ? (X) : (Y))
-#endif
+#include "utils/utils.h" // IWYU pragma: keep
 // WORKER THREAD
 
 static int worker_loop(void *const arg) {
@@ -35,12 +22,12 @@ static int worker_loop(void *const arg) {
 
   // frames are increased modulo streamer->total_frames, so the animation loops
   //
-  // Each slot has it's own increasing seq number
+  // each slot has it's own increasing seq number
   //  slot 0 is used by frames 0, 2, 4, … → seq 1, 2, 3, ...
   //  slot 1 is used by frames 1, 3, 5, … → seq 1, 2, 3, ...
   //
-  // Slot flips at every iteration, so seq increases every two iteration
-  // If we start from slot 0, it's the same as summing slot
+  // slot flips at every iteration, so seq increases every two iteration
+  // if we start from slot 0, it's the same as summing slot
   for (u32 frame = 0; !atomic_load(&streamer->stop_requested);
        frame = (frame + streamer->frameskip + 1) % streamer->total_frames, // choose next frame
        seq += slot,                                                        // increment every two iterations
@@ -72,7 +59,7 @@ static int worker_loop(void *const arg) {
 
 // HELPERS
 
-// allocate one pinned+mapped uint32 flag
+// allocate one pinned +mapped uint32 flag
 static void alloc_flag(_Atomic u32 volatile **const host_ptr, CUdeviceptr *const dev_ptr, u32 const initial_value) {
   // allocate memory mapped flag (the cpu must be able to read and update it)
   void *hostptr;
@@ -212,7 +199,7 @@ Streamer *streamer_create(FILE *const file, u32 const start_frame, u32 const tot
   streamer->buffers[0] = buffers;
   streamer->buffers[1] = &buffers[header.num_particles];
 
-  // allocate pinned+mapped synchronisation flags
+  // allocate pinned + mapped synchronisation flags
   for (u32 i = 0; i < 2; ++i) {
     streamer->consumer_seq[i] = 1;
     alloc_flag(&streamer->upload_done[i], &streamer->upload_done_dptr[i], 0);

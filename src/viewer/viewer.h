@@ -1,3 +1,5 @@
+#pragma once
+
 #include <raylib.h>
 #include "common.h"
 
@@ -28,8 +30,6 @@ Viewer new_viewer(float3 room,
                   u32 total_frames);
 
 void unload_viewer(Viewer *viewer);
-
-// Ownership render(Viewer *viewer, Geometry const *geometry);
 
 void present(Viewer *viewer, Geometry gpu_geometry, u32 frame_idx, cudaStream_t stream);
 

@@ -7,8 +7,7 @@
 #include "scan/scan.cuh"
 #include "sort/sort.cuh"
 
-extern "C" GPU HOST u32 point_hash(float4 point, u32 particle_count,
-                                   float particle_diameter) {
+extern "C" GPU HOST u32 point_hash(float4 point, u32 particle_count, float particle_diameter) {
   return point_hash_inline(point, particle_count, particle_diameter);
 }
 
