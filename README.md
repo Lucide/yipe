@@ -14,26 +14,26 @@
 
   Realtime GPU triangulation of point cloud animations generated with [SPlisHSPlasH](https://splishsplash.physics-simulation.org/).
 
-  https://github.com/user-attachments/assets/b364c101-bf53-4f9a-80cf-612c44d9b4a1
+  <https://github.com/user-attachments/assets/b364c101-bf53-4f9a-80cf-612c44d9b4a1>
 
-  https://github.com/user-attachments/assets/94b03aa6-b849-4609-b937-c9cba7f422da
+  <https://github.com/user-attachments/assets/94b03aa6-b849-4609-b937-c9cba7f422da>
 
 </div>
 
 ---
 
-```
-Usage: yipe.exe [OPTION...] {random_points|test|player} [options]
+```txt
+Usage: yipe.exe [OPTION...] {random|test|player} [options]
 yipe -- A onesweep/spatial-hashing/marching-cubes demo.
 
 Subcommands:
-  random_points   Render random points demo
+  random          Render random points demo
   test            Run test suite
   player          Run player mode
 
  Common Options:
   -d, --particle-diameter=NUM   Diameter of the particles
-  -i, --isolevel=NUM         Isolevel for generating isosurface
+  -l, --isolevel=NUM         Isolevel for generating isosurface
 
   -?, --help                 Give this help list
       --usage                Give a short usage message
