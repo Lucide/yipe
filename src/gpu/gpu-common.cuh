@@ -305,24 +305,19 @@ template <typename T, size_t N1, size_t N2> GPU inline constexpr auto flatten(T 
   return cuda::std::span<T, N1 * N2>(&arr[0][0], N1 * N2);
 }
 
-template <typename T> GPU inline constexpr u32 find(T const *const data, u32 const length, T const item) noexcept {
+template <typename T, size_t N> GPU inline constexpr u32 find(T (&arr)[N], u32 const length, T const item) noexcept {
   u32 i = 0;
-  for (; i < length && data[i] != item; ++i)
+  for (; i < N && i < length && arr[i] != item; ++i)
     ;
   return i;
 }
 
-GPU HOST inline u32 point_hash_inline(u323 const discrete,
-                                      u32 const particle_count) {
+GPU HOST inline u32 point_hash_inline(u323 const discrete, u32 const particle_count) {
   static u32 const primes[3] = {73856093, 19349663, 83492791};
-  return ((discrete.x * primes[0]) ^ (discrete.y * primes[1]) ^
-          (discrete.z * primes[2])) %
-         particle_count;
+  return ((discrete.x * primes[0]) ^ (discrete.y * primes[1]) ^ (discrete.z * primes[2])) % particle_count;
 }
 
-GPU HOST inline u32 point_hash_inline(float4 const point,
-                                      u32 const particle_count,
-                                      float const particle_diameter) {
+GPU HOST inline u32 point_hash_inline(float4 const point, u32 const particle_count, float const particle_diameter) {
   // int3 const discrete = point_discretize(point, particle_diameter);
   return point_hash_inline({static_cast<u32>(point.x / particle_diameter),
                             static_cast<u32>(point.y / particle_diameter),
@@ -334,12 +329,8 @@ struct PointHasher {
   u32 length;
   float particle_diameter;
 
-  GPU HOST inline u32 operator()(float4 const p) const {
-    return point_hash_inline(p, length, particle_diameter);
-  }
-  GPU HOST inline u32 operator()(u323 const cell) const {
-    return point_hash_inline(cell, length);
-  }
+  GPU HOST inline u32 operator()(float4 const p) const { return point_hash_inline(p, length, particle_diameter); }
+  GPU HOST inline u32 operator()(u323 const cell) const { return point_hash_inline(cell, length); }
 };
 
 GPU HOST inline PointHasher get_hasher(u32 const length, float const particle_diameter) noexcept {
