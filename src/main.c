@@ -36,10 +36,7 @@ int main(int const argc, char **const argv) {
       .player =
           (PlayerArguments){
                                   // .common will be initialised by the parser
-              .file = "pysrc/res/fluid/test1.bin",
-                                  .start_frame = 0,
-                                  .total_frames = 0,
-                                  .renderer = default_renderer,
+              .renderer = default_renderer,
                                   },
   };
 

@@ -14,7 +14,7 @@ static char const main_doc[] = "yipe -- A onesweep/spatial-hashing/marching-cube
 
 static struct argp_option const common_options[] = {
     {"particle-diameter", 'd', "NUM", 0,          "Diameter of the particles", 0},
-    {         "isolevel", 'i', "NUM", 0, "Isolevel for generating isosurface", 0},
+    {         "isolevel", 'l', "NUM", 0, "Isolevel for generating isosurface", 0},
     {               NULL,   0,  NULL, 0,                                 NULL, 0}
 };
 
@@ -288,6 +288,11 @@ static error_t parse_player_opt(int key, char *arg, struct argp_state *state) {
   }
   case ARGP_KEY_INIT:
     state->child_inputs[0] = &arguments->common;
+    break;
+  case ARGP_KEY_END:
+    if (arguments->file == NULL) {
+      argp_failure(state, 1, 0, "Missing required argument: --file");
+    }
     break;
   case ARGP_KEY_ARG:
     argp_error(state, "Unexpected positional argument: %s", arg);
