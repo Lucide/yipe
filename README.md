@@ -1,21 +1,26 @@
 # YIPE!
 
 <div align="center">
-<img src="assets/yipe.png" alt="yipe logo"/>
-<br>
-Yet another Interactive <del>Physics Engine</del> Cube Marcher (in CUDA!)
 
-<hr/>
+  <img src="assets/yipe.png" alt="yipe logo"/>
 
-Realtime triangulation of point cloud animations generated with [SPlisHSPlasH](https://splishsplash.physics-simulation.org/).
-  
-<video width="800" height="600" align="center" src="https://github.com/user-attachments/assets/9a720719-9ec6-4084-9820-a4954b217e89"></video>
-<video width="800" height="600" align="center" src="https://github.com/user-attachments/assets/66e548d7-098a-4aaf-a219-33f3a4f802f5"></video>
+  Yet another Interactive <del>Physics Engine</del> Cube Marcher (in CUDA!)
+
 </div>
 
 ---
 
+<div align="center">
 
+  Realtime GPU triangulation of point cloud animations generated with [SPlisHSPlasH](https://splishsplash.physics-simulation.org/).
+
+  https://github.com/user-attachments/assets/b364c101-bf53-4f9a-80cf-612c44d9b4a1
+
+  https://github.com/user-attachments/assets/94b03aa6-b849-4609-b937-c9cba7f422da
+
+</div>
+
+---
 
 ```
 Usage: yipe.exe [OPTION...] {random_points|test|player} [options]
