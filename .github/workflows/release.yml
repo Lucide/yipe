@@ -27,9 +27,7 @@ jobs:
           sub-packages: '["nvcc", "cudart", "curand", "curand_dev"]'
 
       - name: Configure and build
-        uses: lukka/run-cmake@v10
-        with:
-          workflowPreset: ci-windows
+        run: cmake --workflow --preset ci-windows --fresh
 
       - name: Package
         shell: pwsh
