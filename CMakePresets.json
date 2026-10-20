@@ -1,0 +1,41 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 30,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "ci-windows",
+      "displayName": "CI (Windows, PTX)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/ci-windows",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "YIPE_CUDA_ARCHITECTURE": "75-virtual"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "ci-windows",
+      "configurePreset": "ci-windows"
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "ci-windows",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "ci-windows"
+        },
+        {
+          "type": "build",
+          "name": "ci-windows"
+        }
+      ]
+    }
+  ]
+}

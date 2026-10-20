@@ -17,9 +17,18 @@ set(CMAKE_CUDA_EXTENSIONS OFF)
 
 find_package(CUDAToolkit REQUIRED)
 
+# single architecture: "native", "75", "75-real" or "75-virtual" (PTX only)
+set(YIPE_CUDA_ARCHITECTURE "native" CACHE STRING
+    "CUDA architecture to build for (native, NN, NN-real or NN-virtual)")
+if(NOT YIPE_CUDA_ARCHITECTURE MATCHES "^(native|[0-9]+[af]?(-real|-virtual)?)$")
+    message(FATAL_ERROR "YIPE_CUDA_ARCHITECTURE must be a single architecture, got '${YIPE_CUDA_ARCHITECTURE}'")
+endif()
+
 if(CMAKE_EXPORT_COMPILE_COMMANDS)
     # clangd hint
-    if(CUDAToolkit_VERSION_MAJOR GREATER_EQUAL 13)
+    if(YIPE_CUDA_ARCHITECTURE MATCHES "^([0-9]+[af]?)(-real|-virtual)?$")
+        set(YIPE_CUDA_ESTIMATED_ARCH "sm_${CMAKE_MATCH_1}")
+    elseif(CUDAToolkit_VERSION_MAJOR GREATER_EQUAL 13)
         set(YIPE_CUDA_ESTIMATED_ARCH "sm_70")
     else()
         set(YIPE_CUDA_ESTIMATED_ARCH "sm_61")
@@ -80,7 +89,7 @@ target_compile_definitions(yipe PRIVATE _CRT_SECURE_NO_WARNINGS)
 
 set_target_properties(yipe PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
-    CUDA_ARCHITECTURES "native")
+    CUDA_ARCHITECTURES "${YIPE_CUDA_ARCHITECTURE}")
 
 set(MSVC_OPTIONS -Wall;/Zc:preprocessor;/external:W0;/W4;/permissive-;/wd4514;/wd5045;/wd4668;/wd4626;/wd5027;/wd5031)
 list(JOIN MSVC_OPTIONS "," MSVC_OPTIONS_COMMA)
@@ -101,5 +110,5 @@ target_include_directories(yipe SYSTEM PRIVATE
     "${CUDAToolkit_INCLUDE_DIRS}"
 )
 
-target_link_libraries(yipe PRIVATE CUDA::cudart CUDA::cuda_driver CUDA::curand raylib argp-standalone
+target_link_libraries(yipe PRIVATE CUDA::cudart_static CUDA::cuda_driver CUDA::curand raylib argp-standalone
     $<$<PLATFORM_ID:Linux>:X11 Xrandr Xinerama Xi Xcursor GL m pthread dl>)

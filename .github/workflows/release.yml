@@ -1,0 +1,58 @@
+name: Release (Windows)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-latest
+  cancel-in-progress: false
+
+jobs:
+  build-windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install CUDA toolkit
+        uses: Jimver/cuda-toolkit@v0.2.36
+        with:
+          cuda: "12.9.1"
+          method: network
+          sub-packages: '["nvcc", "cudart", "curand", "curand_dev"]'
+
+      - name: Configure and build
+        uses: lukka/run-cmake@v10
+        with:
+          workflowPreset: ci-windows
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item build/ci-windows/yipe.exe dist/
+          # cudart is linked statically; curand has no static lib on Windows
+          Copy-Item "$env:CUDA_PATH/bin/curand64_*.dll" dist/
+          Compress-Archive -Path dist/* -DestinationPath yipe-windows-x64.zip -Force
+
+      - name: Move "latest" tag to this commit
+        shell: pwsh
+        run: |
+          git tag -f latest $env:GITHUB_SHA
+          git push -f origin refs/tags/latest
+
+      - name: Publish release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: latest
+          name: yipe latest
+          commit: ${{ github.sha }}
+          artifacts: yipe-windows-x64.zip
+          artifactErrorsFailBuild: true
+          allowUpdates: true
+          removeArtifacts: true
