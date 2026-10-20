@@ -99,26 +99,26 @@ static Ownership update_mesh(Mesh *const mesh, u32 *const triangle_capacity, Geo
 }
 
 static void update_parameters(Viewer *const viewer) {
-  // make particles bigger (B)
+  // make particles bigger
   if (IsKeyPressed(KEY_LEFT)) {
     *viewer->particle_diameter += 0.01f;
   } else if (IsKeyDown(KEY_LEFT)) {
     *viewer->particle_diameter += 0.001f;
   }
-  // make particles smaller (S)
+  // make particles smaller
   if (IsKeyPressed(KEY_RIGHT)) {
     *viewer->particle_diameter -= 0.01f;
   } else if (IsKeyDown(KEY_RIGHT)) {
     *viewer->particle_diameter -= 0.001f;
   }
 
-  // make isolevel higher (H)
+  // make isolevel higher
   if (IsKeyPressed(KEY_UP)) {
     *viewer->isolevel *= 1.1f;
   } else if (IsKeyDown(KEY_UP)) {
     *viewer->isolevel *= 1.01f;
   }
-  // make isolevel lower (L)
+  // make isolevel lower
   if (IsKeyPressed(KEY_DOWN)) {
     *viewer->isolevel /= 1.1f;
   } else if (IsKeyDown(KEY_DOWN)) {
