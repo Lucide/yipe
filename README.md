@@ -14,9 +14,13 @@
 
   Realtime GPU triangulation of point cloud animations generated with [SPlisHSPlasH](https://splishsplash.physics-simulation.org/).
 
-  <https://github.com/user-attachments/assets/b364c101-bf53-4f9a-80cf-612c44d9b4a1>
+  * *1568177 particles per frame, 300 frames ~60fps*
 
-  <https://github.com/user-attachments/assets/94b03aa6-b849-4609-b937-c9cba7f422da>
+    <https://github.com/user-attachments/assets/b364c101-bf53-4f9a-80cf-612c44d9b4a1>
+
+  * *2423459 particles per frame, 300 frames ~60fps*
+
+    <https://github.com/user-attachments/assets/94b03aa6-b849-4609-b937-c9cba7f422da>
 
 </div>
 
