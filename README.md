@@ -4,7 +4,7 @@
 
   <img src="assets/yipe.png" alt="yipe logo"/>
 
-  Yet another Interactive <del>Physics Engine</del> Cube Marcher (in CUDA!)
+  Yet another realtIme <del>Physics Engine</del> Cube Marcher (in CUDA!)
 
 </div>
 
