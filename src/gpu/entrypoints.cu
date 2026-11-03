@@ -7,8 +7,8 @@
 #include "scan/scan.cuh"
 #include "sort/sort.cuh"
 
-extern "C" GPU HOST u32 point_hash(float4 point, u32 particle_count, float particle_diameter) {
-  return point_hash_inline(point, particle_count, particle_diameter);
+extern "C" GPU HOST u32 point_hash(float4 point, u32 particle_count, float particle_radius) {
+  return point_hash_inline(point, particle_count, particle_radius);
 }
 
 extern "C" void handle_cuda_result(cudaError_t const err, char const *const message) {
@@ -34,10 +34,10 @@ launch_exclusive_scan(u32 const *const src, u32 *const dst, u32 const length, cu
 extern "C" void launch_sort_points(GPUInfo const *const info,
                                    float4 *const points,
                                    u32 const length,
-                                   float const particle_diameter,
+                                   float const particle_radius,
                                    cudaStream_t const stream) {
 
-  auto const hasher = get_hasher(length, particle_diameter);
+  auto const hasher = get_hasher(length, particle_radius);
 
   sort(*info, points, length, hasher, stream);
 }
@@ -46,10 +46,10 @@ extern "C" HashTable *new_hashtable(GPUInfo const *const info,
                                     float4 *const points,
                                     u32 const length,
                                     u32 const buckets,
-                                    float const particle_diameter,
+                                    float const particle_radius,
                                     cudaStream_t const stream) {
 
-  auto const hasher = get_hasher(buckets, particle_diameter);
+  auto const hasher = get_hasher(buckets, particle_radius);
 
   return build_hashtable(*info, points, length, buckets, hasher, stream);
 }
@@ -58,13 +58,13 @@ extern "C" void launch_verify_hashtable(GPUInfo const *const info,
                                         float4 const *const data,
                                         u32 const length,
                                         HashTable const *const table,
-                                        float const particle_diameter,
+                                        float const particle_radius,
                                         cudaStream_t const stream) {
 
   u32 table_length;
   TRAP_CUDAPI(cudaMemcpy(&table_length, table, sizeof(u32), cudaMemcpyDeviceToHost),
               "hashtable: download table length");
-  auto const hasher = get_hasher(table_length - 1, particle_diameter);
+  auto const hasher = get_hasher(table_length - 1, particle_radius);
 
   verify_hashtable(*info, data, length, table, hasher, stream);
 }
@@ -99,31 +99,31 @@ extern "C" float *launch_compute_scalar_fields(GPUInfo const *const info,
                                                float4 *const data,
                                                u32 const length,
                                                float3 const room_dim,
-                                               float const particle_diameter,
+                                               float const particle_radius,
                                                float const isolevel,
                                                cudaStream_t const stream) {
 
-  return compute_scalar_fields(*info, data, length, room_dim, particle_diameter, isolevel, stream);
+  return compute_scalar_fields(*info, data, length, room_dim, particle_radius, isolevel, stream);
 }
 
 extern "C" Geometry launch_marching_cubes(float const *const fields,
                                           u32 const length,
                                           float3 const room_dim,
-                                          float const particle_diameter,
+                                          float const particle_radius,
                                           float const isolevel,
                                           cudaStream_t const stream) {
 
-  return compute_marching_cubes(fields, length, room_dim, particle_diameter, isolevel, stream);
+  return compute_marching_cubes(fields, length, room_dim, particle_radius, isolevel, stream);
 }
 
 extern "C" Geometry launch_triangulate(GPUInfo const *const info,
                                        float4 *const data,
                                        u32 const length,
                                        float3 const room_dim,
-                                       float const particle_diameter,
+                                       float const particle_radius,
                                        float const isolevel,
                                        cudaStream_t const stream) {
 
-  float const *const fields = compute_scalar_fields(*info, data, length, room_dim, particle_diameter, isolevel, stream);
-  return launch_marching_cubes(fields, length, room_dim, particle_diameter, isolevel, stream);
+  float const *const fields = compute_scalar_fields(*info, data, length, room_dim, particle_radius, isolevel, stream);
+  return launch_marching_cubes(fields, length, room_dim, particle_radius, isolevel, stream);
 }

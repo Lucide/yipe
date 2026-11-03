@@ -2,7 +2,6 @@
 #include <cuda/std/limits>
 #include <cuda/std/mdspan>
 #include <cuda_runtime.h>
-#include <vector_types.h>
 #include "tables.cuh"
 
 namespace marching_cubes {
@@ -20,29 +19,29 @@ typedef struct SampleData {
 struct Params {
   u32 points;
   float3 room{};
-  float particle_diameter;
-  float particle_diameter_sq;
+  float particle_radius;
+  float particle_radius_sq;
   float isolevel;
   u323 cells{};
   u323 samples{};
 
-  Params(u32 const points, float3 const room_dim, float const particle_diameter, float const isolevel) {
+  Params(u32 const points, float3 const room_dim, float const particle_radius, float const isolevel) {
     this->points = points;
     this->room = room_dim;
-    this->particle_diameter = particle_diameter;
-    this->particle_diameter_sq = particle_diameter * particle_diameter;
+    this->particle_radius = particle_radius;
+    this->particle_radius_sq = particle_radius * particle_radius;
     this->isolevel = isolevel;
-    this->cells = {static_cast<u32>(ceil(room_dim.x / particle_diameter)),
-                   static_cast<u32>(ceil(room_dim.y / particle_diameter)),
-                   static_cast<u32>(ceil(room_dim.z / particle_diameter))};
+    this->cells = {static_cast<u32>(ceil(room_dim.x / particle_radius)),
+                   static_cast<u32>(ceil(room_dim.y / particle_radius)),
+                   static_cast<u32>(ceil(room_dim.z / particle_radius))};
     this->samples = {this->cells.x + 1, this->cells.y + 1, this->cells.z + 1};
   }
   GPU HOST constexpr u32 cell_count() const { return this->cells.x * this->cells.y * this->cells.z; }
   GPU HOST constexpr u32 samples_count() const { return this->samples.x * this->samples.y * this->samples.z; }
 };
 
-GPU float3 get_grid_point(u323 const coords, float const particle_diameter) {
-  return vec_cast<float3>(vec_cast<double3>(coords) * particle_diameter);
+GPU float3 get_grid_point(u323 const coords, float const particle_radius) {
+  return vec_cast<float3>(vec_cast<double3>(coords) * particle_radius);
 }
 
 GPU bool is_out_of_bounds(u323 const coords, u323 const bounds) {
@@ -52,6 +51,8 @@ GPU bool is_out_of_bounds(u323 const coords, u323 const bounds) {
 GPU bool is_out_of_bounds(float3 const point, float3 const room) {
   return point.x <= 0 || point.y <= 0 || point.z <= 0 || point.x >= room.x || point.y >= room.y || point.z >= room.z;
 }
+
+GPU bool is_valid_normal(float3 const v) { return v.x != 0.f || v.y != 0.f || v.z != 0.f; }
 
 GPU pair<s83, u83> get_neighbourhood_bounds(u323 const coords, u323 const samples) {
   s8 sx, sy, sz;
@@ -154,8 +155,8 @@ GPU inline SampleData get_corner_data(SampleData const (&data)[8], u8 const corn
 GPU float calculate_density(Params const params, float3 const sample_point, float3 const point) {
   float const dist_sq = sq_dist(sample_point, point);
 
-  if (dist_sq >= params.particle_diameter_sq) {
-    return 0.0f;
+  if (dist_sq >= params.particle_radius_sq) {
+    return 0.f;
   }
 
   // fast sqrt: sqrt(x) == x * rsqrt(x). +epsilon guards against
@@ -163,28 +164,28 @@ GPU float calculate_density(Params const params, float3 const sample_point, floa
   float const distance = dist_sq * rsqrtf(dist_sq + cuda::std::numeric_limits<float>::min());
 
   // Wendland C2 kernel
-  float const u = distance / params.particle_diameter;
-  float const term = 1.0f - u;
-  float const w = (term * term * term * term) * (4.0f * u + 1.0f);
+  float const u = distance / params.particle_radius;
+  float const term = 1.f - u;
+  float const w = (term * term * term * term) * (4.f * u + 1.f);
   return w;
 }
 
 GPU float3 interpolate(float3 const p1, float3 const p2, float const coefficient) {
-  return (1 - coefficient) * p1 + coefficient * p2;
+  return (1.f - coefficient) * p1 + coefficient * p2;
 }
 
 GPU pair<float3, float3>
 get_edge_vertex(Params const &params, u8 const edge, u323 const cell, SampleData const (&data)[8]) {
   auto const [i1, i2] = get_edge_indices(edge);
   float3 const corner1 =
-      clamp_point(get_grid_point(cell + get_cell_corner_offsets(i1), params.particle_diameter), params.room);
+      clamp_point(get_grid_point(cell + get_cell_corner_offsets(i1), params.particle_radius), params.room);
   float3 const corner2 =
-      clamp_point(get_grid_point(cell + get_cell_corner_offsets(i2), params.particle_diameter), params.room);
+      clamp_point(get_grid_point(cell + get_cell_corner_offsets(i2), params.particle_radius), params.room);
   SampleData data1 = get_corner_data(data, i1);
   SampleData data2 = get_corner_data(data, i2);
 
   float const scale = fmaxf(fabsf(data1.field), fmaxf(fabsf(data2.field), fabsf(params.isolevel)));
-  float const tolerance = 8.f * cuda::std::numeric_limits<float>::epsilon() * fmaxf(scale, 1.0f);
+  float const tolerance = 8.f * cuda::std::numeric_limits<float>::epsilon() * fmaxf(scale, 1.f);
   float const coefficient = fabsf(data1.field - data2.field) <= tolerance
                                 ? 0.5f
                                 : (params.isolevel - data1.field) / (data2.field - data1.field);

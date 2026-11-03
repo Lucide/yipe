@@ -23,8 +23,6 @@
 
   <https://github.com/user-attachments/assets/94b03aa6-b849-4609-b937-c9cba7f422da>
 
-
-
 ---
 
 ```txt
@@ -37,8 +35,8 @@ Subcommands:
   player          Run player mode
 
  Common Options:
-  -d, --particle-diameter=NUM   Diameter of the particles
   -l, --isolevel=NUM         Isolevel for generating isosurface
+  -r, --particle-radius=NUM  radius of the particles
 
   -?, --help                 Give this help list
       --usage                Give a short usage message

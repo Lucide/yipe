@@ -8,17 +8,17 @@ float *compute_scalar_fields(GPUInfo const &info,
                              float4 *const points,
                              u32 const length,
                              float3 const room,
-                             float const particle_diameter,
+                             float const particle_radius,
                              float const isolevel,
                              cudaStream_t const stream) {
-  auto const params = marching_cubes::Params(length, room, particle_diameter, isolevel);
+  auto const params = marching_cubes::Params(length, room, particle_radius, isolevel);
   u32 const buckets = std::min(params.cell_count(), length);
   dim3 const field_block_count = {ceil_div<uint, uint, uint>(params.samples.x, marching_cubes::threads_per_block.x),
                                   ceil_div<uint, uint, uint>(params.samples.y, marching_cubes::threads_per_block.y),
                                   ceil_div<uint, uint, uint>(params.samples.z, marching_cubes::threads_per_block.z)};
 
   // compute hashtable
-  auto const hasher = get_hasher(buckets, particle_diameter);
+  auto const hasher = get_hasher(buckets, particle_radius);
   auto const table = build_hashtable(info, points, length, buckets, hasher, stream);
 
   // compute scalar fields
@@ -36,10 +36,10 @@ float *compute_scalar_fields(GPUInfo const &info,
 Geometry compute_marching_cubes(float const *const fields,
                                 u32 const length,
                                 float3 const room,
-                                float const particle_diameter,
+                                float const particle_radius,
                                 float const isolevel,
                                 cudaStream_t const stream) {
-  auto const params = marching_cubes::Params(length, room, particle_diameter, isolevel);
+  auto const params = marching_cubes::Params(length, room, particle_radius, isolevel);
   dim3 const cell_block_count = {ceil_div<uint, uint, uint>(params.cells.x, marching_cubes::threads_per_block.x),
                                  ceil_div<uint, uint, uint>(params.cells.y, marching_cubes::threads_per_block.y),
                                  ceil_div<uint, uint, uint>(params.cells.z, marching_cubes::threads_per_block.z)};

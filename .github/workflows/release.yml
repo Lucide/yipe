@@ -33,7 +33,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          Copy-Item build/ci-windows/yipe.exe dist/
+          Copy-Item cmake-build-ci-vs/yipe.exe dist/
           # cudart is linked statically; curand has no static lib on Windows
           Copy-Item "$env:CUDA_PATH/bin/curand64_*.dll" dist/
           Compress-Archive -Path dist/* -DestinationPath yipe-windows-x64.zip -Force

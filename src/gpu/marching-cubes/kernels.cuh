@@ -1,6 +1,5 @@
 #pragma once
 
-#include <vector_types.h>
 #include "hashtable/hashtable-common.cuh"
 #include "helpers.cuh"
 
@@ -20,7 +19,7 @@ KERNEL void compute_scalar_fields(float4 const *const points,
     return;
 
   // convert index to float at maximum precision
-  auto const grid_point = get_grid_point(coords, params.particle_diameter);
+  auto const grid_point = get_grid_point(coords, params.particle_radius);
   float3 const sample_point = clamp_point(grid_point, params.room);
 
   float field = 0.0f;
@@ -136,11 +135,14 @@ KERNEL void make_triangles(Params const params,
         get_edge_vertex(params, triangle_table.triangles[case_index][i][1], coord, sample_data);
     auto const [p3, gradient3] =
         get_edge_vertex(params, triangle_table.triangles[case_index][i][2], coord, sample_data);
+    float3 const fallback_normal = cross(p2 - p1, p3 - p1);
 
     triangles[start + i] = {
         {p1, p2, p3}
     };
-    normals[start + i] = {gradient1, gradient2, gradient3};
+    normals[start + i] = {is_valid_normal(gradient1) ? gradient1 : fallback_normal,
+                          is_valid_normal(gradient2) ? gradient2 : fallback_normal,
+                          is_valid_normal(gradient3) ? gradient3 : fallback_normal};
   }
 }
 } // namespace marching_cubes

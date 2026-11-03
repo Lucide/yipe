@@ -4,7 +4,7 @@
 #include "common.h"
 
 typedef struct Viewer {
-  float *const particle_diameter;
+  float *const particle_radius;
   float *const isolevel;
   Vector3 const center;
   float3 const room;
@@ -22,7 +22,7 @@ typedef enum Ownership {
 } Ownership;
 
 Viewer new_viewer(float3 room,
-                  float *particle_diameter,
+                  float *particle_radius,
                   float *isolevel,
                   u32 framerate,
                   char const *vertex_shader_path,

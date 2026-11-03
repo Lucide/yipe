@@ -11,7 +11,7 @@ typedef enum {
 } Mode;
 
 typedef struct CommonArguments {
-  float particle_diameter;
+  float particle_radius;
   float isolevel;
 } CommonArguments;
 

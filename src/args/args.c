@@ -13,9 +13,9 @@ static char const main_doc[] = "yipe -- A onesweep/spatial-hashing/marching-cube
 /* -------------------------------------------------------------------------- */
 
 static struct argp_option const common_options[] = {
-    {"particle-diameter", 'd', "NUM", 0,          "Diameter of the particles", 0},
-    {         "isolevel", 'l', "NUM", 0, "Isolevel for generating isosurface", 0},
-    {               NULL,   0,  NULL, 0,                                 NULL, 0}
+    {"particle-radius", 'r', "NUM", 0,            "radius of the particles", 0},
+    {       "isolevel", 'l', "NUM", 0, "Isolevel for generating isosurface", 0},
+    {             NULL,   0,  NULL, 0,                                 NULL, 0}
 };
 
 static error_t parse_common_opt(int key, char *arg, struct argp_state *state) {
@@ -23,12 +23,12 @@ static error_t parse_common_opt(int key, char *arg, struct argp_state *state) {
   char *endptr;
 
   switch (key) {
-  case 'd': {
-    float const diameter = strtof(arg, &endptr);
+  case 'r': {
+    float const radius = strtof(arg, &endptr);
     if (arg == endptr || *endptr != '\0') {
-      argp_failure(state, 1, 0, "Invalid argument: \"%s\"; particle diameter must be a number", arg);
+      argp_failure(state, 1, 0, "Invalid argument: \"%s\"; particle radius must be a number", arg);
     }
-    common->particle_diameter = diameter;
+    common->particle_radius = radius;
     break;
   }
   case 'i': {
@@ -43,8 +43,8 @@ static error_t parse_common_opt(int key, char *arg, struct argp_state *state) {
     if (common->isolevel <= 0) {
       argp_failure(state, 1, 0, "Isolevel must be greater than 0");
     }
-    if (common->particle_diameter <= 0) {
-      argp_failure(state, 1, 0, "Particle diameter must be greater than 0");
+    if (common->particle_radius <= 0) {
+      argp_failure(state, 1, 0, "Particle radius must be greater than 0");
     }
     break;
   default:

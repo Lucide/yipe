@@ -209,6 +209,11 @@ GPU HOST inline constexpr s32 operator*(s323 const lhs, s323 const rhs) noexcept
   return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z;
 }
 
+// cross product
+GPU HOST inline constexpr float3 cross(float3 const a, float3 const b) {
+  return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x};
+}
+
 // norm
 GPU HOST inline float norm(float3 const v) noexcept { return sqrtf(v * v); }
 GPU HOST inline float norm(float4 const v) noexcept { return sqrtf(v * v); }
@@ -317,24 +322,23 @@ GPU HOST inline u32 point_hash_inline(u323 const discrete, u32 const particle_co
   return ((discrete.x * primes[0]) ^ (discrete.y * primes[1]) ^ (discrete.z * primes[2])) % particle_count;
 }
 
-GPU HOST inline u32 point_hash_inline(float4 const point, u32 const particle_count, float const particle_diameter) {
-  // int3 const discrete = point_discretize(point, particle_diameter);
-  return point_hash_inline({static_cast<u32>(point.x / particle_diameter),
-                            static_cast<u32>(point.y / particle_diameter),
-                            static_cast<u32>(point.z / particle_diameter)},
+GPU HOST inline u32 point_hash_inline(float4 const point, u32 const particle_count, float const particle_radius) {
+  // int3 const discrete = point_discretize(point, particle_radius);
+  return point_hash_inline({static_cast<u32>(point.x / particle_radius), static_cast<u32>(point.y / particle_radius),
+                            static_cast<u32>(point.z / particle_radius)},
                            particle_count);
 }
 
 struct PointHasher {
   u32 length;
-  float particle_diameter;
+  float particle_radius;
 
-  GPU HOST inline u32 operator()(float4 const p) const { return point_hash_inline(p, length, particle_diameter); }
+  GPU HOST inline u32 operator()(float4 const p) const { return point_hash_inline(p, length, particle_radius); }
   GPU HOST inline u32 operator()(u323 const cell) const { return point_hash_inline(cell, length); }
 };
 
-GPU HOST inline PointHasher get_hasher(u32 const length, float const particle_diameter) noexcept {
-  return PointHasher{length, particle_diameter};
+GPU HOST inline PointHasher get_hasher(u32 const length, float const particle_radius) noexcept {
+  return PointHasher{length, particle_radius};
 }
 
 // #define __CUDA_ARCH__ 700

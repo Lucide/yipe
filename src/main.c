@@ -13,7 +13,7 @@ extern char const player_controls[]; // these must be extern due to MSVC
 extern char const random_points_controls[];
 
 int main(int const argc, char **const argv) {
-  CommonArguments const default_common = (CommonArguments){.particle_diameter = 0.06f, .isolevel = 0.1f};
+  CommonArguments const default_common = (CommonArguments){.particle_radius = 0.06f, .isolevel = 0.1f};
   GeneratorArguments const default_generator = (GeneratorArguments){
       // .common will be initialised by the parser
       // .common = default_common,
@@ -85,7 +85,7 @@ static int player(PlayerArguments args, GPUInfo const info) {
   TRAP_CUDAPI(cudaMalloc((void **)&points, ARRAY_SIZE(points, streamer->num_particles)), "main: allocate points");
   u32 active_buf = 0;
 
-  Viewer viewer = new_viewer(streamer->room, &args.common.particle_diameter, &args.common.isolevel,
+  Viewer viewer = new_viewer(streamer->room, &args.common.particle_radius, &args.common.isolevel,
                              args.renderer.framerate, args.renderer.vertex_shader_file,
                              args.renderer.fragment_shader_file, streamer->total_frames + args.start_frame);
 
@@ -104,16 +104,16 @@ static int player(PlayerArguments args, GPUInfo const info) {
 
     float const *const fields =
         launch_compute_scalar_fields(&info, points, streamer->num_particles, streamer->room,
-                                     args.common.particle_diameter, args.common.isolevel, cudaStreamPerThread);
+                                     args.common.particle_radius, args.common.isolevel, cudaStreamPerThread);
 
     Geometry const geometry =
-        launch_marching_cubes(fields, streamer->num_particles, streamer->room, args.common.particle_diameter,
+        launch_marching_cubes(fields, streamer->num_particles, streamer->room, args.common.particle_radius,
                               args.common.isolevel, cudaStreamPerThread);
 
     present(&viewer, geometry, args.start_frame + frame_idx, cudaStreamPerThread);
 
-    set_window_title("CUDA Marching Cubes | Particle size %g | Isolevel %g | Room %gx%gx%g | Triangles: %u | FPS: %d",
-                     (double)args.common.particle_diameter, (double)args.common.isolevel, (double)streamer->room.x,
+    set_window_title("CUDA Marching Cubes | particle radius %g | Isolevel %g | Room %gx%gx%g | Triangles: %u | FPS: %d",
+                     (double)args.common.particle_radius, (double)args.common.isolevel, (double)streamer->room.x,
                      (double)streamer->room.y, (double)streamer->room.z, geometry.count, GetFPS());
     if (fbf) {
       playing = false;
@@ -145,7 +145,7 @@ static void random_points(RandomPointsArguments args, GPUInfo const info) {
   TRAP_CUDAPI(cudaMalloc((void **)&points, ARRAY_SIZE(points, args.generator.particle_count)), "main: allocate points");
 
   Viewer viewer =
-      new_viewer(args.generator.room, &args.generator.common.particle_diameter, &args.generator.common.isolevel,
+      new_viewer(args.generator.room, &args.generator.common.particle_radius, &args.generator.common.isolevel,
                  args.renderer.framerate, args.renderer.vertex_shader_file, args.renderer.fragment_shader_file, 1);
   bool playing = true;
   bool fbf = true; // frame by frame
@@ -157,11 +157,11 @@ static void random_points(RandomPointsArguments args, GPUInfo const info) {
       launch_generate_points(&info, args.generator.room, args.generator.seed, points, args.generator.particle_count,
                              cudaStreamPerThread);
     }
-    Geometry const gpu_geometry = launch_triangulate(&info, points, args.generator.particle_count, args.generator.room,
-                                                     args.generator.common.particle_diameter,
-                                                     args.generator.common.isolevel, cudaStreamPerThread);
+    Geometry const gpu_geometry =
+        launch_triangulate(&info, points, args.generator.particle_count, args.generator.room,
+                           args.generator.common.particle_radius, args.generator.common.isolevel, cudaStreamPerThread);
     present(&viewer, gpu_geometry, 0, cudaStreamPerThread);
-    set_window_title("CUDA Marching Cubes | Particle size %g | Isolevel %g | Room %gx%gx%g | Triangles: %u | FPS: %d",
+    set_window_title("CUDA Marching Cubes | particle radius %g | Isolevel %g | Room %gx%gx%g | Triangles: %u | FPS: %d",
                      (double)args.generator.particle_count, (double)args.generator.common.isolevel,
                      (double)args.generator.room.x, (double)args.generator.room.y, (double)args.generator.room.z,
                      gpu_geometry.count, GetFPS());
@@ -194,7 +194,7 @@ static int test(GeneratorArguments const args, GPUInfo const info) {
   if (args.particle_count <= 4096) {
     printf("\n printing unsorted points\n");
     for (u32 i = 0; i < args.particle_count; ++i) {
-      u32 const hash1 = point_hash(cpu_points[i], args.particle_count, args.common.particle_diameter);
+      u32 const hash1 = point_hash(cpu_points[i], args.particle_count, args.common.particle_radius);
       printf("%u ", hash1);
     }
   }
@@ -208,7 +208,7 @@ static int test(GeneratorArguments const args, GPUInfo const info) {
   printf("\n");
 
   printf("sort points\n");
-  launch_sort_points(&info, gpu_points, args.particle_count, args.common.particle_diameter, cudaStreamPerThread);
+  launch_sort_points(&info, gpu_points, args.particle_count, args.common.particle_radius, cudaStreamPerThread);
   printf("done\n");
 
   // Copy result back and clean up
@@ -218,7 +218,7 @@ static int test(GeneratorArguments const args, GPUInfo const info) {
   if (args.particle_count <= 4096) {
     printf("\n printing sorted points\n");
     for (u32 i = 0; i < args.particle_count; ++i) {
-      u32 const hash1 = point_hash(cpu_points[i], args.particle_count, args.common.particle_diameter);
+      u32 const hash1 = point_hash(cpu_points[i], args.particle_count, args.common.particle_radius);
       printf("%u ", hash1);
     }
   }
@@ -227,8 +227,8 @@ static int test(GeneratorArguments const args, GPUInfo const info) {
 
   u32 sorting_error_count = 0;
   for (u32 i = 0; i < args.particle_count - 1; ++i) {
-    u32 const hash1 = point_hash(cpu_points[i], args.particle_count, args.common.particle_diameter);
-    u32 const hash2 = point_hash(cpu_points[i + 1], args.particle_count, args.common.particle_diameter);
+    u32 const hash1 = point_hash(cpu_points[i], args.particle_count, args.common.particle_radius);
+    u32 const hash2 = point_hash(cpu_points[i + 1], args.particle_count, args.common.particle_radius);
     if (hash1 > hash2) {
       printf("sorting error: %u %u, index: %u %u\n", hash1, hash2, i, i + 1);
       ++sorting_error_count;
@@ -240,7 +240,7 @@ static int test(GeneratorArguments const args, GPUInfo const info) {
 
   printf("build hashtable\n");
   HashTable *const table = new_hashtable(&info, gpu_points, args.particle_count, args.particle_count,
-                                         args.common.particle_diameter, cudaStreamPerThread);
+                                         args.common.particle_radius, cudaStreamPerThread);
   u32 *const cpu_table = (u32 *)malloc(sizeof(u32) * args.particle_count + 1 + sizeof(u32));
   // we can't use ARRAY_SIZE here, because HashTable is an incomplete type
   TRAP_CUDAPI(
@@ -256,7 +256,7 @@ static int test(GeneratorArguments const args, GPUInfo const info) {
     }
   }
   printf("hashtable done\n");
-  launch_verify_hashtable(&info, gpu_points, args.particle_count, table, args.common.particle_diameter,
+  launch_verify_hashtable(&info, gpu_points, args.particle_count, table, args.common.particle_radius,
                           cudaStreamPerThread);
   printf("hashtable verified, errors have been printed\n");
 
@@ -285,9 +285,8 @@ static int test(GeneratorArguments const args, GPUInfo const info) {
 
   printf("\n");
 
-  Geometry const geometry =
-      launch_triangulate(&info, gpu_points, args.particle_count, args.room, args.common.particle_diameter,
-                         args.common.isolevel, cudaStreamPerThread);
+  Geometry const geometry = launch_triangulate(&info, gpu_points, args.particle_count, args.room,
+                                               args.common.particle_radius, args.common.isolevel, cudaStreamPerThread);
   if (geometry.count <= 1024) {
     printf("\n printint triangles\n");
     Geometry const cpu_geometry = download_geometry(geometry, cudaStreamPerThread);

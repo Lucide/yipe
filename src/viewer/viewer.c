@@ -14,7 +14,7 @@ static Matrix const identity = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
                                 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f};
 
 Viewer new_viewer(float3 const room,
-                  float *const particle_diameter,
+                  float *const particle_radius,
                   float *const isolevel,
                   u32 const framerate,
                   char const *const vertex_shader_path,
@@ -47,7 +47,7 @@ Viewer new_viewer(float3 const room,
   }
 
   Viewer viewer = (Viewer){
-      .particle_diameter = particle_diameter,
+      .particle_radius = particle_radius,
       .isolevel = isolevel,
       .center = center,
       .room = room,
@@ -101,15 +101,15 @@ static Ownership update_mesh(Mesh *const mesh, u32 *const triangle_capacity, Geo
 static void update_parameters(Viewer *const viewer) {
   // make particles bigger
   if (IsKeyPressed(KEY_LEFT)) {
-    *viewer->particle_diameter += 0.01f;
+    *viewer->particle_radius += 0.01f;
   } else if (IsKeyDown(KEY_LEFT)) {
-    *viewer->particle_diameter += 0.001f;
+    *viewer->particle_radius += 0.001f;
   }
   // make particles smaller
   if (IsKeyPressed(KEY_RIGHT)) {
-    *viewer->particle_diameter -= 0.01f;
+    *viewer->particle_radius -= 0.01f;
   } else if (IsKeyDown(KEY_RIGHT)) {
-    *viewer->particle_diameter -= 0.001f;
+    *viewer->particle_radius -= 0.001f;
   }
 
   // make isolevel higher
@@ -128,8 +128,8 @@ static void update_parameters(Viewer *const viewer) {
 
 char const viewer_controls[] = "Mouse Middle: pan\n"
                                "Mouse Left: rotate\n"
-                               "←: increase particle size\n"
-                               "→: decrease particle size\n"
+                               "←: increase particle radius\n"
+                               "→: decrease particle radius\n"
                                "↑: increase isolevel\n"
                                "↓: decrease isolevel\n"
                                "W: move camera forward"
