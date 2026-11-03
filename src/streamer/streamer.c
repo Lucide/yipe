@@ -260,7 +260,7 @@ streamer_acquire_next_frame(Streamer const *const streamer, u32 const buf_idx, c
 
   handle_cuda_driver_error(
       cuStreamWaitValue32(compute_stream, streamer->upload_done_dptr[buf_idx], wait_val, CU_STREAM_WAIT_VALUE_GEQ),
-      "streamer: wait to aquire frame");
+      "streamer: wait to acquire frame");
 
   return streamer->buffers[buf_idx];
 }
