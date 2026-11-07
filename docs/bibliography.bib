@@ -1,0 +1,157 @@
+@article{adinets2022onesweep,
+  title={Onesweep: A faster least significant digit radix sort for gpus},
+  author={Adinets, Andy and Merrill, Duane},
+  journal={arXiv preprint arXiv:2206.01784},
+  year={2022}
+}
+@misc{bourke1994polygonising,
+  title={Polygonising a scalar field},
+  author={Bourke, Paul},
+  year={1994}
+}
+@article{wendland1995piecewise,
+  title={Piecewise polynomial, positive definite and compactly supported radial functions of minimal degree},
+  author={Wendland, Holger},
+  journal={Advances in computational Mathematics},
+  volume={4},
+  number={1},
+  pages={389--396},
+  year={1995},
+  publisher={Springer}
+}
+@book{nguyen2007gpu,
+  title={Gpu gems 3},
+  author={Nguyen, Hubert},
+  year={2007},
+  publisher={Addison-Wesley Professional}
+}
+@article{harada2011introduction,
+  title={Introduction to GPU radix sort},
+  author={Harada, Takahiro and Howes, Lee},
+  journal={Heterogeneous Computing with OpenCL. Morgan Kaufman},
+  year={2011}
+}
+@inproceedings{10.1145/1854273.1854344,
+  author = {Merrill, Duane G. and Grimshaw, Andrew S.},
+  title = {Revisiting sorting for GPGPU stream architectures},
+  year = {2010},
+  isbn = {9781450301787},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  url = {https://doi.org/10.1145/1854273.1854344},
+  doi = {10.1145/1854273.1854344},
+  abstract = {This poster presents efficient strategies for sorting large sequences of fixed-length keys (and values) using GPGPU stream processors. Compared to the state-of-the-art, our radix sorting methods exhibit speedup of at least 2x for all generations of NVIDIA GPGPUs, and up to 3.7x for current GT200-based models. Our implementations demonstrate sorting rates of 482 million key-value pairs per second, and 550 million keys per second (32-bit). For this domain of sorting problems, we believe our sorting primitive to be the fastest available for any fully-programmable microarchitecture.These results motivate a different breed of parallel primitives for GPGPU stream architectures that can better exploit the memory and computational resources while maintaining the flexibility of a reusable component. Our sorting performance is derived from a parallel scan stream primitive that has been generalized in two ways: (1) with local interfaces for producer/consumer operations (visiting logic), and (2) with interfaces for performing multiple related, concurrent prefix scans (multi-scan).},
+  booktitle = {Proceedings of the 19th International Conference on Parallel Architectures and Compilation Techniques},
+  pages = {545–546},
+  numpages = {2},
+  keywords = {GPU, kernel fusion, prefix scan, radix sorting, sorting},
+  location = {Vienna, Austria},
+  series = {PACT '10}
+}
+@inproceedings{10.1145/3035918.3064043,
+  author = {Stehle, Elias and Jacobsen, Hans-Arno},
+  title = {A Memory Bandwidth-Efficient Hybrid Radix Sort on GPUs},
+  year = {2017},
+  isbn = {9781450341974},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  url = {https://doi.org/10.1145/3035918.3064043},
+  doi = {10.1145/3035918.3064043},
+  abstract = {Sorting is at the core of many database operations, such as index creation, sort-merge joins, and user-requested output sorting. As GPUs are emerging as a promising platform to accelerate various operations, sorting on GPUs becomes a viable endeavour. Over the past few years, several improvements have been proposed for sorting on GPUs, leading to the first radix sort implementations that achieve a sorting rate of over one billion 32-bit keys per second. Yet, state-of-the-art approaches are heavily memory bandwidth-bound, as they require substantially more memory transfers than their CPU-based counterparts. Our work proposes a novel approach that almost halves the amount of memory transfers and, therefore, considerably lifts the memory bandwidth limitation. Being able to sort two gigabytes of eight-byte records in as little as 50 milliseconds, our approach achieves a 2.32-fold improvement over the state-of-the-art GPU-based radix sort for uniform distributions, sustaining a minimum speed-up of no less than a factor of 1.66 for skewed distributions. To address inputs that either do not reside on the GPU or exceed the available device memory, we build on our efficient GPU sorting approach with a pipelined heterogeneous sorting algorithm that mitigates the overhead associated with PCIe data transfers. Comparing the end-to-end sorting performance to the state-of-the-art CPU-based radix sort running 16 threads, our heterogeneous approach achieves a 2.06-fold and a 1.53-fold improvement for sorting 64 GB key-value pairs with a skewed and a uniform distribution, respectively.},
+  booktitle = {Proceedings of the 2017 ACM International Conference on Management of Data},
+  pages = {417–432},
+  numpages = {16},
+  keywords = {gpu, heterogeneous computing, parallel sorting, radix sort, sorting},
+  location = {Chicago, Illinois, USA},
+  series = {SIGMOD '17}
+}
+@article{10.1145/7902.7903,
+  author = {Hillis, W. Daniel and Steele, Guy L.},
+  title = {Data parallel algorithms},
+  year = {1986},
+  issue_date = {Dec. 1986},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  volume = {29},
+  number = {12},
+  issn = {0001-0782},
+  url = {https://doi.org/10.1145/7902.7903},
+  doi = {10.1145/7902.7903},
+  abstract = {Parallel computers with tens of thousands of processors are typically programmed in a data parallel style, as opposed to the control parallel style used in multiprocessing. The success of data parallel algorithms—even on problems that at first glance seem   inherently serial—suggests that this style of programming has much wider applicability than was previously thought.},
+  journal = {Commun. ACM},
+  month = dec,
+  pages = {1170–1183},
+  numpages = {14}
+}
+@ARTICLE{42122,
+  author={Blelloch, G.E.},
+  journal={IEEE Transactions on Computers}, 
+  title={Scans as primitive parallel operations}, 
+  year={1989},
+  volume={38},
+  number={11},
+  pages={1526-1538},
+  keywords={Phase change random access memory;Algorithm design and analysis;Concurrent computing;Hardware;Artificial intelligence;Merging;Testing;Sorting;Parallel algorithms;Read-write memory},
+  doi={10.1109/12.42122}
+}
+@misc{wiki:prefix_sum,
+  author   = {{Scott Pakin}},
+  title    = "Hillis-Steele Prefix Sum.svg --- Wikimedia Commons",
+  year     = "2018",
+  howpublished = {\url{https://en.wikipedia.org/wiki/Prefix_sum}},
+  note     = "[Online; accessed 19-October-2026; licensed under CC-BY-SA-4.0]"
+}
+@misc{wiki:mc_unique_cases,
+  author   = {{Jean-Marie Favreau}},
+  title    = "MarchingCubes.svg --- Wikimedia Commons",
+  year     = "2006",
+  howpublished = {\url{https://commons.wikimedia.org/w/index.php?curid=1282165}},
+  note     = "[Online; accessed 31-October-2026; licensed under GPL-2.0-or-later]"
+}
+@article{Bui1975IlluminationFC,
+  title={Illumination for computer generated pictures},
+  author={Phong Tuong Bui},
+  journal={Seminal graphics: pioneering efforts that shaped the field},
+  year={1975},
+  url={https://api.semanticscholar.org/CorpusID:1439868}
+}
+@misc{raylib,
+  author       = {Ramon Santamaria},
+  title        = {raylib: A simple and easy-to-use library to enjoy videogames programming},
+  year         = {2026},
+  publisher    = {GitHub},
+  journal      = {GitHub repository},
+  howpublished = {\url{https://github.com/raysan5/raylib}},
+  commit       = {master}
+}
+@techreport{chernyaev1995marching,
+  author      = {Chernyaev, Evgeni V.},
+  title       = {Marching Cubes 33: Construction of Topologically Correct Isosurfaces},
+  institution = {European Organization for Nuclear Research (CERN)},
+  number      = {CERN-CN-95-17},
+  year        = {1995},
+  month       = {November},
+  address     = {Geneva, Switzerland},
+  url         = {https://cds.cern.ch/record/292771}
+}
+@misc{salvatierra2015openglshading,
+  author = {Jose Salvatierra},
+  title = {Graphics with OpenGL: Shading},
+  year = {2015},
+  howpublished = {\url{https://opengl-notes.readthedocs.io/en/latest/topics/lighting/shading.html}},
+  note = {Accessed: 2026-06-16}
+}
+@misc{SPlisHSPlasH_Library,
+  author = {Bender, Jan and others},
+  license = {MIT},
+  title = {{SPlisHSPlasH Library}},
+  howpublished = {\url{https://github.com/InteractiveComputerGraphics/SPlisHSPlasH}},
+  url = {https://github.com/InteractiveComputerGraphics/SPlisHSPlasH},
+}
+@article{schaback2007practical,
+  title={A practical guide to radial basis functions},
+  author={Schaback, Robert},
+  journal={ResearchGate},
+  howpublished = {Electronic Resource},
+  year={2007}
+}
