@@ -45,6 +45,23 @@ Mandatory or optional arguments to long options are also mandatory or optional
 for any corresponding short options.
 ```
 
+Viewer controls (printed to `stdout`):
+
+```txt
+Mouse Middle: pan
+Mouse Left: rotate
+←: increase particle radius
+→: decrease particle radius
+↑: increase isolevel
+↓: decrease isolevel
+W: move camera forward
+A: move camera to the left
+S: move camera backward
+D: move camera to the right
+Space: play/pause
+Period: frame-by-frame forward
+```
+
 * ```txt
   Usage: test [OPTION...]
   
@@ -87,7 +104,7 @@ for any corresponding short options.
   for any corresponding short options.
   ```
 
-  A small recording file can be downloaded from the [release section](https://github.com/Lucide/yipe/releases/tag/latest). Recording files are `.bin` files can be generated with the `fluid` python script located in `/pysrc`:
+  A small recording file can be downloaded from the [release section](https://github.com/Lucide/yipe/releases/tag/latest). Recording files are `.bin` files can be generated with the `fluid` python script located in `/pysrc` (uv python project):
 
   ```txt
   usage: fluid [-h] [--fps FPS] [--total-frames TOTAL_FRAMES] [--warmup WARMUP] scene_file output_bin
@@ -105,7 +122,7 @@ for any corresponding short options.
     --warmup WARMUP       simulate this many frames before recording
   ```
 
-  An example SPlisHSPlasH run printout is located in `/assets/DoubleDamBreakWithSphere2.html`
+  An example SPlisHSPlasH run printout is available in `/assets/DoubleDamBreakWithSphere2.html`
 
 * ```txt
   Usage: random [OPTION...]
@@ -130,3 +147,5 @@ for any corresponding short options.
   Mandatory or optional arguments to long options are also mandatory or optional
   for any corresponding short options.
   ```
+
+See the [docs](https://github.com/Lucide/yipe/blob/master/yipe.pdf) for more information.

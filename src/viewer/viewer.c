@@ -132,7 +132,7 @@ char const viewer_controls[] = "Mouse Middle: pan\n"
                                "→: decrease particle radius\n"
                                "↑: increase isolevel\n"
                                "↓: decrease isolevel\n"
-                               "W: move camera forward"
+                               "W: move camera forward\n"
                                "A: move camera to the left\n"
                                "S: move camera backward\n"
                                "D: move camera to the right\n";
