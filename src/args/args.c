@@ -220,7 +220,7 @@ static struct argp const random_points_argp = {
 
 static struct argp_option const player_options[] = {
     {          "input", 'i', "FILE", 0,              "Path to the recording file", 0},
-    {      "framerate", 'f',  "NUM", 0,                               "framerate", 0},
+    {      "framerate", 'f',  "NUM", 0,          "Framerate in frames per second", 0},
     {  "vertex-shader", 'V', "FILE", 0,              "Path to vertex shader file", 0},
     {"fragment-shader", 'F', "FILE", 0,            "Path to fragment shader file", 0},
     {      "frameskip", 'k',  "NUM", 0,      "Skipped frames (0 for no skipping)", 0},

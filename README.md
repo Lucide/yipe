@@ -44,3 +44,89 @@ Subcommands:
 Mandatory or optional arguments to long options are also mandatory or optional
 for any corresponding short options.
 ```
+
+* ```txt
+  Usage: test [OPTION...]
+  
+    -c, --particle-count=NUM   Number of particles
+    -s, --seed=NUM             Seed for random points
+    -x, --room-width=NUM       Room width in metres
+    -y, --room-height=NUM      Room height in metres
+    -z, --room-depth=NUM       Room depth in metres
+  
+   Shared Options:
+    -l, --isolevel=NUM         Isolevel for generating isosurface
+    -r, --particle-radius=NUM  radius of the particles
+  
+    -?, --help                 Give this help list
+        --usage                Give a short usage message
+  
+  Mandatory or optional arguments to long options are also mandatory or optional
+  for any corresponding short options.
+  ```
+
+* ```txt
+  Usage: player [OPTION...]
+  
+    -b, --start-frame=NUM      Index of starting frame
+    -f, --framerate=NUM        Framerate in frames per second
+    -F, --fragment-shader=FILE Path to fragment shader file
+    -i, --input=FILE           Path to the recording file
+    -k, --frameskip=NUM        Skipped frames (0 for no skipping)
+    -t, --total-frames=NUM     Max number of frames (0 for all frames)
+    -V, --vertex-shader=FILE   Path to vertex shader file
+  
+   Shared Options:
+    -l, --isolevel=NUM         Isolevel for generating isosurface
+    -r, --particle-radius=NUM  radius of the particles
+  
+    -?, --help                 Give this help list
+        --usage                Give a short usage message
+  
+  Mandatory or optional arguments to long options are also mandatory or optional
+  for any corresponding short options.
+  ```
+
+  Recording files are `.bin` files can be generated with the `fluid` python script located in `/pysrc`:
+
+  ```txt
+  usage: fluid [-h] [--fps FPS] [--total-frames TOTAL_FRAMES] [--warmup WARMUP] scene_file output_bin
+  
+  export simulated fluid and obstacle particles
+  
+  positional arguments:
+    scene_file            SPlisHSPlasH scene file
+    output_bin            output binary file
+  
+  options:
+    -h, --help            show this help message and exit
+    --fps FPS
+    --total-frames TOTAL_FRAMES
+    --warmup WARMUP       simulate this many frames before recording
+  ```
+
+  An example SPlisHSPlasH run printout is located in `/assets/DoubleDamBreakWithSphere2.html`
+
+* ```txt
+  Usage: random [OPTION...]
+  
+    -c, --particle-count=NUM   Number of particles
+    -f, --framerate=NUM        Framerate in frames per second
+    -F, --fragment-shader=FILE Path to fragment shader file
+    -k, --frameskip=NUM        Skipped frames (0 for no skipping)
+    -s, --seed=NUM             Seed for random points
+    -V, --vertex-shader=FILE   Path to vertex shader file
+    -x, --room-width=NUM       Room width in metres
+    -y, --room-height=NUM      Room height in metres
+    -z, --room-depth=NUM       Room depth in metres
+  
+   Shared Options:
+    -l, --isolevel=NUM         Isolevel for generating isosurface
+    -r, --particle-radius=NUM  radius of the particles
+  
+    -?, --help                 Give this help list
+        --usage                Give a short usage message
+  
+  Mandatory or optional arguments to long options are also mandatory or optional
+  for any corresponding short options.
+  ```

@@ -53,4 +53,4 @@ jobs:
           artifacts: yipe-windows-x64.zip
           artifactErrorsFailBuild: true
           allowUpdates: true
-          removeArtifacts: true
+          # removeArtifacts: true
