@@ -87,7 +87,7 @@ for any corresponding short options.
   for any corresponding short options.
   ```
 
-  Recording files are `.bin` files can be generated with the `fluid` python script located in `/pysrc`:
+  A small recording file can be downloaded from the [release section](https://github.com/Lucide/yipe/releases/tag/latest). Recording files are `.bin` files can be generated with the `fluid` python script located in `/pysrc`:
 
   ```txt
   usage: fluid [-h] [--fps FPS] [--total-frames TOTAL_FRAMES] [--warmup WARMUP] scene_file output_bin
