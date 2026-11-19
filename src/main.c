@@ -8,7 +8,7 @@
 
 static int player(PlayerArguments args, GPUInfo info);
 static void random_points(RandomPointsArguments args, GPUInfo info);
-static int test(GeneratorArguments args, GPUInfo info);
+static void test(GeneratorArguments args, GPUInfo info);
 extern char const player_controls[]; // these must be extern due to MSVC
 extern char const random_points_controls[];
 
@@ -40,27 +40,29 @@ int main(int const argc, char **const argv) {
                                   },
   };
 
-  /* Parse all command line arguments into the `args` struct */
   argp_parse(&main_argp, argc, argv, ARGP_IN_ORDER, NULL, &args);
 
-  /* Execution strictly occurs after parsing is complete */
   GPUInfo const info = fetch_gpu_info();
   printf("info:\n\tmultiprocessors: %u\n\tcores per multiprocessor: %u\n", info.multiprocessors,
          info.cores_per_multiprocessor);
 
+  int retval = 0;
   switch (args.mode) {
   case MODE_RANDOM_POINTS:
     printf("%s%s", viewer_controls, random_points_controls);
     random_points(args.random_points, info);
-    return 0;
+    break;
   case MODE_TEST:
-    return test(args.test, info);
+    test(args.test, info);
+    break;
   case MODE_PLAYER:
     printf("%s%s", viewer_controls, player_controls);
-    return player(args.player, info);
+    retval = player(args.player, info);
+    break;
   case MODE_NONE:
-    return 1;
+    retval = 1;
   }
+  return retval;
 }
 
 char const player_controls[] = "Space: play/pause\n"
@@ -110,7 +112,7 @@ static int player(PlayerArguments args, GPUInfo const info) {
         launch_marching_cubes(fields, streamer->num_particles, streamer->room, args.common.particle_radius,
                               args.common.isolevel, cudaStreamPerThread);
 
-    present(&viewer, geometry, args.start_frame + frame_idx, cudaStreamPerThread);
+    present(&viewer, geometry, args.start_frame + frame_idx, cudaStreamPerThread); // stream sync point
 
     set_window_title("CUDA Marching Cubes | particle radius %g | Isolevel %g | Room %gx%gx%g | Triangles: %u | FPS: %d",
                      (double)args.common.particle_radius, (double)args.common.isolevel, (double)streamer->room.x,
@@ -129,9 +131,9 @@ static int player(PlayerArguments args, GPUInfo const info) {
   }
 
   CloseWindow();
+  TRAP_CUDAPI(cudaFree(points), "main: free points");
   unload_viewer(&viewer);
   streamer_destroy(streamer);
-  TRAP_CUDAPI(cudaFree(points), "main: free points");
   return 0;
 }
 
@@ -160,7 +162,7 @@ static void random_points(RandomPointsArguments args, GPUInfo const info) {
     Geometry const gpu_geometry =
         launch_triangulate(&info, points, args.generator.particle_count, args.generator.room,
                            args.generator.common.particle_radius, args.generator.common.isolevel, cudaStreamPerThread);
-    present(&viewer, gpu_geometry, 0, cudaStreamPerThread);
+    present(&viewer, gpu_geometry, 0, cudaStreamPerThread); // stream sync point
     set_window_title("CUDA Marching Cubes | particle radius %g | Isolevel %g | Room %gx%gx%g | Triangles: %u | FPS: %d",
                      (double)args.generator.particle_count, (double)args.generator.common.isolevel,
                      (double)args.generator.room.x, (double)args.generator.room.y, (double)args.generator.room.z,
@@ -181,11 +183,11 @@ static void random_points(RandomPointsArguments args, GPUInfo const info) {
   }
 
   CloseWindow();
-  unload_viewer(&viewer);
   TRAP_CUDAPI(cudaFree(points), "main: free points");
+  unload_viewer(&viewer);
 }
 
-static int test(GeneratorArguments const args, GPUInfo const info) {
+static void test(GeneratorArguments const args, GPUInfo const info) {
   printf("seed %u\n", args.seed);
 
   float4 *const cpu_points = malloc(ARRAY_SIZE(cpu_points, args.particle_count));
@@ -201,7 +203,8 @@ static int test(GeneratorArguments const args, GPUInfo const info) {
 
   float4 *gpu_points;
   TRAP_CUDAPI(cudaMalloc((void **)&gpu_points, ARRAY_SIZE(cpu_points, args.particle_count)), "main: allocate points");
-  TRAP_CUDAPI(cudaMemcpy(gpu_points, cpu_points, ARRAY_SIZE(cpu_points, args.particle_count), cudaMemcpyHostToDevice),
+  TRAP_CUDAPI(cudaMemcpySynchronize(gpu_points, cpu_points, ARRAY_SIZE(cpu_points, args.particle_count),
+                                    cudaMemcpyHostToDevice, cudaStreamPerThread),
               "main: load points");
   printf("points loaded\n");
 
@@ -211,8 +214,9 @@ static int test(GeneratorArguments const args, GPUInfo const info) {
   launch_sort_points(&info, gpu_points, args.particle_count, args.common.particle_radius, cudaStreamPerThread);
   printf("done\n");
 
-  // Copy result back and clean up
-  TRAP_CUDAPI(cudaMemcpy(cpu_points, gpu_points, ARRAY_SIZE(gpu_points, args.particle_count), cudaMemcpyDeviceToHost),
+  // copy result back and clean up
+  TRAP_CUDAPI(cudaMemcpySynchronize(cpu_points, gpu_points, ARRAY_SIZE(gpu_points, args.particle_count),
+                                    cudaMemcpyDeviceToHost, cudaStreamPerThread),
               "main: unload points");
 
   if (args.particle_count <= 4096) {
@@ -243,9 +247,9 @@ static int test(GeneratorArguments const args, GPUInfo const info) {
                                          args.common.particle_radius, cudaStreamPerThread);
   u32 *const cpu_table = (u32 *)malloc(sizeof(u32) * args.particle_count + 1 + sizeof(u32));
   // we can't use ARRAY_SIZE here, because HashTable is an incomplete type
-  TRAP_CUDAPI(
-      cudaMemcpy(cpu_table, table, sizeof(float) * args.particle_count + 1 + sizeof(u32), cudaMemcpyDeviceToHost),
-      "main: download table");
+  TRAP_CUDAPI(cudaMemcpySynchronize(cpu_table, table, sizeof(float) * args.particle_count + 1 + sizeof(u32),
+                                    cudaMemcpyDeviceToHost, cudaStreamPerThread),
+              "main: download table");
   if (args.particle_count <= 4096) {
     for (u32 i = 0; i < args.particle_count - 1; ++i) {
       u32 const b = cpu_table[1 + i];
@@ -257,7 +261,7 @@ static int test(GeneratorArguments const args, GPUInfo const info) {
   }
   printf("hashtable done\n");
   launch_verify_hashtable(&info, gpu_points, args.particle_count, table, args.common.particle_radius,
-                          cudaStreamPerThread);
+                          cudaStreamPerThread); // stream sync point
   printf("hashtable verified, errors have been printed\n");
 
   printf("\n");
@@ -271,8 +275,10 @@ static int test(GeneratorArguments const args, GPUInfo const info) {
   launch_exclusive_scan(gpu_array, gpu_array, arr_len, cudaStreamPerThread);
   printf("prefix sum done\n");
   u32 *const cpu_scanned = malloc(ARRAY_SIZE(gpu_array, arr_len));
-  TRAP_CUDAPI(cudaMemcpy(cpu_scanned, gpu_array, ARRAY_SIZE(gpu_array, arr_len), cudaMemcpyDeviceToHost),
+  TRAP_CUDAPI(cudaMemcpySynchronize(cpu_scanned, gpu_array, ARRAY_SIZE(gpu_array, arr_len), cudaMemcpyDeviceToHost,
+                                    cudaStreamPerThread),
               "main: download prefix scanned array");
+  TRAP_CUDAPI(cudaFree(table), "main: free table"); // sanitizer --track-stream-ordered-races false positive ?
   u32 scan_error_count = cpu_scanned[0] != 0 ? 1 : 0;
   for (u32 i = 1; i < arr_len; ++i) {
     if (cpu_scanned[i] != cpu_scanned[i - 1] + cpu_array[i - 1]) {
@@ -289,16 +295,14 @@ static int test(GeneratorArguments const args, GPUInfo const info) {
                                                args.common.particle_radius, args.common.isolevel, cudaStreamPerThread);
   if (geometry.count <= 1024) {
     printf("\n printint triangles\n");
-    Geometry const cpu_geometry = download_geometry(geometry, cudaStreamPerThread);
+    Geometry const cpu_geometry = download_geometry(geometry, cudaStreamPerThread); // stream sync point
     print_triangles(cpu_geometry);
     free_geometry(cpu_geometry);
   } else {
-    TRAP_CUDAPI(cudaFree(geometry.triangles), "main: free triangles");
+    TRAP_CUDAPI(cudaFreeSynchronize(geometry.triangles, cudaStreamPerThread), "main: free triangles");
   }
 
   TRAP_CUDAPI(cudaFree(gpu_points), "main: free points");
-  printf("triangulation done\n");
-
   free(cpu_points);
-  return 0;
+  printf("triangulation done\n");
 }

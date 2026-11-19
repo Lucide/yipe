@@ -235,9 +235,6 @@ void streamer_destroy(Streamer *const streamer) {
     thrd_join(streamer->worker_thread, &res);
   }
 
-  // make sure the GPU is idle before freeing resources
-  TRAP_CUDAPI(cudaDeviceSynchronize(), "streamer: synchronize while destroying streamer");
-
   if (streamer->buffers[0])
     TRAP_CUDAPI(cudaFree(streamer->buffers[0]), "streamer: free device buffers");
 

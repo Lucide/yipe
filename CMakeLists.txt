@@ -104,7 +104,8 @@ target_compile_options(yipe PRIVATE
     $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CXX_COMPILER_ID:MSVC>>:-Xcompiler=${MSVC_OPTIONS_COMMA}>
     $<$<AND:$<COMPILE_LANGUAGE:C>,$<C_COMPILER_ID:MSVC>>:/experimental:c11atomics>
     # $<$<COMPILE_LANGUAGE:CUDA>:-Wall;-Wextra;-Wpedantic;-Wconversion;-Wsign-conversion;--default-stream per-thread>
-    $<$<COMPILE_LANG_AND_ID:CUDA,NVIDIA>:--default-stream=per-thread;--extended-lambda;-Xptxas=-v,--warn-on-spills,--warn-on-local-memory-usage;-Xcudafe=--display_error_number,--diag_suppress=780>)
+    $<$<COMPILE_LANG_AND_ID:CUDA,NVIDIA>:--extended-lambda;-Xptxas=-v,--warn-on-spills,--warn-on-local-memory-usage;-Xcudafe=--display_error_number,--diag_suppress=780>
+    $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANG_AND_ID:CUDA,NVIDIA>>:--generate-line-info>)
 
 target_include_directories(yipe SYSTEM PRIVATE
     "${CUDAToolkit_INCLUDE_DIRS}"

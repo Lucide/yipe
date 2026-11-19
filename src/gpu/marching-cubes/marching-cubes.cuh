@@ -61,7 +61,8 @@ Geometry compute_marching_cubes(float const *const fields,
 
   // get total triangles
   u32 total_triangles;
-  TRAP_CUDAPI(cudaMemcpy(&total_triangles, &triangle_counts[params.cell_count()], sizeof(u32), cudaMemcpyDeviceToHost),
+  TRAP_CUDAPI(cudaMemcpySynchronize(&total_triangles, &triangle_counts[params.cell_count()], sizeof(u32),
+                                    cudaMemcpyDeviceToHost, stream),
               "marching_cubes: fetch triangle total count");
 
   // make triangles

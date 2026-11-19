@@ -139,8 +139,9 @@ void free_gpu_geometry(Geometry const geometry, cudaStream_t const stream) {
 Geometry download_geometry(Geometry const gpu_geometry, cudaStream_t const stream) {
   Geometry cpu_geometry = (Geometry){.count = gpu_geometry.count,
                                      .triangles = malloc(ARRAY_SIZE(gpu_geometry.triangles, 2 * gpu_geometry.count))};
-  TRAP_CUDAPI(cudaMemcpy(cpu_geometry.triangles, gpu_geometry.triangles,
-                         ARRAY_SIZE(gpu_geometry.triangles, 2 * gpu_geometry.count), cudaMemcpyDeviceToHost),
+  TRAP_CUDAPI(cudaMemcpySynchronize(cpu_geometry.triangles, gpu_geometry.triangles,
+                                    ARRAY_SIZE(gpu_geometry.triangles, 2 * gpu_geometry.count), cudaMemcpyDeviceToHost,
+                                    stream),
               "main: download triangles");
   free_gpu_geometry(gpu_geometry, stream);
   cpu_geometry.normals = cpu_geometry.triangles + cpu_geometry.count;

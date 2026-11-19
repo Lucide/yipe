@@ -24,7 +24,7 @@ inline constexpr u16 warp_slice_max_length = 32 * items_per_thread;
 
 template <std::integral Data>
 KERNEL void chained_scan(u32 *const atomic_id,
-                         const Data *const src,
+                         Data const *const src,
                          Data *const dst,
                          u32 const length,
                          chained_scan::State *global_states,
@@ -43,9 +43,9 @@ KERNEL void chained_scan(u32 *const atomic_id,
 
   __syncthreads();
 
-  const cuda::std::span<Data, cuda::std::dynamic_extent> global_counters(linearized_global_counters_prefixes,
+  cuda::std::span<Data, cuda::std::dynamic_extent> const global_counters(linearized_global_counters_prefixes,
                                                                          gridDim.x);
-  const cuda::std::span<Data, cuda::std::dynamic_extent> global_prefixes(
+  cuda::std::span<Data, cuda::std::dynamic_extent> const global_prefixes(
       &linearized_global_counters_prefixes[gridDim.x], gridDim.x);
   u8 const lane = threadIdx.x % 32;
   u16 const warp_id = static_cast<u16>(threadIdx.x) / 32;

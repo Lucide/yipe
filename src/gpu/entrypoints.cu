@@ -26,6 +26,17 @@ extern "C" void handle_cuda_error_debug([[maybe_unused]] char const *const messa
 #endif
 }
 
+extern "C" cudaError_t cudaMemcpySynchronize(
+    void *const dst, void const *const src, size_t const count, cudaMemcpyKind const kind, cudaStream_t const stream) {
+  TRAP_CUDAPI(cudaStreamSynchronize(stream), "cudaMemcpySynchronize: synchronize stream");
+  return cudaMemcpy(dst, src, count, kind);
+}
+
+extern "C" cudaError_t cudaFreeSynchronize(void *const devPtr, cudaStream_t const hStream) {
+  TRAP_CUDAPI(cudaStreamSynchronize(hStream), "cudaFreeSynchronize: sync stream");
+  return cudaFree(devPtr);
+}
+
 extern "C" void
 launch_exclusive_scan(u32 const *const src, u32 *const dst, u32 const length, cudaStream_t const stream) {
   scan(src, dst, length, stream);
@@ -62,7 +73,7 @@ extern "C" void launch_verify_hashtable(GPUInfo const *const info,
                                         cudaStream_t const stream) {
 
   u32 table_length;
-  TRAP_CUDAPI(cudaMemcpy(&table_length, table, sizeof(u32), cudaMemcpyDeviceToHost),
+  TRAP_CUDAPI(cudaMemcpySynchronize(&table_length, table, sizeof(u32), cudaMemcpyDeviceToHost, stream),
               "hashtable: download table length");
   auto const hasher = get_hasher(table_length - 1, particle_radius);
 

@@ -114,6 +114,10 @@ void handle_cuda_error(char const *message);
 void handle_cuda_result(cudaError_t err, char const *message);
 void handle_cuda_error_debug(char const *message);
 
+cudaError_t
+cudaMemcpySynchronize(void *dst, void const *src, size_t count, enum cudaMemcpyKind kind, cudaStream_t stream);
+cudaError_t cudaFreeSynchronize(void *devPtr, cudaStream_t hStream);
+
 void launch_exclusive_scan(u32 const *src, u32 *dst, u32 length, cudaStream_t stream);
 void launch_sort_points(GPUInfo const *info, float4 *points, u32 length, float particle_radius, cudaStream_t stream);
 struct HashTable *
