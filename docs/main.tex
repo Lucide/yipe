@@ -171,7 +171,7 @@ The technique works by having each block atomically update a global array of cou
 
 \begin{itemize}
   \item If it's \lstinline{INVALID}, the block spin-waits for the value to change
-  \item If it's \lstinline{PREFIX}, the block sums the value to its local count to obtain the prefix. It publishes it with the flag \lstinline{PREFIX} and moves on to the rest of the kernel
+  \item If it's \lstinline{PREFIX}, the block sums the value to its local count to obtain the prefix. It publishes it with the flag \lstinline{PREFIX} and moves on with the rest of the kernel
   \item If it's \lstinline{COUNT}, the block sums the value to its local count and looks at \lstinline{i-2}. The cycle repeats until it finds a \lstinline{PREFIX}
 \end{itemize}
 
@@ -198,7 +198,7 @@ store(local_count, local_status);
 
 Each thread block needs to wait only for the blocks before it, and the furthest each block needs to look back is bound by (a small multiple of) the number of SMs. This makes full use of the parallel hardware and minimizes latency. Another intuition for this technique is running batches of $n$ blocks (where $n$ is the number of SMs) of a serial scan over $n$-wide slices, combining its lightness with efficient use of parallelization.
 
-For the scheduling reasons mentioned before, having a block wait for the scan to complete (e.g. to access the total count) is not possible within the same kernel launch. Note that it would defeat the objective of this technique anyway (For completeness, it is technically possible to wait for the entire grid using cooperative groups; but in order to do that, the GPU needs enough shared memory and registers to accommodate the entire grid at once, which is unreasonable for our task).
+For the scheduling reasons mentioned before, having a block wait for the scan to complete (e.g. to access the total count) is not possible within the same kernel launch. Note that it would defeat the objective of this technique anyway (for completeness, it is technically possible to wait for the entire grid using cooperative groups; but in order to do that, the GPU needs enough shared memory and registers to accommodate the entire grid at once, which is unreasonable for our task).
 
 \subsection{Upfront count}
 
@@ -253,7 +253,7 @@ At this point one might wonder why not go beyond an 8bit radix. With 64bit keys,
 
 The next step is to compute the prefix sum of the just-computed upfront count. The same block-local and warp-local prefix sum routines described here will also be used by the sweep kernel. The code reflects both use cases.
 
-As an optimisation, this kernel detects if a digit place is ``degenerate'', meaning that all input elements share the same digit. If that is the case, we can skip launching the sweep kernel for that place. It is quite cheap to detect and especially effective in the case of hashes that are bound in some way by the length of the data (modulo in our use case).
+As an optimisation, this kernel detects if a digit place is ``degenerate'', meaning that all input elements share the same digit. If that is the case, we can skip launching the sweep kernel for that place. It is quite cheap to detect and especially effective when hashes are bound in some way by the length of the data (modulo in our case).
 
 We perform the prefix sum by launching \lstinline{digit_places} blocks of \lstinline{RADIX} threads. Each block is assigned to one of the digit places, and performs the prefix sum of the counters of each digit. The high level code of the kernel is fairly simple, it leans entirely on the \lstinline{radix_scan} function we will discuss later, and only handles reading and writing from global memory.
 
@@ -292,7 +292,7 @@ The Hillis-Steele parallel prefix sum starts by assigning an element to each thr
 
 We implement a warp-level Hillis-Steele prefix sum using the \lstinline{__shfl*_sync} family warp intrinsic, which allows threads to ``send'' a value to other threads in the warp, whilst receiving themselves a value that was sent to them. This is conceptually similar to storing a value in a warp-privatized shared memory array then synchronizing the warp, but it's implemented in hardware and much more efficient; the shared memory load/store is skipped entirely and without needing a true thread fence.
 
-In particular we use \lstinline{__shfl_up_sync(mask, value, offset, width)}, that receives \lstinline{value} from the thread \lstinline{lane}-\lstinline{offset}, partitioning the operation in ``chunks'' of \lstinline{width} lanes. The mask indicates which lanes participate in this shuffle operation, and requires caution to avoid deadlocks and undefined behaviours. There are also some discrepancies between what works on pre and post Volta architectures, with post-Volta being more flexible but more prone to deadlocks. With our main targets being Turing and Pascal, we took care to write correct code for both architectures.
+In particular we use \lstinline{__shfl_up_sync(mask, value, offset, width)}, that receives \lstinline{value} from the thread \lstinline{lane} - \lstinline{offset}, partitioning the operation in ``chunks'' of \lstinline{width} lanes. The mask indicates which lanes participate in this shuffle operation, and requires caution to avoid deadlocks and undefined behaviours. There are also some discrepancies between what works on pre and post Volta architectures, with post-Volta being more flexible but more prone to deadlocks. With our main targets being Turing and Pascal, we took care to write correct code for both architectures.
 
 \begin{lstlisting}[caption={Warp-level inclusive prefix sum}, language=c++]
 // intra-warp inclusive prefix sum using register shuffles
@@ -429,7 +429,7 @@ With the global prefix scan computed and the degenerate places detected, the upf
 
 \subsection{Sweep kernel}
 
-This is the core part of the sorting algorithm. The sweep kernel is iterated for all non-degenerate digit places, each times it reads an array, and copies it partially sorted on a second array. After at most \lstinline{RADIX} iterations, the array is sorted. The kernel is launched with a static number of threads per block (\lstinline{threads_per_block=}256), and as many blocks as there are slices. Each thread processes a static amount of items (\lstinline{items_per_thread=}8), resulting in a slice length of (the last slice might be shorter). These parameters could be fine-tuned, like the parameters of the upfront count phase. The parameters for the two phases don't need to match.
+This is the core part of the sorting algorithm. The sweep kernel is iterated for all non-degenerate digit places, each times it reads an array, and copies it partially sorted on a second array. After at most \lstinline{RADIX} iterations, the array is sorted. The kernel is launched with a static number of threads per block (\lstinline{threads_per_block=}256), and as many blocks as there are slices. Each thread processes a static amount of items (\lstinline{items_per_thread=}8), resulting in a slice length of 2048 (the last slice might be shorter). These parameters could be fine-tuned, like the parameters of the upfront count phase. The parameters for the two phases don't need to match.
 The paper was able to process between 21 and 46 items per thread due to a much larger shared memory than our test hardware.
 
 We can split this kernel into three phases plus an initialisation one. The initialisation phase only needs to obtain the ``actual'' block id, initialise a shared memory array, and calculate some constants that will be used by the algorithm. The other three phases are:
@@ -440,7 +440,7 @@ We can split this kernel into three phases plus an initialisation one. The initi
   \item Scattering, first in shared memory, then global
 \end{enumerate}
 
-As explained before, the chained scan relies on the fact that each block can assume all blocks that started running before it are either still running or complete. But the GPU makes no guarantees on the order in which blocks are scheduled, so we need to obtain an id that actually reflects the order in which blocks are being executed. This is done using an atomic counter.
+As explained before, the chained scan relies on the fact that all blocks that started running before a given block are either still running or complete. But the GPU makes no guarantees on the order in which blocks are scheduled, so we need to obtain an id that actually reflects the order in which blocks are being executed. This is done using an atomic counter.
 
 \begin{lstlisting}[caption={Initialisation phase of the sweep kernel}, language=c++]
 inline constexpr u16 slice_max_length = threads_per_block * items_per_thread;
@@ -590,7 +590,7 @@ template <u8 size> GPU u32 match_any_polyfill(u16 const key, u32 const thread_ma
 
 \subsubsection{Chained scan}
 
-After the block-relative \emph{inclusive} prefix sums have been computed, the last row of \lstinline{slice_prefixes} contains the block-privatized count of each digit, necessary for the block to participate in \lstinline{RADIX} chained scans. The result will be the digit-relative offset of the block. We already went over the ideas behind it, so now we'll focus on the code.
+After the block-relative \emph{inclusive} prefix sums have been computed, the last row of \lstinline{slice_prefixes} contains the block-privatized count of each digit, necessary for the block to participate in \lstinline{RADIX} chained scans. The result will be the digit-relative offset of the block. We already went over the idea behind it, so now we'll focus on the code.
 
 The first challenge is to keep the status flags and the published values consistent. Following the paper, we store both in the same 32bit word; 2 bits for the flag and 30 bits for the value. Since these are digit counts, the algorithm won't work if there are $\geq2^{30}$ occurrences of the same digit (in a non-degenerate digit place). If the architecture supports larger atomic operations, this limit can be raised to $2^{62}$, or even $2^{126}$, although this is taxing on performance. We are targeting architectures as low as Pascal, which supports up to 64bit atomics, however, in our case we don't need more than 32 bits. We implement this with bitfields.
 
